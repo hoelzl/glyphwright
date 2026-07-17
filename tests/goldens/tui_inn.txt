@@ -1,0 +1,22 @@
+[2J[HGlyphWright · turn 7 · exploration · inn
+------------------------------------------------------------------------------
+The Gilded Tankard
+Lamplight pools on scarred oak tables, and the air is thick with woodsmoke and
+spilled ale.
+
+
+
+
+
+exits: 1) down  2) out
+hp 17/20
+------------------------------------------------------------------------------
+You go enter.
+
+
+
+
+
+------------------------------------------------------------------------------
+[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee
+[.]wait  [x]look  [;]command  [:]meta  [q]uit

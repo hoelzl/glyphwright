@@ -1,0 +1,8 @@
+== turn 1 · exploration · village ==
+#########
+#.@!...+#
+#..##...#
+#bg.../.#
+#########
+You go east.
+[hp 17/20]

@@ -1,0 +1,6 @@
+== turn 7 · exploration · inn ==
+The Gilded Tankard
+Lamplight pools on scarred oak tables, and the air is thick with woodsmoke and spilled ale.
+Exits: down, out.
+You go enter.
+[hp 17/20]

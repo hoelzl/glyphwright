@@ -13,7 +13,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
 | 3 — Battle | **Done** (3A exploration combat + 3B menu battle: mode stack, rolled initiative, MenuView, flee, victory/defeat outcomes; tactics arena deferred to a later slice with FOV) |
 | 4 — Rooms and portals | **Done** (RoomGraphSpace, Portal component as extra exit tokens, RoomView + plain prose round-trip, inn interior in the reference pack; frame schema v3; PR pending review) |
-| 5 — TUI | Not started |
+| 5 — TUI | **Done** (hand-rolled ANSI, §20.1 resolved in 0003; pure `paint`, grammar-gated hotkeys, `;`/`:` bars, alt-screen loop, reviewed goldens; PR pending review) |
 | 6 — Dialogue and one minigame | Not started |
 
 TermVerify-side work (direct adapter, PTY golden) is deliberately not in this repository
@@ -176,6 +176,26 @@ Decisions taken by the implementing agent (owner delegated open choices):
    `_move` still guards unknown areas defensively with a `MoveBlocked("edge")`.
 8. **Every room block closes with an `Exits:` anchor**, `Exits: none.` for dead
    ends, so the plain parse round-trip holds for any authored room.
+
+## Slice 5 decisions (TUI)
+
+1. **Hand-rolled ANSI over Textual** — resolution recorded in 0003 §20.1 itself,
+   following the §20.4 precedent. Turn-based → blocking key/step/repaint loop, no
+   async runtime, zero dependencies, byte-deterministic screens.
+2. **`paint(frame, log)` is pure**: fixed line budgets per region (header, viewport,
+   status, log, hint bar), full repaint per turn, clear-and-home as the only cursor
+   ANSI. `\r\n` line endings for raw-terminal correctness.
+3. **Hotkeys are grammar-gated**: a key whose verb is not advertised does nothing;
+   `t/u/e/a` take the first advertised referent; digits pick move-domain entries in
+   listed order; `;` opens a typed command bar (full language), `:` the meta bar
+   (harness-gated). The keyboard can never say what the grammar cannot.
+4. **Reviewed goldens** live in `tests/goldens/` (TUI screens + plain blocks) with
+   `tests/regenerate_goldens.py`; regeneration is deliberate and the PR diff is the
+   human review.
+5. **Real-keyboard input** (`keys.read_keys`) is the only untested code path
+   (platform raw-console reads, `pragma: no cover`); scripted iterators drive the
+   loop everywhere else. TermVerify-side PTY differential tests remain external
+   (§20.5).
 
 ## Next steps
 
