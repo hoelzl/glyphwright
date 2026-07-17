@@ -186,6 +186,9 @@ def event_schema() -> dict[str, Any]:
                     "PinSet",
                     "PinSlipped",
                     "MinigameResolved",
+                    "StatusApplied",
+                    "StatusExpired",
+                    "CastFizzled",
                 ]
             },
             "actor": _STRING,
@@ -216,6 +219,9 @@ def event_schema() -> dict[str, Any]:
             "choices": _array(_STRING),
             "pins": _INTEGER,
             "minigame": _STRING,
+            "status": _STRING,
+            "expires": _INTEGER,
+            "caster": _STRING,
         },
         "additionalProperties": False,
     }
@@ -261,7 +267,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     return {
         "glyphwright.session.v1.json": session_schema(),
         "glyphwright.frame.v4.json": frame_schema(),
-        "glyphwright.event.v5.json": event_schema(),
+        "glyphwright.event.v6.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

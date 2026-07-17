@@ -46,6 +46,14 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
   needs them.
 - `glyphwright.query/1` wire schema; event vocabulary changes bumped the tag to `glyphwright.event/2` (v1 retired before any consumer existed).
 
+## Post-plan slices
+
+| # | Slice | State |
+|---|---|---|
+| 7 | **Abilities, statuses, effect primitives** (`0004`, scoping `0003` §9.2–§9.3): primitive registry, `cast <ability> at <target>` at arity two, timed statuses in the stat pipeline with provenance. Hooks and perks deferred. | Done |
+| 8 | **TOML content packs** (`0003` §8.2): pack loading, schema validation, file/line diagnostics. | Not started |
+| 9 | **Tactics battle + FOV** (`0003` §10.1, §20.3). | Not started |
+
 ## Open questions
 
 `0003` §20 holds the live list: snapshot format, FOV/visibility timing, and adapter placement. Repository placement (own repository) and the TUI substrate (hand-rolled ANSI) were resolved on 2026-07-17.

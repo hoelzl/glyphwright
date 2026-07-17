@@ -75,6 +75,40 @@ def roll_initiative(
     return tuple(combatant for _, combatant in sorted(scored)), rng
 
 
+def resolve_damage(
+    state: WorldState,
+    source: EntityId,
+    target: EntityId,
+    *,
+    ability: str,
+    damage_type: str,
+    amount: int,
+) -> tuple[Event, ...]:
+    """Damage plus its consequence, identically for weapons and abilities.
+
+    The defender's death removes it from the world — except the player, whose
+    defeat is a world flag: the world must survive its protagonist.
+    """
+    from glyphwright.kernel.state import PLAYER
+
+    events: list[Event] = [
+        DamageDealt(
+            source=source,
+            target=target,
+            ability=ability,
+            damage_type=damage_type,
+            amount=amount,
+        )
+    ]
+    victim = state.entity(target).actor
+    if victim is not None and victim.hp - amount <= 0:
+        if target == PLAYER:
+            events.append(FlagSet(flag=PLAYER_DEFEATED, value=True))
+        else:
+            events.append(ActorDied(actor=target))
+    return tuple(events)
+
+
 def strike(
     state: WorldState, attacker: EntityId, defender: EntityId, rng: Rng
 ) -> tuple[tuple[Event, ...], Rng]:
@@ -94,22 +128,11 @@ def strike(
 
     damage_roll, rng = rng.between(1, max(1, atk))
     amount = max(1, damage_roll - defence // 2)
-    events: list[Event] = [
-        DamageDealt(
-            source=attacker,
-            target=defender,
-            ability=_ABILITY,
-            damage_type=_DAMAGE_TYPE,
-            amount=amount,
-        )
-    ]
-
-    victim = state.entity(defender).actor
-    if victim is not None and victim.hp - amount <= 0:
-        from glyphwright.kernel.state import PLAYER
-
-        if defender == PLAYER:
-            events.append(FlagSet(flag=PLAYER_DEFEATED, value=True))
-        else:
-            events.append(ActorDied(actor=defender))
-    return tuple(events), rng
+    return resolve_damage(
+        state,
+        attacker,
+        defender,
+        ability=_ABILITY,
+        damage_type=_DAMAGE_TYPE,
+        amount=amount,
+    ), rng

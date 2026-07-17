@@ -82,14 +82,40 @@ def _equipped_modifiers(
     return tuple(found)
 
 
+def _status_modifiers(
+    state: WorldState, entity_id: EntityId, stat: str
+) -> tuple[tuple[str, StatModifier], ...]:
+    statuses = state.entity(entity_id).statuses
+    if statuses is None:
+        return ()
+    found: list[tuple[str, StatModifier]] = []
+    for status_id, _ in sorted(statuses.active):
+        definition = state.status_defs.get(status_id)
+        if definition is None:
+            continue
+        source = f"{status_id} (status)"
+        found.extend(
+            (source, modifier)
+            for modifier in definition.modifiers
+            if modifier.stat == stat
+        )
+    return tuple(found)
+
+
 def derive(state: WorldState, entity_id: EntityId, stat: str) -> Derivation:
-    """Resolve one stat through the ordered pipeline."""
+    """Resolve one stat through the ordered pipeline.
+
+    Sources contribute in a fixed order — statuses, then equipment — with all
+    additive contributions before any multiplicative one (0003 §9.1).
+    """
     actor = state.entity(entity_id).actor
     base = actor.base_stat(stat) if actor is not None else 0
     running = base
     contributions = [Contribution(source="base", op="base", value=base, running=base)]
 
-    modifiers = _equipped_modifiers(state, entity_id, stat)
+    modifiers = _status_modifiers(state, entity_id, stat) + _equipped_modifiers(
+        state, entity_id, stat
+    )
     for source, modifier in modifiers:
         if modifier.op != "add":
             continue

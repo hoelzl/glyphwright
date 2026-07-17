@@ -24,6 +24,7 @@ from glyphwright.frames.frame import (
 )
 from glyphwright.kernel.commands import (
     Attack,
+    Cast,
     Command,
     CommandGrammar,
     Equip,
@@ -56,7 +57,7 @@ from glyphwright.world.space import PosId
 NAME = MODE_EXPLORATION
 
 VERBS = frozenset(
-    {"move", "look", "wait", "take", "use", "equip", "attack", "talk", "open"}
+    {"move", "look", "wait", "take", "use", "equip", "attack", "talk", "open", "cast"}
 )
 
 _TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
@@ -181,6 +182,9 @@ def available_commands(state: WorldState) -> CommandGrammar:
     ):
         if domain:
             verbs.append((verb, (domain,)))
+    cast_domains = common.cast_grammar(state, _attackable(state))
+    if cast_domains is not None:
+        verbs.append(("cast", cast_domains))
     return CommandGrammar(verbs=tuple(verbs))
 
 
@@ -217,6 +221,12 @@ def handle(
             ), rng
         case Open(target=target_id):
             return _open(state, target_id), rng
+        case Cast(ability=ability_id, target=target_id):
+            from glyphwright.effects.abilities import cast_events
+
+            return cast_events(
+                state, PLAYER, ability_id, target_id, _attackable(state), rng
+            )
         case _:
             raise ValueError(f"exploration cannot handle {command.verb!r}")
 
@@ -392,6 +402,7 @@ def _actors(state: WorldState) -> tuple[ActorSummary, ...]:
                 hp=entity.actor.hp,
                 max_hp=entity.actor.max_hp,
                 at=at,
+                statuses=entity.statuses.ids() if entity.statuses else (),
             )
         )
     return tuple(summaries)

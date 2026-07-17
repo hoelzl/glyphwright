@@ -8,12 +8,14 @@ ADR-002). Performance is irrelevant at terminal-game scale.
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from types import MappingProxyType
+from typing import TYPE_CHECKING
 
 from glyphwright.kernel.events import (
     ActorDied,
     AttackMissed,
+    CastFizzled,
     ChoiceOffered,
     DamageDealt,
     DialogueLine,
@@ -32,12 +34,23 @@ from glyphwright.kernel.events import (
     Moved,
     PinSet,
     PinSlipped,
+    StatusApplied,
+    StatusExpired,
     TurnAdvanced,
     aggro_flag,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.world.entities import Entity, Equipment, Inventory, Position
+from glyphwright.world.entities import (
+    Entity,
+    Equipment,
+    Inventory,
+    Position,
+    Statuses,
+)
 from glyphwright.world.space import EntityId, PosId, Space
+
+if TYPE_CHECKING:
+    from glyphwright.effects.abilities import Ability, Status
 
 PLAYER: EntityId = "player"
 
@@ -66,12 +79,20 @@ class WorldState:
     flags: Mapping[str, bool]
     initiative: tuple[EntityId, ...] = ()
     focus: tuple[EntityId, str] | None = None
+    ability_defs: Mapping[str, Ability] = field(default_factory=dict)
+    status_defs: Mapping[str, Status] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Freeze the mappings so "immutable" is enforced rather than promised.
         object.__setattr__(self, "entities", MappingProxyType(dict(self.entities)))
         object.__setattr__(self, "areas", MappingProxyType(dict(self.areas)))
         object.__setattr__(self, "flags", MappingProxyType(dict(self.flags)))
+        object.__setattr__(
+            self, "ability_defs", MappingProxyType(dict(self.ability_defs))
+        )
+        object.__setattr__(
+            self, "status_defs", MappingProxyType(dict(self.status_defs))
+        )
         if not self.mode_stack:
             raise ValueError("the mode stack must never be empty")
 
@@ -238,6 +259,23 @@ def apply(state: WorldState, event: Event) -> WorldState:
             # Pure evidence: the cursor moves through FocusSet.
             return state
         case MinigameResolved():
+            return state
+        case StatusApplied():
+            target = state.entity(event.target)
+            bearing = target.statuses or Statuses()
+            return state.with_entity(
+                replace(
+                    target,
+                    statuses=bearing.with_status(event.status, event.expires),
+                )
+            )
+        case StatusExpired():
+            target = state.entity(event.target)
+            bearing = target.statuses or Statuses()
+            return state.with_entity(
+                replace(target, statuses=bearing.without_status(event.status))
+            )
+        case CastFizzled():
             return state
         case FlagSet():
             flags = dict(state.flags)

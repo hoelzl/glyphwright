@@ -148,6 +148,19 @@ class Choose:
 
 
 @dataclass(frozen=True, slots=True)
+class Cast:
+    """Use an ability on a target: ``cast firebolt at goblin-1`` (0003 §6)."""
+
+    ability: str
+    target: EntityId
+
+    verb: str = "cast"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.ability, self.target)
+
+
+@dataclass(frozen=True, slots=True)
 class Pick:
     """Work the lock: one attempt at the next pin."""
 
@@ -181,6 +194,7 @@ Command = (
     | Choose
     | Pick
     | Abort
+    | Cast
 )
 
 

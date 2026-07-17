@@ -14,6 +14,7 @@ from glyphwright.effects.combat import hostile_actors, melee_adjacent, strike
 from glyphwright.frames.frame import ActorSummary, MenuView, PromptSpec, SemanticFrame
 from glyphwright.kernel.commands import (
     Attack,
+    Cast,
     Command,
     CommandGrammar,
     Flee,
@@ -33,7 +34,7 @@ from glyphwright.modes import common, messages
 
 NAME = MODE_BATTLE
 
-VERBS = frozenset({"attack", "use", "flee", "look"})
+VERBS = frozenset({"attack", "use", "flee", "look", "cast"})
 
 
 def _foes(state: WorldState) -> tuple[str, ...]:
@@ -55,6 +56,9 @@ def available_commands(state: WorldState) -> CommandGrammar:
     usable = common.usable_items(state)
     if usable:
         verbs.append(("use", (usable,)))
+    cast_domains = common.cast_grammar(state, foes)
+    if cast_domains is not None:
+        verbs.append(("cast", cast_domains))
     verbs.append(("flee", ()))
     verbs.append(("look", ()))
     return CommandGrammar(verbs=tuple(verbs))
@@ -71,6 +75,10 @@ def handle(
         case Attack(target=target_id):
             struck, rng = strike(state, PLAYER, target_id, rng)
             return (*struck, TurnAdvanced(turn=state.turn + 1)), rng
+        case Cast(ability=ability_id, target=target_id):
+            from glyphwright.effects.abilities import cast_events
+
+            return cast_events(state, PLAYER, ability_id, target_id, _foes(state), rng)
         case Flee():
             return _flee(state), rng
         case _:
@@ -132,6 +140,7 @@ def _actors(state: WorldState, combatants: tuple[str, ...]) -> tuple[ActorSummar
                 hp=entity.actor.hp,
                 max_hp=entity.actor.max_hp,
                 at=at,
+                statuses=entity.statuses.ids() if entity.statuses else (),
             )
         )
     return tuple(summaries)

@@ -145,6 +145,7 @@ def _actors(state: WorldState, speaker: str) -> tuple[ActorSummary, ...]:
                 hp=entity.actor.hp,
                 max_hp=entity.actor.max_hp,
                 at=at,
+                statuses=entity.statuses.ids() if entity.statuses else (),
             )
         )
     return tuple(summaries)

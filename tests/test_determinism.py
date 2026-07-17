@@ -113,9 +113,10 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     # Re-pinned deliberately per slice when entity or area identity widens
     # (3A: AiBehavior; 4: Portal + full-area hashing; 6: Dialogue and
-    # Openable components) — a content-schema change must show here.
+    # Openable; 7: abilities/statuses tables) — a content-schema change
+    # must show here.
     assert pack.pack_id == (
-        "pin@sha256:7b0fc7a06dea65660b8a6f26bc5e392b8348c9648fb2d2fba89f170fad9702bc"
+        "pin@sha256:0f8b839f0e35a9a3826f8409140d6ef1a10f40c2ba5ef6ae840cbc7ced4a0e5d"
     )
 
 
@@ -130,5 +131,7 @@ def test_content_changes_change_the_pack_id() -> None:
         name=pack.name,
         areas=(GridSpace.from_text("village", altered_map), *pack.areas[1:]),
         entities=pack.entities,
+        abilities=pack.abilities,
+        statuses=pack.statuses,
     )
     assert altered.pack_id != pack.pack_id, "a content change must invalidate baselines"

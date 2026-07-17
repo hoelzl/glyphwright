@@ -229,6 +229,25 @@ Decisions taken by the implementing agent (owner delegated open choices):
    farewell; `Openable.contains`/`key` must reference pack entities. The key path
    leaves `ItemUsed` evidence; openables are listed in room contents.
 
+## Slice 7 decisions (abilities, statuses, primitives — design 0004)
+
+1. **Design doc 0004** scopes 0003 §9.2–§9.3; it is subordinate to 0003. Read it
+   before touching `effects/primitives.py` or `effects/abilities.py`.
+2. Three primitives ship (`deal_damage`, `heal`, `apply_status`); `deal_damage`
+   shares `resolve_damage` with `strike`, so ability kills and weapon kills are the
+   same kind of fact. Ability/status tables ride in `WorldState`
+   (`ability_defs`/`status_defs`) so handlers resolve them from kernel inputs.
+3. **`cast <ability> at <target>` is the first arity-two verb**; the per-position
+   domain encoding (0003 A.2) holds, and the ability×target cross-constraint is a
+   world refusal (`CastFizzled`, turn spent) per 0003 A.5 — never a rejection.
+4. **Statuses are timed modifier bundles**: `Statuses` component `(id, expires)`,
+   `StatusApplied`/`StatusExpired` folds, expiry swept in the scheduler epilogue,
+   pipeline provenance `"<id> (status)"` (statuses before equipment). Hooks and
+   perks (0003 §9.3) deferred — recorded in 0004.
+5. **No resource costs yet**: `requires_stat` is the only gate; inventing a
+   throwaway mana pool was deliberately declined (0004 §2).
+6. Event schema v5 → v6 (`StatusApplied`/`StatusExpired`/`CastFizzled`).
+
 ## Next steps
 
 1. Finish slice 2 (see task breakdown in session, or re-derive from §18.2).

@@ -4,7 +4,7 @@ A deterministic, terminal-first turn-based RPG engine, drivable by people and au
 
 GlyphWright is an RPG engine in the tradition of RPG Maker and the Neverwinter Nights toolset: worlds are authored in a grid/tile or room-based format and played through characters, items and inventory, turn-based battles, stats and abilities, and embedded minigames. It separates world semantics from presentation — a state plus a command produces a new immutable state and ordered semantic events — so that structured evidence, not screen-scraped text, is the primary observation.
 
-All six designed slices are in place — dialogue and a minigame completing the set: a pure `step` over immutable state, typed events, a seeded PCG64 stream, grid *and* room-graph worlds behind one `Space` protocol — the reference world mixes a village grid with an IF-style inn interior through a portal door — inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, melee skirmishes and formal menu battles (a real mode stack with rolled initiative, `attack`/`use`/`flee`, victory and defeat outcomes) whose AI turns run inside the same `step`, content-authored dialogue trees (`talk`/`choose`) and a lockpicking minigame (`open`/`pick`) as ordinary modes, an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain, JSONL, and full-screen TUI frontends, the `glyphwright.api` public surface, and committed wire schemas.
+All six designed slices are in place — dialogue and a minigame completing the set: a pure `step` over immutable state, typed events, a seeded PCG64 stream, grid *and* room-graph worlds behind one `Space` protocol — the reference world mixes a village grid with an IF-style inn interior through a portal door — inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, melee skirmishes and formal menu battles (a real mode stack with rolled initiative, `attack`/`use`/`flee`, victory and defeat outcomes) whose AI turns run inside the same `step`, content-authored dialogue trees (`talk`/`choose`) and a lockpicking minigame (`open`/`pick`) as ordinary modes, abilities and timed statuses composed from effect primitives (`cast firebolt at goblin-1`), an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain, JSONL, and full-screen TUI frontends, the `glyphwright.api` public surface, and committed wire schemas.
 
 ## Why
 
@@ -21,7 +21,7 @@ uv --no-config sync --all-groups --locked
 uv --no-config run glyphwright
 ```
 
-The session accepts `move <exit>`, `look`, `wait`, `take <item>`, `use <item>`, `equip <item>`, `attack <target>`, `talk <npc>`, `open <container>`, `choose <n>` (in dialogue), `pick`/`abort` (at a lock), `flee` (in battle), `help`, and `quit`. Each turn prints a transcript block anchored by `== turn N · mode · area ==`. The frame's command grammar always names exactly what is valid right now.
+The session accepts `move <exit>`, `look`, `wait`, `take <item>`, `use <item>`, `equip <item>`, `attack <target>`, `talk <npc>`, `open <container>`, `cast <ability> at <target>`, `choose <n>` (in dialogue), `pick`/`abort` (at a lock), `flee` (in battle), `help`, and `quit`. Each turn prints a transcript block anchored by `== turn N · mode · area ==`. The frame's command grammar always names exactly what is valid right now.
 
 With `--harness`, a namespaced meta-channel is available beside the game commands — the engine's oracle interface, which never advances the turn:
 
@@ -71,7 +71,7 @@ See [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the [kno
 
 ## Status and scope
 
-GlyphWright is pre-alpha. Abilities/statuses/perks, the tactics-battle arena, FOV, and TOML content-pack loading are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design document below sets the order.
+GlyphWright is pre-alpha. Perks and status hooks, the tactics-battle arena, FOV, and TOML content-pack loading are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design document below sets the order.
 
 Deferred, but not ruled out: graphical rendering, animation timing, and audio. The world model is deliberately presentation-independent, so a graphical frontend consuming the same frames and events could be added later.
 

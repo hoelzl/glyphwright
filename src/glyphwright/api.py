@@ -22,6 +22,7 @@ from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
     Abort,
     Attack,
+    Cast,
     Choose,
     Command,
     CommandGrammar,
@@ -46,6 +47,7 @@ from glyphwright.modes import exploration
 __all__ = [
     "Abort",
     "Attack",
+    "Cast",
     "Choose",
     "Command",
     "CommandGrammar",
@@ -116,6 +118,8 @@ class Engine:
             turn=0,
             rng=Rng.from_seed(seed),
             flags={},
+            ability_defs={ability.id: ability for ability in pack.abilities},
+            status_defs={status.id: status for status in pack.statuses},
         )
         return cls(state=state, seed=seed, pack_id=pack.pack_id)
 
@@ -200,13 +204,15 @@ class Engine:
                 hint=f"try one of: {', '.join(grammar.verb_names())}",
             )
         domains = grammar.domains(command.verb)
-        for argument, domain in zip(command.args(), domains, strict=True):
+        for position, (argument, domain) in enumerate(
+            zip(command.args(), domains, strict=True)
+        ):
             if argument not in domain:
                 assert vocabulary is not None, "verbs with arguments have vocabulary"
                 return Rejected(
                     command=_render(command),
                     reason=vocabulary.reason,
-                    hint=vocabulary.hint(domain),
+                    hint=vocabulary.hint(domain, position),
                 )
         return None
 
@@ -214,13 +220,18 @@ class Engine:
 @dataclass(frozen=True, slots=True)
 class _RejectionVocabulary:
     reason: str
-    options_hint: str
+    options_hint: str | tuple[str, ...]
     empty_hint: str
 
-    def hint(self, domain: tuple[str, ...]) -> str:
+    def hint(self, domain: tuple[str, ...], position: int = 0) -> str:
         if not domain:
             return self.empty_hint
-        return f"{self.options_hint}: {', '.join(domain)}"
+        prefix = (
+            self.options_hint[min(position, len(self.options_hint) - 1)]
+            if isinstance(self.options_hint, tuple)
+            else self.options_hint
+        )
+        return f"{prefix}: {', '.join(domain)}"
 
 
 _REJECTIONS: dict[str, _RejectionVocabulary] = {
@@ -248,8 +259,17 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
     "choose": _RejectionVocabulary(
         "no_such_choice", "choose one of", "there is nothing to choose"
     ),
+    "cast": _RejectionVocabulary(
+        "cannot_cast",
+        ("you can cast", "valid targets"),
+        "you cannot cast anything",
+    ),
 }
 
 
 def _render(command: Command) -> str:
+    if isinstance(command, Cast):
+        # The echoed text must be re-parseable command language (0003 §6),
+        # and cast's surface syntax carries an 'at'.
+        return f"cast {command.ability} at {command.target}"
     return " ".join((command.verb, *command.args()))

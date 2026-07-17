@@ -14,6 +14,7 @@ from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
 from glyphwright.kernel.commands import (
     Attack,
+    Cast,
     Command,
     Equip,
     Flee,
@@ -48,6 +49,11 @@ def _options(engine: Engine) -> list[Command]:
     for verb, builder in _BUILDERS:
         if verb in names:
             options.extend(builder(argument) for argument in grammar.domains(verb)[0])
+    if "cast" in names:
+        abilities, targets = grammar.domains("cast")
+        options.extend(
+            Cast(ability, target) for ability in abilities for target in targets
+        )
     return options
 
 

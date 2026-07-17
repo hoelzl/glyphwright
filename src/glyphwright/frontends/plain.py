@@ -200,6 +200,7 @@ _PLACEHOLDERS = {
     "talk": "<npc>",
     "open": "<container>",
     "choose": "<n>",
+    "cast": "<ability> at <target>",
 }
 
 
