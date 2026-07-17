@@ -160,11 +160,17 @@ def _load_areas(root: Traversable) -> tuple[GridSpace | RoomGraphSpace, ...]:
     areas: list[GridSpace | RoomGraphSpace] = []
     for table in _tables(file, "grid areas", data.pop("grid", [])):
         fields = _take(
-            file, "grid area", table, {"area": (True, str), "rows": (True, str)}
+            file,
+            "grid area",
+            table,
+            {"area": (True, str), "rows": (True, str), "fov": (False, int)},
         )
         where = f"grid area {fields['area']!r}"
+        fov = fields.get("fov", 0)
+        if "fov" in fields and fov <= 0:
+            raise _fail(file, where, "fov must be a positive radius when present")
         try:
-            areas.append(GridSpace.from_text(fields["area"], fields["rows"]))
+            areas.append(GridSpace.from_text(fields["area"], fields["rows"], fov=fov))
         except ValueError as error:
             raise _fail(file, where, str(error)) from error
     for table in _tables(file, "room areas", data.pop("rooms", [])):

@@ -67,6 +67,9 @@ def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
     """Terrain plus every renderable in the area: glyph vocabulary is content,
     not engine code."""
     entries = dict(_TERRAIN_LEGEND)
+    space = state.areas.get(area)
+    if isinstance(space, GridSpace) and space.fov:
+        entries["?"] = "unseen"
     for entity in state.entities.values():
         at = entity.at()
         if entity.renderable is None or at is None or at.area != area:
@@ -367,7 +370,15 @@ def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
 
 
 def _viewport(state: WorldState, space: GridSpace) -> GridView:
+    player_at = state.entity(PLAYER).at()
+    assert player_at is not None
+    seen = space.visible_from(player_at)
     glyphs = [list(row) for row in space.rows]
+    if space.fov:
+        for y in range(space.height):
+            for x in range(space.width):
+                if space.pos(x, y) not in seen:
+                    glyphs[y][x] = "?"
     # Items first, actors last: an actor standing on an item wins the tile,
     # whatever the ids happen to sort like. Ties within a layer stay id-sorted.
     draw_order = sorted(
@@ -377,6 +388,8 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
         at = entity.at()
         if entity.renderable is None or at is None or at.area != space.area:
             continue
+        if at not in seen:
+            continue  # beyond the light: not drawn
         from glyphwright.world.grid import _coords
 
         x, y = _coords(at)
@@ -390,11 +403,24 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
 
 
 def _actors(state: WorldState) -> tuple[ActorSummary, ...]:
+    player_at = state.entity(PLAYER).at()
+    seen = None
+    if player_at is not None:
+        player_space = state.areas[player_at.area]
+        if isinstance(player_space, GridSpace) and player_space.fov:
+            seen = (player_at.area, player_space.visible_from(player_at))
     summaries = []
     for entity in sorted(state.entities.values(), key=lambda e: e.id):
         at = entity.at()
         if entity.actor is None or at is None:
             continue
+        if (
+            seen is not None
+            and entity.id != PLAYER
+            and at.area == seen[0]
+            and at not in seen[1]
+        ):
+            continue  # in the player's area but beyond the light
         summaries.append(
             ActorSummary(
                 id=entity.id,

@@ -118,10 +118,11 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     # Re-pinned deliberately per slice when entity or area identity widens
     # (3A: AiBehavior; 4: Portal + full-area hashing; 6: Dialogue and
     # Openable; 7: abilities/statuses tables; 8: the pack-level player and
-    # position preconditions reshaped the minimal pin pack) — a change
+    # position preconditions reshaped the minimal pin pack; 9A: the fov
+    # field widened grid-area identity) — a change
     # must show here.
     assert pack.pack_id == (
-        "pin@sha256:432babdb435cf56d7dab4755252f316fc3fb2404fdaf29f50023ed225bcdef84"
+        "pin@sha256:6c09ebd70b42f40ae401d0e9429399f865802d44a738de2291df64cbe7fc9fb9"
     )
 
 
