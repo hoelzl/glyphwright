@@ -17,6 +17,27 @@ from glyphwright.kernel.events import (
 from glyphwright.kernel.state import PLAYER, WorldState
 
 
+def cast_grammar(
+    state: WorldState, foes: tuple[str, ...]
+) -> tuple[tuple[str, ...], tuple[str, ...]] | None:
+    """The two cast domains — castable abilities and the union of their
+    targets — or ``None`` when nothing can be cast (design 0004 §2)."""
+    from glyphwright.effects.abilities import TARGET_SELF, castable
+
+    abilities = []
+    targets: set[str] = set()
+    for ability in castable(state, PLAYER):
+        if ability.targeting == TARGET_SELF:
+            abilities.append(ability.id)
+            targets.add(PLAYER)
+        elif foes:
+            abilities.append(ability.id)
+            targets.update(foes)
+    if not abilities:
+        return None
+    return tuple(sorted(abilities)), tuple(sorted(targets))
+
+
 def opened_flag(target: str) -> str:
     return f"opened:{target}"
 

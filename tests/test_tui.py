@@ -244,9 +244,11 @@ def test_long_meta_payloads_are_wrapped_not_cut() -> None:
     engine = _engine()
     output = io.StringIO()
     session.run_session(engine, iter([*":frame\r", "q"]), output, harness=True)
-    screen = output.getvalue()
-    assert '"schema"' in screen
-    assert "glyphwright.frame/4" in screen
+    # Wrapping may split tokens at the 78-column boundary; joining the lines
+    # back together must recover the full payload with nothing cut.
+    joined = output.getvalue().replace("\r\n", "").replace("\n", "")
+    assert '"schema"' in joined
+    assert "glyphwright.frame/4" in joined
 
 
 def test_room_contents_survive_a_long_description() -> None:

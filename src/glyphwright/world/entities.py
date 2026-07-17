@@ -27,6 +27,7 @@ class Actor:
     hp: int
     max_hp: int
     base_stats: tuple[tuple[str, int], ...] = ()
+    abilities: tuple[str, ...] = ()
 
     def base_stat(self, stat: str) -> int:
         for name, value in self.base_stats:
@@ -232,6 +233,27 @@ class Equipment:
 
 
 @dataclass(frozen=True, slots=True)
+class Statuses:
+    """Timed status applications: ``(status-id, expires-turn)`` pairs.
+
+    Definitions live in the content pack; this component records what is
+    active on this entity right now, written and cleared by the fold.
+    """
+
+    active: tuple[tuple[str, int], ...] = ()
+
+    def ids(self) -> tuple[str, ...]:
+        return tuple(sorted(status for status, _ in self.active))
+
+    def with_status(self, status: str, expires: int) -> Statuses:
+        kept = tuple(pair for pair in self.active if pair[0] != status)
+        return Statuses(active=tuple(sorted((*kept, (status, expires)))))
+
+    def without_status(self, status: str) -> Statuses:
+        return Statuses(active=tuple(pair for pair in self.active if pair[0] != status))
+
+
+@dataclass(frozen=True, slots=True)
 class Entity:
     """A stable id plus the components it carries."""
 
@@ -244,6 +266,7 @@ class Entity:
     portal: Portal | None = None
     dialogue: Dialogue | None = None
     openable: Openable | None = None
+    statuses: Statuses | None = None
     item: Item | None = None
     consumable: Consumable | None = None
     equippable: Equippable | None = None

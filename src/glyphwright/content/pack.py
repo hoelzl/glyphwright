@@ -15,6 +15,7 @@ import hashlib
 import json
 from dataclasses import asdict, dataclass
 
+from glyphwright.effects.abilities import Ability, Status
 from glyphwright.world.entities import (
     Actor,
     AiBehavior,
@@ -86,8 +87,36 @@ class ContentPack:
     name: str
     areas: tuple[GridSpace | RoomGraphSpace, ...]
     entities: tuple[Entity, ...]
+    abilities: tuple[Ability, ...] = ()
+    statuses: tuple[Status, ...] = ()
 
     def __post_init__(self) -> None:
+        from glyphwright.effects.primitives import PRIMITIVES
+
+        ability_ids = {ability.id for ability in self.abilities}
+        status_ids = {status.id for status in self.statuses}
+        if len(ability_ids) != len(self.abilities):
+            raise ValueError("ability ids must be unique")
+        if len(status_ids) != len(self.statuses):
+            raise ValueError("status ids must be unique")
+        for ability in self.abilities:
+            for name, params in ability.effects:
+                if name not in PRIMITIVES:
+                    raise ValueError(
+                        f"ability {ability.id!r} names unknown primitive {name!r}"
+                    )
+                if name == "apply_status" and params.get("status") not in status_ids:
+                    raise ValueError(
+                        f"ability {ability.id!r} applies unknown status "
+                        f"{params.get('status')!r}"
+                    )
+        for entity in self.entities:
+            if entity.actor is not None:
+                for ability_id in entity.actor.abilities:
+                    if ability_id not in ability_ids:
+                        raise ValueError(
+                            f"actor {entity.id!r} knows unknown ability {ability_id!r}"
+                        )
         spaces = {space.area: space for space in self.areas}
         if len(spaces) != len(self.areas):
             raise ValueError("area ids must be unique")
@@ -153,6 +182,8 @@ class ContentPack:
             {
                 "name": self.name,
                 "areas": [canonical_area(space) for space in self.areas],
+                "abilities": [asdict(ability) for ability in self.abilities],
+                "statuses": [asdict(status) for status in self.statuses],
                 "entities": [
                     asdict(entity)
                     for entity in sorted(self.entities, key=lambda e: e.id)
@@ -181,6 +212,7 @@ def reference_pack() -> ContentPack:
             hp=17,
             max_hp=20,
             base_stats=(("atk", 5), ("def", 3), ("spd", 5)),
+            abilities=("firebolt", "guard"),
         ),
         blocker=Blocker(),
         renderable=Renderable(glyph="@", label="player"),
@@ -308,9 +340,29 @@ def reference_pack() -> ContentPack:
         id="silver-locket",
         item=Item(name="Silver Locket"),
     )
+    firebolt = Ability(
+        id="firebolt",
+        name="Firebolt",
+        targeting="foe",
+        effects=(("deal_damage", {"amount": 3, "spread": 3}),),
+        requires_stat=("atk", 5),
+    )
+    guard = Ability(
+        id="guard",
+        name="Guard",
+        targeting="self",
+        effects=(("apply_status", {"status": "stoneskin", "duration": 3}),),
+    )
+    stoneskin = Status(
+        id="stoneskin",
+        name="Stoneskin",
+        modifiers=(StatModifier(stat="def", op="add", value=3),),
+    )
     return ContentPack(
         name="reference-vale",
         areas=(space, inn),
+        abilities=(firebolt, guard),
+        statuses=(stoneskin,),
         entities=(
             player,
             potion,

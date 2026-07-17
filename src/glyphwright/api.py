@@ -22,6 +22,7 @@ from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
     Abort,
     Attack,
+    Cast,
     Choose,
     Command,
     CommandGrammar,
@@ -46,6 +47,7 @@ from glyphwright.modes import exploration
 __all__ = [
     "Abort",
     "Attack",
+    "Cast",
     "Choose",
     "Command",
     "CommandGrammar",
@@ -116,6 +118,8 @@ class Engine:
             turn=0,
             rng=Rng.from_seed(seed),
             flags={},
+            ability_defs={ability.id: ability for ability in pack.abilities},
+            status_defs={status.id: status for status in pack.statuses},
         )
         return cls(state=state, seed=seed, pack_id=pack.pack_id)
 
@@ -247,6 +251,9 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
     ),
     "choose": _RejectionVocabulary(
         "no_such_choice", "choose one of", "there is nothing to choose"
+    ),
+    "cast": _RejectionVocabulary(
+        "cannot_cast", "you can cast", "you cannot cast anything"
     ),
 }
 

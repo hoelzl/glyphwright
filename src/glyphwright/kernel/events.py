@@ -267,6 +267,43 @@ class PinSlipped:
 
 
 @dataclass(frozen=True, slots=True)
+class StatusApplied:
+    """A timed status took hold; the fold installs it on the target."""
+
+    target: EntityId
+    status: str
+    expires: int
+
+    type: str = "StatusApplied"
+
+
+@dataclass(frozen=True, slots=True)
+class StatusExpired:
+    """A status ran out; the fold removes it."""
+
+    target: EntityId
+    status: str
+
+    type: str = "StatusExpired"
+
+
+@dataclass(frozen=True, slots=True)
+class CastFizzled:
+    """A cast whose halves do not pair: a refusal by the world (0003 A.5).
+
+    The grammar advertised ability and target independently; the world
+    answers that this ability does not reach that target. The turn is spent.
+    """
+
+    caster: EntityId
+    ability: str
+    target: EntityId
+    reason: str
+
+    type: str = "CastFizzled"
+
+
+@dataclass(frozen=True, slots=True)
 class MinigameResolved:
     """A minigame reached its outcome (design 0003 §5.3)."""
 
@@ -298,4 +335,7 @@ Event = (
     | PinSet
     | PinSlipped
     | MinigameResolved
+    | StatusApplied
+    | StatusExpired
+    | CastFizzled
 )

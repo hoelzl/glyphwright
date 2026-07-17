@@ -10,6 +10,7 @@ from glyphwright.kernel.events import (
     PLAYER_DEFEATED,
     ActorDied,
     AttackMissed,
+    CastFizzled,
     ChoiceOffered,
     DamageDealt,
     DialogueLine,
@@ -28,6 +29,8 @@ from glyphwright.kernel.events import (
     Moved,
     PinSet,
     PinSlipped,
+    StatusApplied,
+    StatusExpired,
     TurnAdvanced,
     aggro_subject,
 )
@@ -57,6 +60,12 @@ def describe(event: Event) -> str:
             return f"You equip {event.item}, putting away {event.replaced}."
         case Healed():
             return f"You recover {event.amount} hp."
+        case DamageDealt(source=source) if (
+            source == PLAYER and event.ability != "strike"
+        ):
+            return (
+                f"Your {event.ability} sears {event.target} for {event.amount} damage."
+            )
         case DamageDealt(source=source) if source == PLAYER:
             return f"You strike {event.target} for {event.amount} damage."
         case DamageDealt(target=target) if target == PLAYER:
@@ -107,5 +116,15 @@ def describe(event: Event) -> str:
             return "The lock springs open!"
         case MinigameResolved():
             return ""
+        case StatusApplied(target=target) if target == PLAYER:
+            return f"{event.status} takes hold of you."
+        case StatusApplied():
+            return f"{event.status} takes hold of {event.target}."
+        case StatusExpired(target=target) if target == PLAYER:
+            return f"{event.status} fades from you."
+        case StatusExpired():
+            return f"{event.status} fades from {event.target}."
+        case CastFizzled():
+            return f"The {event.ability} fizzles."
         case TurnAdvanced():
             return ""

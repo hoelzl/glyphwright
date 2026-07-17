@@ -27,6 +27,7 @@ from glyphwright.kernel.events import (
     ModePopped,
     ModePushed,
     Moved,
+    StatusExpired,
     aggro_flag,
 )
 from glyphwright.kernel.rng import Rng
@@ -236,6 +237,20 @@ def _take_turn(
     return _act(state, state.entity(actor_id), rng)
 
 
+def _expired_statuses(state: WorldState) -> tuple[Event, ...]:
+    """Every status whose clock ran out, in sorted order, as events — expiry
+    replays like everything else (design 0004 §3)."""
+    expired: list[Event] = []
+    for entity_id in sorted(state.entities):
+        statuses = state.entities[entity_id].statuses
+        if statuses is None:
+            continue
+        for status, expires in sorted(statuses.active):
+            if expires <= state.turn:
+                expired.append(StatusExpired(target=entity_id, status=status))
+    return tuple(expired)
+
+
 def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
     """Victory or defeat pops the battle with its outcome (0003 §10.1)."""
     if state.mode != MODE_BATTLE:
@@ -271,6 +286,10 @@ def run(state: WorldState, rng: Rng) -> tuple[tuple[Event, ...], WorldState, Rng
         acted, rng = _take_turn(state, actor_id, rng)
         events.extend(acted)
         state = fold(state, acted)
+
+    expiries = _expired_statuses(state)
+    events.extend(expiries)
+    state = fold(state, expiries)
 
     outcome = _battle_outcome(state)
     events.extend(outcome)

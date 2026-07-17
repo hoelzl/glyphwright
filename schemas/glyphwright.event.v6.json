@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/5",
+  "$id": "glyphwright.event/6",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -11,6 +11,9 @@
     },
     "amount": {
       "type": "integer"
+    },
+    "caster": {
+      "type": "string"
     },
     "choices": {
       "items": {
@@ -35,6 +38,9 @@
     },
     "exit": {
       "type": "string"
+    },
+    "expires": {
+      "type": "integer"
     },
     "flag": {
       "type": "string"
@@ -76,7 +82,7 @@
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/5"
+      "const": "glyphwright.event/6"
     },
     "slot": {
       "type": "string"
@@ -85,6 +91,9 @@
       "type": "string"
     },
     "speaker": {
+      "type": "string"
+    },
+    "status": {
       "type": "string"
     },
     "target": {
@@ -120,7 +129,10 @@
         "ChoiceOffered",
         "PinSet",
         "PinSlipped",
-        "MinigameResolved"
+        "MinigameResolved",
+        "StatusApplied",
+        "StatusExpired",
+        "CastFizzled"
       ]
     },
     "value": {

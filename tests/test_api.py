@@ -43,7 +43,7 @@ def test_frame_does_not_advance_the_turn() -> None:
 def test_the_frame_always_advertises_a_usable_grammar() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     grammar = engine.frame().commands
-    assert set(grammar.verb_names()) == {"move", "look", "wait"}
+    assert set(grammar.verb_names()) == {"move", "look", "wait", "cast"}
     assert grammar.domains("move")[0]
 
 

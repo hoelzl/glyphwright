@@ -21,6 +21,7 @@ from glyphwright.frames.frame import (
 from glyphwright.kernel.commands import (
     Abort,
     Attack,
+    Cast,
     Choose,
     Command,
     CommandGrammar,
@@ -39,6 +40,7 @@ from glyphwright.kernel.commands import (
 from glyphwright.kernel.events import (
     ActorDied,
     AttackMissed,
+    CastFizzled,
     ChoiceOffered,
     DamageDealt,
     DialogueLine,
@@ -57,6 +59,8 @@ from glyphwright.kernel.events import (
     Moved,
     PinSet,
     PinSlipped,
+    StatusApplied,
+    StatusExpired,
     TurnAdvanced,
 )
 
@@ -66,7 +70,7 @@ from glyphwright.kernel.events import (
 # menu viewport variant v2, the room viewport variant v3, the
 # dialogue and lock viewport variants v4).
 FRAME_SCHEMA = "glyphwright.frame/4"
-EVENT_SCHEMA = "glyphwright.event/5"
+EVENT_SCHEMA = "glyphwright.event/6"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -240,6 +244,21 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
                 "outcome": event.outcome,
                 "target": event.target,
             }
+        case StatusApplied():
+            payload |= {
+                "target": event.target,
+                "status": event.status,
+                "expires": event.expires,
+            }
+        case StatusExpired():
+            payload |= {"target": event.target, "status": event.status}
+        case CastFizzled():
+            payload |= {
+                "caster": event.caster,
+                "ability": event.ability,
+                "target": event.target,
+                "reason": event.reason,
+            }
     return payload
 
 
@@ -285,5 +304,7 @@ def decode_command(text: str) -> Command | None:
             return Pick()
         case ["abort"]:
             return Abort()
+        case ["cast", ability, "at", target]:
+            return Cast(ability=ability, target=target)
         case _:
             return None
