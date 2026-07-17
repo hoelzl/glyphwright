@@ -1,0 +1,17 @@
+[[ability]]
+id = "firebolt"
+name = "Firebolt"
+targeting = "foe"
+requires = ["atk", 5]
+effects = [{ primitive = "deal_damage", amount = 3, spread = 3 }]
+
+[[ability]]
+id = "guard"
+name = "Guard"
+targeting = "self"
+effects = [{ primitive = "apply_status", status = "stoneskin", duration = 3 }]
+
+[[status]]
+id = "stoneskin"
+name = "Stoneskin"
+modifiers = [{ stat = "def", op = "add", value = 3 }]

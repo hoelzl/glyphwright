@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
@@ -42,9 +43,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="enable the introspection meta-channel (capability gate)",
     )
+    parser.add_argument(
+        "--pack",
+        type=Path,
+        default=None,
+        help="directory of a TOML content pack (default: the built-in reference pack)",
+    )
     args = parser.parse_args(argv)
 
-    engine = Engine.new(reference_pack(), seed=args.seed)
+    if args.pack is not None:
+        from glyphwright.content.loader import PackError, load_pack
+
+        try:
+            pack = load_pack(args.pack)
+        except PackError as error:
+            parser.error(str(error))
+    else:
+        pack = reference_pack()
+    engine = Engine.new(pack, seed=args.seed)
     if args.frontend == "jsonl":
         return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
     if args.frontend == "tui":
