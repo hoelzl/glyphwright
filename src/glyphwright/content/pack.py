@@ -22,13 +22,6 @@ from glyphwright.world.entities import (
 from glyphwright.world.grid import GridSpace
 from glyphwright.world.roomgraph import RoomGraphSpace
 
-_REFERENCE_MAP = """\
-#########
-#.......#
-#..##...#
-#.......#
-#########"""
-
 
 @dataclass(frozen=True, slots=True)
 class ContentPack:
@@ -48,6 +41,25 @@ class ContentPack:
 
     def __post_init__(self) -> None:
         from glyphwright.effects.primitives import PRIMITIVES, validate_params
+
+        # The kernel's preconditions, promised at load rather than discovered
+        # mid-session: a playable protagonist, and every position on the map.
+        spaces_by_area = {space.area: space for space in self.areas}
+        player = next(
+            (entity for entity in self.entities if entity.id == "player"), None
+        )
+        if player is None or player.actor is None or player.at() is None:
+            raise ValueError(
+                "a pack must define a 'player' entity with an actor and a position"
+            )
+        for entity in self.entities:
+            at = entity.at()
+            if at is None:
+                continue
+            if at.area not in spaces_by_area or not spaces_by_area[at.area].contains(
+                at
+            ):
+                raise ValueError(f"entity {entity.id!r} stands off the map: {at}")
 
         ability_ids = {ability.id for ability in self.abilities}
         status_ids = {status.id for status in self.statuses}

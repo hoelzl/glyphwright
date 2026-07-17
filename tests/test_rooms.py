@@ -254,34 +254,44 @@ def test_a_portal_leading_nowhere_fails_at_load() -> None:
     import pytest
 
     from glyphwright.content.pack import ContentPack
-    from glyphwright.world.entities import Entity, Portal, Position
+    from glyphwright.world.entities import Actor, Entity, Portal, Position
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
+    player = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="P", hp=1, max_hp=1),
+    )
     bad = Entity(
         id="hole",
-        position=Position(at=space.pos(0, 0)),
+        position=Position(at=space.pos(1, 0)),
         portal=Portal(token="enter", to=PosId(area="typo", local="room")),
     )
     with pytest.raises(ValueError, match="leads nowhere"):
-        ContentPack(name="broken", areas=(space,), entities=(bad,))
+        ContentPack(name="broken", areas=(space,), entities=(player, bad))
 
 
 def test_a_portal_may_not_shadow_a_geometric_exit() -> None:
     import pytest
 
     from glyphwright.content.pack import ContentPack
-    from glyphwright.world.entities import Entity, Portal, Position
+    from glyphwright.world.entities import Actor, Entity, Portal, Position
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
+    player = Entity(
+        id="player",
+        position=Position(at=space.pos(1, 0)),
+        actor=Actor(name="P", hp=1, max_hp=1),
+    )
     shadowing = Entity(
         id="trap",
         position=Position(at=space.pos(0, 0)),
         portal=Portal(token="east", to=space.pos(1, 0)),
     )
     with pytest.raises(ValueError, match="shadows"):
-        ContentPack(name="broken", areas=(space,), entities=(shadowing,))
+        ContentPack(name="broken", areas=(space,), entities=(player, shadowing))
 
 
 def test_duplicate_room_exit_tokens_fail_at_construction() -> None:
