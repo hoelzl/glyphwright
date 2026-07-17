@@ -73,15 +73,23 @@ def test_taking_spends_the_turn() -> None:
     assert engine.frame().turn == before + 1
 
 
+def _tiles(engine: Engine) -> tuple[str, ...]:
+    from glyphwright.frames.frame import GridView
+
+    viewport = engine.frame().viewport
+    assert isinstance(viewport, GridView)
+    return viewport.tiles
+
+
 def test_a_taken_item_disappears_from_the_map() -> None:
     engine = _engine()
-    assert any("!" in row for row in engine.frame().viewport.tiles)
+    assert any("!" in row for row in _tiles(engine))
     engine = _at_potion()
     engine.step(Take("potion-minor"))
     # Step off the tile: the glyph must be gone because the item is carried,
     # not merely because the player is standing on top of it.
-    frame = engine.step(Move("west")).frame
-    assert not any("!" in row for row in frame.viewport.tiles)
+    engine.step(Move("west"))
+    assert not any("!" in row for row in _tiles(engine))
 
 
 def test_taking_what_is_not_here_is_rejected_without_a_turn() -> None:
@@ -195,7 +203,7 @@ def test_item_messages_are_rendered_from_events() -> None:
 def test_the_player_is_drawn_above_an_item_on_the_same_tile() -> None:
     # "potion-minor" sorts after "player"; the actor must still win the tile.
     engine = _at_potion()
-    tiles = engine.frame().viewport.tiles
+    tiles = _tiles(engine)
     assert any("@" in row for row in tiles), "the player may never vanish"
     assert not any("!" in row for row in tiles), "the potion is underfoot"
 

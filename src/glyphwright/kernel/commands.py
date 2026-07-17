@@ -101,7 +101,17 @@ class Attack:
         return (self.target,)
 
 
-Command = Move | Look | Wait | Take | Use | Equip | Attack
+@dataclass(frozen=True, slots=True)
+class Flee:
+    """Abandon a battle and gain ground toward safety."""
+
+    verb: str = "flee"
+
+    def args(self) -> tuple[str, ...]:
+        return ()
+
+
+Command = Move | Look | Wait | Take | Use | Equip | Attack | Flee
 
 
 @dataclass(frozen=True, slots=True)

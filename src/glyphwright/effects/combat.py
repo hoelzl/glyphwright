@@ -56,6 +56,21 @@ def provoke(state: WorldState, target: EntityId) -> tuple[Event, ...]:
     return (FlagSet(flag=aggro_flag(target), value=True),)
 
 
+def roll_initiative(
+    state: WorldState, combatants: tuple[EntityId, ...], rng: Rng
+) -> tuple[tuple[EntityId, ...], Rng]:
+    """Roll d20 + spd per combatant; highest first, ties by id.
+
+    Rolls happen in sorted-id order so identical states draw identically
+    (0003 §5.4).
+    """
+    scored: list[tuple[int, EntityId]] = []
+    for combatant in sorted(combatants):
+        roll, rng = rng.between(1, 20)
+        scored.append((-(roll + derive(state, combatant, "spd").value), combatant))
+    return tuple(combatant for _, combatant in sorted(scored)), rng
+
+
 def strike(
     state: WorldState, attacker: EntityId, defender: EntityId, rng: Rng
 ) -> tuple[tuple[Event, ...], Rng]:

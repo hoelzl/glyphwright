@@ -28,37 +28,36 @@ from glyphwright.kernel.commands import (
 )
 from glyphwright.kernel.events import (
     PLAYER_DEFEATED,
-    ActorDied,
-    AttackMissed,
-    DamageDealt,
     Event,
-    FlagSet,
-    Healed,
     ItemAcquired,
     ItemEquipped,
-    ItemUsed,
     MoveBlocked,
     Moved,
     TurnAdvanced,
-    aggro_subject,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import PLAYER, WorldState, fold
+from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
+from glyphwright.modes import common, messages
 from glyphwright.world.entities import Equipment
 from glyphwright.world.grid import GridSpace
 
-NAME = "exploration"
+NAME = MODE_EXPLORATION
 
-# The single source of glyph knowledge: frames carry it, and the plain
-# frontend's parser derives its tile character set from it.
-LEGEND: tuple[tuple[str, str], ...] = (
-    ("@", "player"),
-    ("#", "wall"),
-    (".", "floor"),
-    ("!", "potion"),
-    ("/", "weapon"),
-    ("g", "goblin"),
-)
+VERBS = frozenset({"move", "look", "wait", "take", "use", "equip", "attack"})
+
+_TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
+
+
+def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
+    """Terrain plus every renderable in the area: glyph vocabulary is content,
+    not engine code."""
+    entries = dict(_TERRAIN_LEGEND)
+    for entity in state.entities.values():
+        at = entity.at()
+        if entity.renderable is None or at is None or at.area != area:
+            continue
+        entries[entity.renderable.glyph] = entity.renderable.label
+    return tuple(sorted(entries.items()))
 
 
 def _takeable(state: WorldState) -> tuple[str, ...]:
@@ -71,21 +70,7 @@ def _takeable(state: WorldState) -> tuple[str, ...]:
 
 
 def _usable(state: WorldState) -> tuple[str, ...]:
-    """Carried consumables that would currently do something.
-
-    Unlike the map's exits — topology, enumerable even when blocked — item
-    domains are validity filters, and a use that can have no effect is not
-    offered: accepting it would destroy the item for nothing.
-    """
-    player = state.entity(PLAYER)
-    if player.actor is None or player.actor.hp >= player.actor.max_hp:
-        return ()
-    return tuple(
-        item_id
-        for item_id in sorted(player.carries())
-        if (consumable := state.entity(item_id).consumable) is not None
-        and consumable.heal > 0
-    )
+    return common.usable_items(state)
 
 
 def _attackable(state: WorldState) -> tuple[str, ...]:
@@ -162,11 +147,13 @@ def handle(
         case Take(item=item_id):
             return _take(state, item_id), rng
         case Use(item=item_id):
-            return _use(state, item_id), rng
+            return common.use_item(state, item_id), rng
         case Equip(item=item_id):
             return _equip(state, item_id), rng
         case Attack(target=target_id):
             return _attack(state, target_id, rng)
+        case _:
+            raise ValueError(f"exploration cannot handle {command.verb!r}")
 
 
 def _move(state: WorldState, token: str) -> tuple[Event, ...]:
@@ -201,19 +188,6 @@ def _take(state: WorldState, item_id: str) -> tuple[Event, ...]:
     assert origin is not None, "the grammar only offers items lying here"
     return (
         ItemAcquired(actor=PLAYER, item=item_id, origin=origin),
-        TurnAdvanced(turn=state.turn + 1),
-    )
-
-
-def _use(state: WorldState, item_id: str) -> tuple[Event, ...]:
-    consumable = state.entity(item_id).consumable
-    assert consumable is not None, "the grammar only offers carried consumables"
-    actor = state.entity(PLAYER).actor
-    assert actor is not None
-    healed = min(consumable.heal, actor.max_hp - actor.hp)
-    return (
-        ItemUsed(actor=PLAYER, item=item_id, target=PLAYER, consumed=True),
-        Healed(target=PLAYER, amount=healed, source=item_id),
         TurnAdvanced(turn=state.turn + 1),
     )
 
@@ -258,7 +232,9 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         mode=NAME,
         viewport=_viewport(state, space),
         actors=_actors(state),
-        messages=tuple(message for event in events if (message := describe(event))),
+        messages=tuple(
+            message for event in events if (message := messages.describe(event))
+        ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
     )
@@ -283,7 +259,7 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
         area=space.area,
         origin=(0, 0),
         tiles=tuple("".join(row) for row in glyphs),
-        legend=LEGEND,
+        legend=_legend(state, space.area),
     )
 
 
@@ -303,48 +279,3 @@ def _actors(state: WorldState) -> tuple[ActorSummary, ...]:
             )
         )
     return tuple(summaries)
-
-
-def describe(event: Event) -> str:
-    """Render one event as prose from a template, never free-written text."""
-    match event:
-        case Moved(actor=actor) if actor == PLAYER:
-            return f"You go {event.exit}."
-        case Moved():
-            return f"{event.actor} moves {event.exit}."
-        case MoveBlocked(reason="wall"):
-            return f"A wall blocks the way {event.exit}."
-        case MoveBlocked(reason="occupied"):
-            return f"Something blocks the way {event.exit}."
-        case MoveBlocked():
-            return f"You cannot go {event.exit} from here."
-        case ItemAcquired():
-            return f"You take {event.item}."
-        case ItemUsed():
-            return f"You use {event.item}."
-        case ItemEquipped(replaced=None):
-            return f"You equip {event.item}."
-        case ItemEquipped():
-            return f"You equip {event.item}, putting away {event.replaced}."
-        case Healed():
-            return f"You recover {event.amount} hp."
-        case DamageDealt(source=source) if source == PLAYER:
-            return f"You strike {event.target} for {event.amount} damage."
-        case DamageDealt(target=target) if target == PLAYER:
-            return f"{event.source} hits you for {event.amount} damage."
-        case DamageDealt():
-            return f"{event.source} strikes {event.target} for {event.amount} damage."
-        case AttackMissed(source=source) if source == PLAYER:
-            return f"You miss {event.target}."
-        case AttackMissed():
-            return f"{event.source} lunges and misses."
-        case ActorDied():
-            return f"{event.actor} dies."
-        case FlagSet(flag=flag) if aggro_subject(flag) is not None:
-            return f"{aggro_subject(flag)} snarls and turns on you!"
-        case FlagSet(flag=flag) if flag == PLAYER_DEFEATED:
-            return "You are defeated."
-        case FlagSet():
-            return ""
-        case TurnAdvanced():
-            return ""

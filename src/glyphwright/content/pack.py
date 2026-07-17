@@ -41,6 +41,7 @@ _REFERENCE_START = (1, 1)
 _REFERENCE_POTION_AT = (3, 1)
 _REFERENCE_SWORD_AT = (6, 3)
 _REFERENCE_GOBLIN_AT = (2, 3)
+_REFERENCE_BANDIT_AT = (1, 3)
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,17 +94,17 @@ def reference_pack() -> ContentPack:
             name="Wren",
             hp=17,
             max_hp=20,
-            base_stats=(("atk", 5), ("def", 3)),
+            base_stats=(("atk", 5), ("def", 3), ("spd", 5)),
         ),
         blocker=Blocker(),
-        renderable=Renderable(glyph="@"),
+        renderable=Renderable(glyph="@", label="player"),
     )
     potion = Entity(
         id="potion-minor",
         position=Position(at=space.pos(*_REFERENCE_POTION_AT)),
         item=Item(name="Minor Potion"),
         consumable=Consumable(heal=6),
-        renderable=Renderable(glyph="!"),
+        renderable=Renderable(glyph="!", label="potion"),
     )
     sword = Entity(
         id="iron-sword",
@@ -113,7 +114,7 @@ def reference_pack() -> ContentPack:
             slot="weapon",
             modifiers=(StatModifier(stat="atk", op="add", value=3),),
         ),
-        renderable=Renderable(glyph="/"),
+        renderable=Renderable(glyph="/", label="weapon"),
     )
     goblin = Entity(
         id="goblin-1",
@@ -122,12 +123,27 @@ def reference_pack() -> ContentPack:
             name="Goblin",
             hp=6,
             max_hp=6,
-            base_stats=(("atk", 3), ("def", 1)),
+            base_stats=(("atk", 3), ("def", 1), ("spd", 3)),
         ),
         blocker=Blocker(),
-        renderable=Renderable(glyph="g"),
+        renderable=Renderable(glyph="g", label="goblin"),
         ai=AiBehavior(hostile=True),
     )
+    bandit = Entity(
+        id="bandit-1",
+        position=Position(at=space.pos(*_REFERENCE_BANDIT_AT)),
+        actor=Actor(
+            name="Bandit",
+            hp=8,
+            max_hp=8,
+            base_stats=(("atk", 4), ("def", 2), ("spd", 4)),
+        ),
+        blocker=Blocker(),
+        renderable=Renderable(glyph="b", label="bandit"),
+        ai=AiBehavior(hostile=True, engages=True),
+    )
     return ContentPack(
-        name="reference-vale", areas=(space,), entities=(player, potion, sword, goblin)
+        name="reference-vale",
+        areas=(space,),
+        entities=(player, potion, sword, goblin, bandit),
     )

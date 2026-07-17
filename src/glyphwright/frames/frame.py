@@ -38,7 +38,21 @@ class GridView:
     kind: str = "grid"
 
 
-Viewport = GridView
+@dataclass(frozen=True, slots=True)
+class MenuView:
+    """A menu battle's viewport: who is in the fight (0003 §10.1).
+
+    Combatant summaries live in the frame's ``actors``; this names who is on
+    the initiative list.
+    """
+
+    area: str
+    combatants: tuple[EntityId, ...]
+
+    kind: str = "menu"
+
+
+Viewport = GridView | MenuView
 
 
 @dataclass(frozen=True, slots=True)

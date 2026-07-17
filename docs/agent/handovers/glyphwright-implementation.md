@@ -11,7 +11,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | --- | --- |
 | 1 — Walking skeleton | **Done** (kernel, GridSpace, move/look/wait, plain + JSONL frontends, `glyphwright.api`, committed schemas, fingerprint; 82 tests green) |
 | 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
-| 3 — Battle | **In progress**: 3A (exploration combat + shared scheduler) done; 3B (menu battle mode, initiative queue, MenuView, flee) next |
+| 3 — Battle | **Done** (3A exploration combat + 3B menu battle: mode stack, rolled initiative, MenuView, flee, victory/defeat outcomes; tactics arena deferred to a later slice with FOV) |
 | 4 — Rooms and portals | Not started |
 | 5 — TUI | Not started |
 | 6 — Dialogue and one minigame | Not started |
@@ -101,6 +101,51 @@ Decisions taken by the implementing agent (owner delegated open choices):
    Flag vocabulary (`aggro:<id>`, `player-defeated`) lives in `kernel/events.py`
    beside `FlagSet`. Post-defeat rejections use reason `defeated` instead of
    misdescribing the world.
+
+## Slice 3B decisions (menu battle)
+
+1. **Engagement is a scheduler behavior**: `AiBehavior.engages` hostiles push a battle
+   (`ModePushed(mode="battle", initiative=…)`) on contact instead of trading skirmish
+   blows; the initiative order is rolled d20 + spd at push. The reference pack's
+   `bandit-1` engages; `goblin-1` stays a skirmisher — both scheduler configurations
+   of ADR-004 stay exercised.
+2. **Battle grammar**: `attack`/`use`/`flee`/`look`; `skill` waits for the abilities
+   system (§9.2). Menu battle abstracts distance; combatants are simply in the fight.
+3. **Flee gains ground**: pops the battle (`outcome="fled"`) and moves the player
+   through the passable exit maximizing the distance to the nearest foe; when
+   cornered, `FleeFailed` spends the turn and the battle continues. A fled foe stays
+   aggroed, chases, and re-engages on contact.
+4. **Outcomes are checked in `step` after AI turns**: no living foes on the initiative
+   list → `ModePopped(outcome="victory")`; `player-defeated` → `outcome="defeat"`.
+   The `ActorDied` fold prunes the initiative queue.
+5. **Nearby fighting hostiles join the battle** (post-review): engagement enrolls the
+   engager plus every hostile in the area that is aggroed or in melee range, so
+   nobody freezes mid-fight and battle cannot be used as a shield. Hostiles that are
+   neither aggroed nor adjacent stay out (and stay suspended while battle is on top;
+   revisit if off-battle simulation is ever wanted).
+6. **Wire**: frame schema v1 → v2 (`viewport` is now `oneOf` grid/menu), event schema
+   v3 → v4 (`ModePushed`/`ModePopped`/`FleeFailed`); same retire-and-replace policy.
+   The plain transcript renders combatants as `* <id> <hp>/<max>` lines, and
+   `PlainProjection` gained a `combatants` field.
+7. **Initiative is behaviorally real** (post-review): foes that outroll the player
+   strike pre-emptively in the engagement round; in later rounds the player's command
+   resolves first by the command-driven convention and initiative orders the foes.
+8. **Flee must actually escape** (post-review): scored against every hostile in the
+   area, and it succeeds only if the destination breaks melee contact with the
+   battle's foes — otherwise `FleeFailed`. A fled foe still chases and re-engages on
+   its own later turns.
+9. **Honest rejections across modes** (post-review): each mode declares its verb set
+   (`Mode.VERBS`); a mode-absent verb rejects as `wrong_mode` with the mode's actual
+   options, never "there are no exits here".
+10. **Glyph vocabulary is content** (post-review): `Renderable` carries a `label`,
+    legends are built from the pack per area, and the plain parser identifies tile
+    rows structurally (leading space-free lines) instead of via a hardcoded charset.
+    Plain help is derived from the frame's grammar, so it cannot drift.
+11. **Initiative survives nested pushes** (post-review): a push without an initiative
+    payload preserves the queue; only popping the battle clears it. Battle outcomes
+    are checked in the scheduler's battle configuration (one shared loop, ADR-004) —
+    §10.1's "checked in the event fold" is read as "checked during the fold inside
+    step", since a fold that emits events is not implementable in this design.
 
 ## Next steps
 

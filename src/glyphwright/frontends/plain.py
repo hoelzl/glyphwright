@@ -16,15 +16,11 @@ from dataclasses import dataclass
 from typing import TextIO
 
 from glyphwright.api import Engine
-from glyphwright.frames.frame import SemanticFrame
+from glyphwright.frames.frame import GridView, MenuView, SemanticFrame
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
-from glyphwright.modes import exploration
 
 _DELIMITER = "=="
-
-# The tile character set is the legend's: one source of glyph knowledge.
-_TILE_GLYPHS = frozenset(glyph for glyph, _ in exploration.LEGEND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,18 +37,25 @@ class PlainProjection:
     tiles: tuple[str, ...]
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
+    combatants: tuple[str, ...] = ()
 
 
 def project(frame: SemanticFrame) -> PlainProjection:
     """The projection the plain transcript is expected to preserve."""
     player = next((actor for actor in frame.actors if actor.id == "player"), None)
+    combatants: tuple[str, ...] = ()
+    if isinstance(frame.viewport, MenuView):
+        combatants = tuple(
+            f"{actor.id} {actor.hp}/{actor.max_hp}" for actor in frame.actors
+        )
     return PlainProjection(
         turn=frame.turn,
         mode=frame.mode,
         area=frame.viewport.area,
-        tiles=frame.viewport.tiles,
+        tiles=frame.viewport.tiles if isinstance(frame.viewport, GridView) else (),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
+        combatants=combatants,
     )
 
 
@@ -61,6 +64,7 @@ def render(frame: SemanticFrame) -> str:
     view = project(frame)
     lines = [f"{_DELIMITER} turn {view.turn} · {view.mode} · {view.area} {_DELIMITER}"]
     lines.extend(view.tiles)
+    lines.extend(f"* {combatant}" for combatant in view.combatants)
     lines.extend(view.messages)
     if view.hp is not None:
         lines.append(f"[hp {view.hp[0]}/{view.hp[1]}]")
@@ -91,7 +95,17 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
-    tiles = tuple(line for line in body if line and set(line) <= _TILE_GLYPHS)
+    combatants = tuple(
+        line.removeprefix("* ") for line in body if line.startswith("* ")
+    )
+    body = [line for line in body if not line.startswith("* ")]
+    # Tiles are the leading run of space-free lines: content-independent, so
+    # a pack may use any glyph. Message templates always contain spaces.
+    tiles: tuple[str, ...] = ()
+    for line in body:
+        if not line or " " in line:
+            break
+        tiles = (*tiles, line)
     messages = tuple(body[len(tiles) :])
     return PlainProjection(
         turn=turn,
@@ -100,21 +114,38 @@ def parse(text: str) -> PlainProjection:
         tiles=tiles,
         messages=messages,
         hp=hp,
+        combatants=combatants,
     )
 
 
 _PROMPT = "> "
-_HELP = (
-    "commands: move <north|east|south|west> | look | wait"
-    " | take <item> | use <item> | equip <item> | attack <target> | quit\n"
-)
+_PLACEHOLDERS = {
+    "move": "<exit>",
+    "take": "<item>",
+    "use": "<item>",
+    "equip": "<item>",
+    "attack": "<target>",
+}
+
+
+def help_line(frame: SemanticFrame) -> str:
+    """Commands the frame's grammar advertises right now.
+
+    Derived from the grammar rather than hand-written, so the help can never
+    drift from what the engine actually accepts.
+    """
+    verbs = [
+        f"{verb} {_PLACEHOLDERS[verb]}" if verb in _PLACEHOLDERS else verb
+        for verb in frame.commands.verb_names()
+    ]
+    return "commands: " + " | ".join((*verbs, "quit")) + "\n"
 
 
 def run_session(
     engine: Engine, input_stream: TextIO, output: TextIO, *, harness: bool = False
 ) -> int:
     """Drive a run as a human-readable transcript."""
-    output.write(_HELP)
+    output.write(help_line(engine.frame()))
     output.write(render(engine.frame()) + "\n")
 
     while True:
@@ -125,7 +156,7 @@ def run_session(
             output.write("session ended\n")
             return 0
         if line.strip() == "help":
-            output.write(_HELP)
+            output.write(help_line(engine.frame()))
             continue
         if line.strip().startswith(":"):
             if not harness:
@@ -140,7 +171,7 @@ def run_session(
 
         command = decode_command(line)
         if command is None:
-            output.write(f"? {line.strip()!r} — {_HELP}")
+            output.write(f"? {line.strip()!r} — {help_line(engine.frame())}")
             continue
 
         result = engine.step(command)

@@ -17,10 +17,13 @@ from glyphwright.kernel.events import (
     DamageDealt,
     Event,
     FlagSet,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
     TurnAdvanced,
@@ -31,6 +34,11 @@ from glyphwright.world.entities import Entity, Equipment, Inventory, Position
 from glyphwright.world.space import EntityId, PosId, Space
 
 PLAYER: EntityId = "player"
+
+# Mode names are kernel vocabulary: the scheduler and the fold both branch on
+# them, and the kernel cannot import the modes package (modes import kernel).
+MODE_EXPLORATION = "exploration"
+MODE_BATTLE = "battle"
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +51,7 @@ class WorldState:
     turn: int
     rng: Rng
     flags: Mapping[str, bool]
+    initiative: tuple[EntityId, ...] = ()
 
     def __post_init__(self) -> None:
         # Freeze the mappings so "immutable" is enforced rather than promised.
@@ -158,13 +167,40 @@ def apply(state: WorldState, event: Event) -> WorldState:
         case AttackMissed():
             return state
         case ActorDied():
-            # The dead leave no dangling aggression behind them.
+            # The dead leave no dangling aggression, and no initiative slot.
             survivors = state.without_entity(event.actor)
+            if event.actor in survivors.initiative:
+                survivors = replace(
+                    survivors,
+                    initiative=tuple(
+                        i for i in survivors.initiative if i != event.actor
+                    ),
+                )
             if aggro_flag(event.actor) in survivors.flags:
                 flags = dict(survivors.flags)
                 del flags[aggro_flag(event.actor)]
                 return replace(survivors, flags=flags)
             return survivors
+        case ModePushed():
+            # A push without an initiative payload (a future dialogue or menu
+            # atop a battle) must not wipe the battle's queue beneath it.
+            initiative = event.initiative if event.initiative else state.initiative
+            return replace(
+                state,
+                mode_stack=(*state.mode_stack, event.mode),
+                initiative=initiative,
+            )
+        case ModePopped():
+            if state.mode != event.mode:
+                raise ValueError(
+                    f"cannot pop {event.mode!r}: the active mode is {state.mode!r}"
+                )
+            initiative = () if event.mode == MODE_BATTLE else state.initiative
+            return replace(
+                state, mode_stack=state.mode_stack[:-1], initiative=initiative
+            )
+        case FleeFailed():
+            return state
         case FlagSet():
             flags = dict(state.flags)
             flags[event.flag] = event.value

@@ -10,12 +10,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from glyphwright.frames.frame import SemanticFrame
+from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
     Attack,
     Command,
     CommandGrammar,
     Equip,
+    Flee,
     Look,
     Move,
     Rejected,
@@ -29,23 +30,42 @@ from glyphwright.kernel.events import (
     DamageDealt,
     Event,
     FlagSet,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
     TurnAdvanced,
 )
 
-FRAME_SCHEMA = "glyphwright.frame/1"
-# Widening the event vocabulary bumps the tag: a closed-enum contract cannot
-# widen in place (ADR-006). Prior tags were retired rather than kept in a
-# compatibility matrix because no external consumer existed before the bumps
-# (v1 -> v2 with items, v2 -> v3 with combat).
-EVENT_SCHEMA = "glyphwright.event/3"
+# Widening a closed contract bumps the tag (ADR-006). Prior tags were retired
+# rather than kept in a compatibility matrix because no external consumer
+# existed before the bumps (event: items v2, combat v3, battle v4; frame: the
+# menu viewport variant v2).
+FRAME_SCHEMA = "glyphwright.frame/2"
+EVENT_SCHEMA = "glyphwright.event/4"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
+
+
+def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
+    if isinstance(viewport, GridView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "origin": list(viewport.origin),
+            "tiles": list(viewport.tiles),
+            "legend": dict(viewport.legend),
+        }
+    return {
+        "kind": viewport.kind,
+        "area": viewport.area,
+        "combatants": list(viewport.combatants),
+    }
 
 
 def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
@@ -53,13 +73,7 @@ def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
         "schema": FRAME_SCHEMA,
         "turn": frame.turn,
         "mode": frame.mode,
-        "viewport": {
-            "kind": frame.viewport.kind,
-            "area": frame.viewport.area,
-            "origin": list(frame.viewport.origin),
-            "tiles": list(frame.viewport.tiles),
-            "legend": dict(frame.viewport.legend),
-        },
+        "viewport": _encode_viewport(frame.viewport),
         "actors": [
             {
                 "id": actor.id,
@@ -159,6 +173,12 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"actor": event.actor}
         case FlagSet():
             payload |= {"flag": event.flag, "value": event.value}
+        case ModePushed():
+            payload |= {"mode": event.mode, "initiative": list(event.initiative)}
+        case ModePopped():
+            payload |= {"mode": event.mode, "outcome": event.outcome}
+        case FleeFailed():
+            payload |= {"actor": event.actor}
     return payload
 
 
@@ -192,5 +212,7 @@ def decode_command(text: str) -> Command | None:
             return Equip(item=item)
         case ["attack", target]:
             return Attack(target=target)
+        case ["flee"]:
+            return Flee()
         case _:
             return None

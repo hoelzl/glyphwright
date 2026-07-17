@@ -59,7 +59,7 @@ def session_schema() -> dict[str, Any]:
 
 
 def frame_schema() -> dict[str, Any]:
-    viewport = _object(
+    grid_viewport = _object(
         {
             "kind": {"const": "grid"},
             "area": _STRING,
@@ -73,6 +73,14 @@ def frame_schema() -> dict[str, Any]:
             "legend": {"type": "object", "additionalProperties": _STRING},
         }
     )
+    menu_viewport = _object(
+        {
+            "kind": {"const": "menu"},
+            "area": _STRING,
+            "combatants": _array(_STRING),
+        }
+    )
+    viewport = {"oneOf": [grid_viewport, menu_viewport]}
     actor = _object(
         {
             "id": _STRING,
@@ -132,6 +140,9 @@ def event_schema() -> dict[str, Any]:
                     "AttackMissed",
                     "ActorDied",
                     "FlagSet",
+                    "ModePushed",
+                    "ModePopped",
+                    "FleeFailed",
                 ]
             },
             "actor": _STRING,
@@ -152,6 +163,9 @@ def event_schema() -> dict[str, Any]:
             "flag": _STRING,
             "value": {"type": "boolean"},
             "rng": _STRING,
+            "mode": _STRING,
+            "initiative": _array(_STRING),
+            "outcome": _STRING,
         },
         "additionalProperties": False,
     }
@@ -196,8 +210,8 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
         "glyphwright.session.v1.json": session_schema(),
-        "glyphwright.frame.v1.json": frame_schema(),
-        "glyphwright.event.v3.json": event_schema(),
+        "glyphwright.frame.v2.json": frame_schema(),
+        "glyphwright.event.v4.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

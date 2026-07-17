@@ -8,12 +8,12 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from glyphwright import modes
 from glyphwright.kernel import scheduler
 from glyphwright.kernel.commands import Command
 from glyphwright.kernel.events import Event, TurnAdvanced
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import WorldState, apply, fold
-from glyphwright.modes import exploration
 
 
 def step(
@@ -28,16 +28,13 @@ def step(
     A command that spends the turn hands control to the scheduler before the
     turn closes: AI actors take their turns inside this same step (0003 §5.5),
     so the returned events are the whole round — player first, then AI, then
-    ``TurnAdvanced``. The closing ``TurnAdvanced`` is stamped with the round's
-    final RNG cursor, which is what keeps the successor state — cursor
-    included — exactly the fold of the events (0003 §5.3). A handler that
-    draws without spending the turn would break that bookkeeping, so it is
-    forbidden and enforced here.
+    any battle outcome, then ``TurnAdvanced``. The closing ``TurnAdvanced`` is
+    stamped with the round's final RNG cursor, which is what keeps the
+    successor state — cursor included — exactly the fold of the events
+    (0003 §5.3). A handler that draws without spending the turn would break
+    that bookkeeping, so it is forbidden and enforced here.
     """
-    if state.mode != exploration.NAME:
-        raise ValueError(f"unknown mode: {state.mode}")
-
-    events, next_rng = exploration.handle(state, command, rng)
+    events, next_rng = modes.active(state).handle(state, command, rng)
     next_state = fold(state, events)
 
     if events and isinstance(events[-1], TurnAdvanced):
