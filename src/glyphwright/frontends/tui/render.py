@@ -17,7 +17,8 @@ from glyphwright.frames.frame import (
 )
 
 _CLEAR = "\x1b[2J\x1b[H"
-_WIDTH = 78
+WIDTH = 78
+_WIDTH = WIDTH
 _VIEWPORT_LINES = 9
 _LOG_LINES = 6
 
@@ -40,10 +41,12 @@ def _viewport_lines(frame: SemanticFrame) -> list[str]:
     if isinstance(viewport, GridView):
         lines = list(viewport.tiles)
     elif isinstance(viewport, RoomView):
+        # Contents come before the prose: a long description may be truncated
+        # by the region budget, but what the player can act on may not.
         lines = [viewport.name]
-        lines.extend(textwrap.wrap(viewport.description, _WIDTH))
         if viewport.contents:
             lines.append(f"You see: {', '.join(viewport.contents)}.")
+        lines.extend(textwrap.wrap(viewport.description, _WIDTH))
     else:
         lines = ["-- battle --"]
         for actor in frame.actors:

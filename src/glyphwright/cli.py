@@ -48,6 +48,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.frontend == "jsonl":
         return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
     if args.frontend == "tui":
+        if not sys.stdin.isatty():
+            # Fail before touching the terminal: piped input belongs to the
+            # plain and JSONL frontends.
+            parser.error("--frontend tui needs an interactive terminal")
         from glyphwright.frontends.tui import session as tui_session
 
         return tui_session.run_session(engine, None, sys.stdout, harness=args.harness)

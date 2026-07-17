@@ -173,3 +173,133 @@ def test_rejections_are_surfaced_in_the_log() -> None:
     session.run_session(engine, iter(["k", "q"]), output, harness=False)
     # north from (1,1) is a wall: a valid move the world refuses, in prose.
     assert "wall blocks" in output.getvalue()
+
+
+# -- input-handling hardening (adversarial review regressions) ----------------
+
+
+def test_exotic_digits_do_not_crash_translation() -> None:
+    frame = _engine().frame()
+    assert keys.translate("²", frame) is None
+    assert keys.translate("٣", frame) is None  # Arabic-Indic three
+
+
+def test_posix_decoder_consumes_csi_sequences_whole() -> None:
+    script = iter("\x1b[1;5C" + "q")
+    decoded = list(keys.decode_posix(lambda: next(script, "")))
+    # Ctrl-Right maps to nothing, and none of its parameter bytes leak.
+    assert decoded == ["q"]
+
+
+def test_posix_decoder_maps_plain_arrows() -> None:
+    script = iter("\x1b[Cx")
+    assert list(keys.decode_posix(lambda: next(script, ""))) == ["RIGHT", "x"]
+
+
+def test_a_bare_escape_does_not_swallow_the_next_key() -> None:
+    script = iter("\x1bq")
+    assert list(keys.decode_posix(lambda: next(script, ""))) == ["ESC", "q"]
+
+
+def test_windows_decoder_keeps_a_real_a_grave() -> None:
+    # 'à' is U+00E0 — the extended-key prefix value — but arrives alone.
+    script = iter(["\xe0", "q"])
+    pending = iter([False, False])
+    decoded = []
+    generator = keys.decode_windows(lambda: next(script), lambda: next(pending, False))
+    for _ in range(2):
+        decoded.append(next(generator))
+    assert decoded == ["\xe0", "q"]
+
+
+def test_windows_decoder_maps_pending_scan_codes() -> None:
+    script = iter(["\xe0", "H", "q"])
+    pending = iter([True, False])
+    generator = keys.decode_windows(lambda: next(script), lambda: next(pending, False))
+    assert [next(generator), next(generator)] == ["UP", "q"]
+
+
+def test_ctrl_c_cancels_the_command_bar_without_polluting_it() -> None:
+    engine = _engine()
+    output = io.StringIO()
+    session.run_session(
+        engine, iter([";", "m", "\x03", "l", "q"]), output, harness=False
+    )
+    # The bar was cancelled; the following 'l' acted as a normal move key.
+    assert engine.frame().turn == 1
+    assert "unparsable" not in output.getvalue()
+
+
+def test_named_keys_are_not_spliced_into_typed_text() -> None:
+    engine = _engine()
+    output = io.StringIO()
+    session.run_session(
+        engine, iter([";", "UP", *"look", "\r", "q"]), output, harness=False
+    )
+    assert "unparsable" not in output.getvalue()
+    assert engine.frame().turn == 0
+
+
+def test_long_meta_payloads_are_wrapped_not_cut() -> None:
+    engine = _engine()
+    output = io.StringIO()
+    session.run_session(engine, iter([*":frame\r", "q"]), output, harness=True)
+    screen = output.getvalue()
+    assert '"schema"' in screen
+    assert "glyphwright.frame/3" in screen
+
+
+def test_room_contents_survive_a_long_description() -> None:
+    from glyphwright.frames.frame import PromptSpec, RoomView, SemanticFrame
+    from glyphwright.kernel.commands import CommandGrammar
+
+    frame = SemanticFrame(
+        turn=0,
+        mode="exploration",
+        viewport=RoomView(
+            area="keep",
+            room="archive",
+            name="The Archive",
+            description="Shelves upon shelves. " * 40,
+            contents=("dusty-tome",),
+            exits=("out",),
+        ),
+        actors=(),
+        messages=(),
+        prompt=PromptSpec(kind="command"),
+        commands=CommandGrammar(verbs=(("move", (("out",),)), ("look", ()))),
+    )
+    screen = render.paint(frame, ())
+    assert "You see: dusty-tome." in screen
+    assert "exits: 1) out" in screen
+
+
+def test_the_tui_shows_everything_the_plain_transcript_commits_to() -> None:
+    """In-repo differential against plain (0003 §18.5): every fact the plain
+    projection commits to paper appears on the TUI screen for the same frame,
+    across grid, room, and battle presentations."""
+    from glyphwright.frontends import plain
+
+    engine = _engine()
+    script = ["east", "east", "west", "south"]  # walk, then the bandit engages
+    frames = [engine.frame()]
+    for token in script:
+        frames.append(engine.step(Move(token)).frame)
+    for _ in range(6):
+        engine.step(Move("east"))
+    frames.append(engine.step(Move("enter")).frame)  # a room frame
+
+    for frame in frames:
+        projection = plain.project(frame)
+        screen = render.paint(frame, frame.messages)
+        for tile_row in projection.tiles:
+            assert tile_row in screen
+        for message in projection.messages:
+            assert message[: render.WIDTH] in screen
+        for prose in projection.room:
+            assert prose[: render.WIDTH] in screen
+        if projection.hp is not None:
+            assert f"hp {projection.hp[0]}/{projection.hp[1]}" in screen
+        for combatant in projection.combatants:
+            name = combatant.split(" ")[0]
+            assert name in screen
