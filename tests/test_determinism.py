@@ -12,14 +12,18 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, StepResult
 from glyphwright.content.pack import reference_pack
 from glyphwright.frontends.wire import encode_frame
-from glyphwright.kernel.commands import Command, Look, Move, Wait
+from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
 
 _EXITS = ("north", "east", "south", "west")
+_ITEMS = ("potion-minor", "iron-sword", "no-such-item")
 
 commands = st.one_of(
     st.sampled_from(_EXITS).map(Move),
     st.just(Look()),
     st.just(Wait()),
+    st.sampled_from(_ITEMS).map(Take),
+    st.sampled_from(_ITEMS).map(Use),
+    st.sampled_from(_ITEMS).map(Equip),
 )
 
 

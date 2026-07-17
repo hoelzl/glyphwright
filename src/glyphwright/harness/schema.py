@@ -14,7 +14,12 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from glyphwright.frontends.wire import EVENT_SCHEMA, FRAME_SCHEMA, REJECTION_SCHEMA
+from glyphwright.frontends.wire import (
+    EVENT_SCHEMA,
+    FRAME_SCHEMA,
+    QUERY_SCHEMA,
+    REJECTION_SCHEMA,
+)
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
 
 _STRING: dict[str, Any] = {"type": "string"}
@@ -114,13 +119,30 @@ def event_schema() -> dict[str, Any]:
         "properties": {
             "schema": {"const": EVENT_SCHEMA},
             "turn": _INTEGER,
-            "type": {"enum": ["Moved", "MoveBlocked", "TurnAdvanced"]},
+            "type": {
+                "enum": [
+                    "Moved",
+                    "MoveBlocked",
+                    "TurnAdvanced",
+                    "ItemAcquired",
+                    "ItemUsed",
+                    "ItemEquipped",
+                    "Healed",
+                ]
+            },
             "actor": _STRING,
             "origin": _STRING,
             "destination": _STRING,
             "exit": _STRING,
             "reason": _STRING,
             "turn_now": _INTEGER,
+            "item": _STRING,
+            "target": _STRING,
+            "consumed": {"type": "boolean"},
+            "slot": _STRING,
+            "replaced": {"type": ["string", "null"]},
+            "amount": _INTEGER,
+            "source": _STRING,
         },
         "additionalProperties": False,
     }
@@ -143,6 +165,24 @@ def rejection_schema() -> dict[str, Any]:
     }
 
 
+def query_schema() -> dict[str, Any]:
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": QUERY_SCHEMA,
+        "title": "GlyphWright query result",
+        "type": "object",
+        "required": ["schema", "path"],
+        "properties": {
+            "schema": {"const": QUERY_SCHEMA},
+            "path": _STRING,
+            "value": {},
+            "explanation": _array(_STRING),
+            "error": _STRING,
+        },
+        "additionalProperties": False,
+    }
+
+
 def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
@@ -150,6 +190,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
         "glyphwright.frame.v1.json": frame_schema(),
         "glyphwright.event.v1.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
+        "glyphwright.query.v1.json": query_schema(),
     }
 
 

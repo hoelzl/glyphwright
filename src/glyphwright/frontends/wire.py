@@ -14,16 +14,29 @@ from glyphwright.frames.frame import SemanticFrame
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
+    Equip,
     Look,
     Move,
     Rejected,
+    Take,
+    Use,
     Wait,
 )
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 
 FRAME_SCHEMA = "glyphwright.frame/1"
 EVENT_SCHEMA = "glyphwright.event/1"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
+QUERY_SCHEMA = "glyphwright.query/1"
 
 
 def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
@@ -91,6 +104,32 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             }
         case TurnAdvanced():
             payload |= {"turn_now": event.turn}
+        case ItemAcquired():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "origin": str(event.origin),
+            }
+        case ItemUsed():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "target": event.target,
+                "consumed": event.consumed,
+            }
+        case ItemEquipped():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "slot": event.slot,
+                "replaced": event.replaced,
+            }
+        case Healed():
+            payload |= {
+                "target": event.target,
+                "amount": event.amount,
+                "source": event.source,
+            }
     return payload
 
 
@@ -116,5 +155,11 @@ def decode_command(text: str) -> Command | None:
             return Look()
         case ["wait"]:
             return Wait()
+        case ["take", item]:
+            return Take(item=item)
+        case ["use", item]:
+            return Use(item=item)
+        case ["equip", item]:
+            return Equip(item=item)
         case _:
             return None

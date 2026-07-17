@@ -26,6 +26,13 @@ class Actor:
     name: str
     hp: int
     max_hp: int
+    base_stats: tuple[tuple[str, int], ...] = ()
+
+    def base_stat(self, stat: str) -> int:
+        for name, value in self.base_stats:
+            if name == stat:
+                return value
+        return 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +48,73 @@ class Renderable:
 
 
 @dataclass(frozen=True, slots=True)
+class StatModifier:
+    """One contribution to a stat, as component data.
+
+    ``op`` is ``add`` or ``mul``; multiplicative values are integer percentages
+    (120 means +20%) so the pipeline stays in exact integer arithmetic (design
+    0003 section 9.1). The pipeline itself lives in ``effects.stats``.
+    """
+
+    stat: str
+    op: str
+    value: int
+
+
+@dataclass(frozen=True, slots=True)
+class Item:
+    """An entity that can be carried."""
+
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class Consumable:
+    """An item destroyed by use. Slice 2's only use effect is healing."""
+
+    heal: int
+
+
+@dataclass(frozen=True, slots=True)
+class Equippable:
+    """An item that occupies a slot and contributes stat modifiers while worn."""
+
+    slot: str
+    modifiers: tuple[StatModifier, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Inventory:
+    """Item entity ids carried, in acquisition order."""
+
+    items: tuple[EntityId, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class Equipment:
+    """Worn items: slot -> item id, kept sorted by slot for determinism.
+
+    Equipped items remain in the inventory; this component only records which
+    slot they currently fill.
+    """
+
+    slots: tuple[tuple[str, EntityId], ...] = ()
+
+    def in_slot(self, slot: str) -> EntityId | None:
+        for name, item in self.slots:
+            if name == slot:
+                return item
+        return None
+
+    def equipped_items(self) -> tuple[EntityId, ...]:
+        return tuple(item for _, item in self.slots)
+
+    def with_slot(self, slot: str, item: EntityId) -> Equipment:
+        kept = tuple(pair for pair in self.slots if pair[0] != slot)
+        return Equipment(slots=tuple(sorted((*kept, (slot, item)))))
+
+
+@dataclass(frozen=True, slots=True)
 class Entity:
     """A stable id plus the components it carries."""
 
@@ -49,6 +123,14 @@ class Entity:
     actor: Actor | None = None
     blocker: Blocker | None = None
     renderable: Renderable | None = None
+    item: Item | None = None
+    consumable: Consumable | None = None
+    equippable: Equippable | None = None
+    inventory: Inventory | None = None
+    equipment: Equipment | None = None
 
     def at(self) -> PosId | None:
         return self.position.at if self.position is not None else None
+
+    def carries(self) -> tuple[EntityId, ...]:
+        return self.inventory.items if self.inventory is not None else ()

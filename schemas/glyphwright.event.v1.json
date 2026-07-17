@@ -6,10 +6,19 @@
     "actor": {
       "type": "string"
     },
+    "amount": {
+      "type": "integer"
+    },
+    "consumed": {
+      "type": "boolean"
+    },
     "destination": {
       "type": "string"
     },
     "exit": {
+      "type": "string"
+    },
+    "item": {
       "type": "string"
     },
     "origin": {
@@ -18,8 +27,23 @@
     "reason": {
       "type": "string"
     },
+    "replaced": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "schema": {
       "const": "glyphwright.event/1"
+    },
+    "slot": {
+      "type": "string"
+    },
+    "source": {
+      "type": "string"
+    },
+    "target": {
+      "type": "string"
     },
     "turn": {
       "type": "integer"
@@ -31,7 +55,11 @@
       "enum": [
         "Moved",
         "MoveBlocked",
-        "TurnAdvanced"
+        "TurnAdvanced",
+        "ItemAcquired",
+        "ItemUsed",
+        "ItemEquipped",
+        "Healed"
       ]
     }
   },

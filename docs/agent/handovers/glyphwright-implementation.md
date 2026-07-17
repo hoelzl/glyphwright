@@ -10,7 +10,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | Slice (0003 §18) | Status |
 | --- | --- |
 | 1 — Walking skeleton | **Done** (kernel, GridSpace, move/look/wait, plain + JSONL frontends, `glyphwright.api`, committed schemas, fingerprint; 82 tests green) |
-| 2 — Items and stats | **In progress** (this session) |
+| 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
 | 3 — Battle | Not started |
 | 4 — Rooms and portals | Not started |
 | 5 — TUI | Not started |

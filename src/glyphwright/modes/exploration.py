@@ -9,10 +9,29 @@ inherit determinism, replay, and enumeration-driven fuzzing for free (design
 from __future__ import annotations
 
 from glyphwright.frames.frame import ActorSummary, GridView, PromptSpec, SemanticFrame
-from glyphwright.kernel.commands import Command, CommandGrammar, Look, Move, Wait
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.commands import (
+    Command,
+    CommandGrammar,
+    Equip,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import PLAYER, WorldState
+from glyphwright.world.entities import Equipment
 from glyphwright.world.grid import GridSpace
 
 NAME = "exploration"
@@ -21,26 +40,63 @@ _LEGEND: tuple[tuple[str, str], ...] = (
     ("@", "player"),
     ("#", "wall"),
     (".", "floor"),
+    ("!", "potion"),
+    ("/", "weapon"),
 )
+
+
+def _takeable(state: WorldState) -> tuple[str, ...]:
+    at = state.entity(PLAYER).at()
+    if at is None:
+        return ()
+    return tuple(
+        entity.id for entity in state.entities_at(at) if entity.item is not None
+    )
+
+
+def _usable(state: WorldState) -> tuple[str, ...]:
+    return tuple(
+        item_id
+        for item_id in sorted(state.entity(PLAYER).carries())
+        if state.entity(item_id).consumable is not None
+    )
+
+
+def _equippable(state: WorldState) -> tuple[str, ...]:
+    player = state.entity(PLAYER)
+    worn = (player.equipment or Equipment()).equipped_items()
+    return tuple(
+        item_id
+        for item_id in sorted(player.carries())
+        if state.entity(item_id).equippable is not None and item_id not in worn
+    )
 
 
 def available_commands(state: WorldState) -> CommandGrammar:
     """Enumerate what is valid right now, drawn from real referents.
 
     An external harness generates valid actions from this without knowing the
-    rules, which is what makes random-walk fuzzing a short test.
+    rules, which is what makes random-walk fuzzing a short test. Verbs whose
+    argument domain is empty are not advertised: a grammar entry is a promise
+    that a command can be formed from it.
     """
     space = state.space_of(PLAYER)
     at = state.entity(PLAYER).at()
     assert at is not None  # space_of would have raised
     exits = tuple(sorted(space.exits(at)))
-    return CommandGrammar(
-        verbs=(
-            ("move", (exits,)),
-            ("look", ()),
-            ("wait", ()),
-        )
-    )
+    verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = [
+        ("move", (exits,)),
+        ("look", ()),
+        ("wait", ()),
+    ]
+    for verb, domain in (
+        ("take", _takeable(state)),
+        ("use", _usable(state)),
+        ("equip", _equippable(state)),
+    ):
+        if domain:
+            verbs.append((verb, (domain,)))
+    return CommandGrammar(verbs=tuple(verbs))
 
 
 def handle(
@@ -59,6 +115,12 @@ def handle(
             return (TurnAdvanced(turn=state.turn + 1),), rng
         case Move(exit=token):
             return _move(state, token), rng
+        case Take(item=item_id):
+            return _take(state, item_id), rng
+        case Use(item=item_id):
+            return _use(state, item_id), rng
+        case Equip(item=item_id):
+            return _equip(state, item_id), rng
 
 
 def _move(state: WorldState, token: str) -> tuple[Event, ...]:
@@ -85,6 +147,43 @@ def _move(state: WorldState, token: str) -> tuple[Event, ...]:
     return (
         Moved(actor=PLAYER, origin=origin, destination=destination, exit=token),
         turn,
+    )
+
+
+def _take(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    origin = state.entity(item_id).at()
+    assert origin is not None, "the grammar only offers items lying here"
+    return (
+        ItemAcquired(actor=PLAYER, item=item_id, origin=origin),
+        TurnAdvanced(turn=state.turn + 1),
+    )
+
+
+def _use(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    consumable = state.entity(item_id).consumable
+    assert consumable is not None, "the grammar only offers carried consumables"
+    actor = state.entity(PLAYER).actor
+    assert actor is not None
+    healed = min(consumable.heal, actor.max_hp - actor.hp)
+    return (
+        ItemUsed(actor=PLAYER, item=item_id, target=PLAYER, consumed=True),
+        Healed(target=PLAYER, amount=healed, source=item_id),
+        TurnAdvanced(turn=state.turn + 1),
+    )
+
+
+def _equip(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    equippable = state.entity(item_id).equippable
+    assert equippable is not None, "the grammar only offers carried equippables"
+    worn = state.entity(PLAYER).equipment or Equipment()
+    return (
+        ItemEquipped(
+            actor=PLAYER,
+            item=item_id,
+            slot=equippable.slot,
+            replaced=worn.in_slot(equippable.slot),
+        ),
+        TurnAdvanced(turn=state.turn + 1),
     )
 
 
@@ -152,5 +251,15 @@ def describe(event: Event) -> str:
             return f"Something blocks the way {event.exit}."
         case MoveBlocked():
             return f"You cannot go {event.exit} from here."
+        case ItemAcquired():
+            return f"You take {event.item}."
+        case ItemUsed():
+            return f"You use {event.item}."
+        case ItemEquipped(replaced=None):
+            return f"You equip {event.item}."
+        case ItemEquipped():
+            return f"You equip {event.item}, putting away {event.replaced}."
+        case Healed():
+            return f"You recover {event.amount} hp."
         case TurnAdvanced():
             return ""
