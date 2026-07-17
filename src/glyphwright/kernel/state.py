@@ -14,18 +14,24 @@ from types import MappingProxyType
 from glyphwright.kernel.events import (
     ActorDied,
     AttackMissed,
+    ChoiceOffered,
     DamageDealt,
+    DialogueLine,
     Event,
     FlagSet,
     FleeFailed,
+    FocusSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    MinigameResolved,
     ModePopped,
     ModePushed,
     MoveBlocked,
     Moved,
+    PinSet,
+    PinSlipped,
     TurnAdvanced,
     aggro_flag,
 )
@@ -39,6 +45,8 @@ PLAYER: EntityId = "player"
 # them, and the kernel cannot import the modes package (modes import kernel).
 MODE_EXPLORATION = "exploration"
 MODE_BATTLE = "battle"
+MODE_DIALOGUE = "dialogue"
+MODE_LOCKPICK = "minigame:lockpick"
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +60,7 @@ class WorldState:
     rng: Rng
     flags: Mapping[str, bool]
     initiative: tuple[EntityId, ...] = ()
+    focus: tuple[EntityId, str] | None = None
 
     def __post_init__(self) -> None:
         # Freeze the mappings so "immutable" is enforced rather than promised.
@@ -210,9 +219,19 @@ def apply(state: WorldState, event: Event) -> WorldState:
                 )
             initiative = () if event.mode == MODE_BATTLE else state.initiative
             return replace(
-                state, mode_stack=state.mode_stack[:-1], initiative=initiative
+                state,
+                mode_stack=state.mode_stack[:-1],
+                initiative=initiative,
+                focus=None,
             )
         case FleeFailed():
+            return state
+        case FocusSet():
+            return replace(state, focus=(event.entity, event.detail))
+        case DialogueLine() | ChoiceOffered() | PinSet() | PinSlipped():
+            # Pure evidence: the cursor moves through FocusSet.
+            return state
+        case MinigameResolved():
             return state
         case FlagSet():
             flags = dict(state.flags)

@@ -53,6 +53,30 @@ class RoomView:
 
 
 @dataclass(frozen=True, slots=True)
+class DialogueView:
+    """A conversation's viewport: who speaks, what they said, the choices."""
+
+    area: str
+    speaker: EntityId
+    text: str
+    choices: tuple[str, ...]
+
+    kind: str = "dialogue"
+
+
+@dataclass(frozen=True, slots=True)
+class LockView:
+    """The lockpicking minigame's viewport (design 0003 §10.3)."""
+
+    area: str
+    target: EntityId
+    pins: int
+    total: int
+
+    kind: str = "lock"
+
+
+@dataclass(frozen=True, slots=True)
 class MenuView:
     """A menu battle's viewport: who is in the fight (0003 §10.1).
 
@@ -66,7 +90,7 @@ class MenuView:
     kind: str = "menu"
 
 
-Viewport = GridView | RoomView | MenuView
+Viewport = GridView | RoomView | MenuView | DialogueView | LockView
 
 
 @dataclass(frozen=True, slots=True)

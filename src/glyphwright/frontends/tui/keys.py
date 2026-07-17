@@ -12,12 +12,15 @@ from collections.abc import Callable, Iterator
 
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.kernel.commands import (
+    Abort,
     Attack,
+    Choose,
     Command,
     Equip,
     Flee,
     Look,
     Move,
+    Pick,
     Take,
     Use,
     Wait,
@@ -54,6 +57,11 @@ def translate(key: str, frame: SemanticFrame) -> Command | None:
         return None
     # Explicit ASCII digits only: exotic keys like '²' satisfy isdigit() but
     # are not exit choices, and must never crash the session.
+    if key in "123456789" and "choose" in names:
+        domain = grammar.domains("choose")[0]
+        if key in domain:
+            return Choose(key)
+        return None
     if key in "123456789" and "move" in names:
         domain = grammar.domains("move")[0]
         index = int(key) - 1
@@ -67,6 +75,10 @@ def translate(key: str, frame: SemanticFrame) -> Command | None:
         return None
     if key == "f" and "flee" in names:
         return Flee()
+    if key == "p" and "pick" in names:
+        return Pick()
+    if key == "z" and "abort" in names:
+        return Abort()
     if key in (".", " ") and "wait" in names:
         return Wait()
     if key == "x" and "look" in names:

@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/4",
+  "$id": "glyphwright.event/5",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -12,6 +12,12 @@
     "amount": {
       "type": "integer"
     },
+    "choices": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "consumed": {
       "type": "boolean"
     },
@@ -19,6 +25,12 @@
       "type": "string"
     },
     "destination": {
+      "type": "string"
+    },
+    "detail": {
+      "type": "string"
+    },
+    "entity": {
       "type": "string"
     },
     "exit": {
@@ -36,6 +48,9 @@
     "item": {
       "type": "string"
     },
+    "minigame": {
+      "type": "string"
+    },
     "mode": {
       "type": "string"
     },
@@ -44,6 +59,9 @@
     },
     "outcome": {
       "type": "string"
+    },
+    "pins": {
+      "type": "integer"
     },
     "reason": {
       "type": "string"
@@ -58,7 +76,7 @@
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/4"
+      "const": "glyphwright.event/5"
     },
     "slot": {
       "type": "string"
@@ -66,7 +84,13 @@
     "source": {
       "type": "string"
     },
+    "speaker": {
+      "type": "string"
+    },
     "target": {
+      "type": "string"
+    },
+    "text": {
       "type": "string"
     },
     "turn": {
@@ -90,7 +114,13 @@
         "FlagSet",
         "ModePushed",
         "ModePopped",
-        "FleeFailed"
+        "FleeFailed",
+        "FocusSet",
+        "DialogueLine",
+        "ChoiceOffered",
+        "PinSet",
+        "PinSlipped",
+        "MinigameResolved"
       ]
     },
     "value": {

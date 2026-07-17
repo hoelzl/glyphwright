@@ -111,7 +111,77 @@ class Flee:
         return ()
 
 
-Command = Move | Look | Wait | Take | Use | Equip | Attack | Flee
+@dataclass(frozen=True, slots=True)
+class Talk:
+    """Open a conversation with a speaker in reach."""
+
+    target: EntityId
+
+    verb: str = "talk"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.target,)
+
+
+@dataclass(frozen=True, slots=True)
+class Open:
+    """Open a container in reach; a lock may push a minigame."""
+
+    target: EntityId
+
+    verb: str = "open"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.target,)
+
+
+@dataclass(frozen=True, slots=True)
+class Choose:
+    """Pick a numbered dialogue choice (design 0003 §10.2: ``choose 2``)."""
+
+    choice: str
+
+    verb: str = "choose"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.choice,)
+
+
+@dataclass(frozen=True, slots=True)
+class Pick:
+    """Work the lock: one attempt at the next pin."""
+
+    verb: str = "pick"
+
+    def args(self) -> tuple[str, ...]:
+        return ()
+
+
+@dataclass(frozen=True, slots=True)
+class Abort:
+    """Step back from the minigame, leaving it unresolved."""
+
+    verb: str = "abort"
+
+    def args(self) -> tuple[str, ...]:
+        return ()
+
+
+Command = (
+    Move
+    | Look
+    | Wait
+    | Take
+    | Use
+    | Equip
+    | Attack
+    | Flee
+    | Talk
+    | Open
+    | Choose
+    | Pick
+    | Abort
+)
 
 
 @dataclass(frozen=True, slots=True)

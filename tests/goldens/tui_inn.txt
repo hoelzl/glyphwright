@@ -1,9 +1,9 @@
 [2J[HGlyphWright · turn 7 · exploration · inn
 ------------------------------------------------------------------------------
 The Gilded Tankard
+You see: innkeeper.
 Lamplight pools on scarred oak tables, and the air is thick with woodsmoke and
 spilled ale.
-
 
 
 

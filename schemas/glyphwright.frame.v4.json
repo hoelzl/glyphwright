@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.frame/3",
+  "$id": "glyphwright.frame/4",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -85,7 +85,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "glyphwright.frame/3"
+      "const": "glyphwright.frame/4"
     },
     "turn": {
       "type": "integer"
@@ -193,6 +193,65 @@
             "area",
             "combatants",
             "kind"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "choices": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "dialogue"
+            },
+            "speaker": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "area",
+            "choices",
+            "kind",
+            "speaker",
+            "text"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "lock"
+            },
+            "pins": {
+              "type": "integer"
+            },
+            "target": {
+              "type": "string"
+            },
+            "total": {
+              "type": "integer"
+            }
+          },
+          "required": [
+            "area",
+            "kind",
+            "pins",
+            "target",
+            "total"
           ],
           "type": "object"
         }

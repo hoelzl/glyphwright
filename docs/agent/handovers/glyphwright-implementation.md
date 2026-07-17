@@ -14,7 +14,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | 3 — Battle | **Done** (3A exploration combat + 3B menu battle: mode stack, rolled initiative, MenuView, flee, victory/defeat outcomes; tactics arena deferred to a later slice with FOV) |
 | 4 — Rooms and portals | **Done** (RoomGraphSpace, Portal component as extra exit tokens, RoomView + plain prose round-trip, inn interior in the reference pack; frame schema v3; PR pending review) |
 | 5 — TUI | **Done** (hand-rolled ANSI, §20.1 resolved in 0003; pure `paint`, grammar-gated hotkeys, `;`/`:` bars, alt-screen loop, reviewed goldens; PR pending review) |
-| 6 — Dialogue and one minigame | Not started |
+| 6 — Dialogue and one minigame | **Done** (dialogue trees + lockpicking as ordinary modes, `FocusSet` cursor, event v5 + frame v4; PR pending review) |
 
 TermVerify-side work (direct adapter, PTY golden) is deliberately not in this repository
 yet; adapter placement is open (0003 §20.5) and will be decided when the adapter is built.
@@ -196,6 +196,27 @@ Decisions taken by the implementing agent (owner delegated open choices):
    (platform raw-console reads, `pragma: no cover`); scripted iterators drive the
    loop everywhere else. TermVerify-side PTY differential tests remain external
    (§20.5).
+
+## Slice 6 decisions (dialogue and lockpicking)
+
+1. **Mode-local cursors are one state field**: `WorldState.focus = (entity, detail)`,
+   installed by the `FocusSet` event — dialogue tracks `(speaker, node)`, lockpicking
+   `(chest, pins-set)`. `DialogueLine`/`ChoiceOffered`/`PinSet`/`PinSlipped` are pure
+   evidence; `ModePopped` clears focus. If two focus-modes ever nest, focus needs
+   per-frame stacking like initiative — revisit then.
+2. **Dialogue trees are components** (`Dialogue`/`DialogueNode`/`DialogueChoice` on the
+   speaker entity), validated at construction (unique ids, resolvable links, every
+   node offers a choice). Choice effects: `sets_flag` only; item grants and mode
+   pushes from choices are future work.
+3. **`Openable(contains, key)` + the shared `unlock_events`**: the rusty key opens the
+   strongbox outright; without it, `open` pushes `minigame:lockpick`. One unlock path
+   serves both, so a chest cannot behave differently by how it was defeated.
+4. **Lockpicking is roll-per-attempt** (d20 >= 9 sets the next of 3 pins; a slip
+   resets) — no secret stored in state, so nothing special is needed for replay.
+   `abort` pops with outcome `abandoned` and the chest stays available.
+5. **Wire**: event v4 → v5, frame v3 → v4 (dialogue + lock viewports); same
+   retire-and-replace policy. Plain marks dialogue lines with `| ` and the lock line
+   with `% `; TUI digits choose when a dialogue is open, `p` picks.
 
 ## Next steps
 

@@ -112,10 +112,10 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     # Re-pinned deliberately per slice when entity or area identity widens
-    # (3A: AiBehavior; 4: Portal component and full-area hashing for mixed
-    # geometries) — a content-schema change must show here.
+    # (3A: AiBehavior; 4: Portal + full-area hashing; 6: Dialogue and
+    # Openable components) — a content-schema change must show here.
     assert pack.pack_id == (
-        "pin@sha256:498816e5ab9c4ce53ed9d9da6808db14e2f29ea6f8bc288dfd453b9be9990f80"
+        "pin@sha256:7b0fc7a06dea65660b8a6f26bc5e392b8348c9648fb2d2fba89f170fad9702bc"
     )
 
 
