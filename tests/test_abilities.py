@@ -14,6 +14,8 @@ from glyphwright.kernel.events import (
     StatusExpired,
 )
 from glyphwright.kernel.state import PLAYER, fold
+from glyphwright.world.entities import Entity
+from glyphwright.world.grid import GridSpace
 
 
 def _engine() -> Engine:
@@ -170,12 +172,21 @@ def test_cast_works_in_battle() -> None:
 # -- content validation -------------------------------------------------------
 
 
+def _lone_player(space: GridSpace) -> Entity:
+    from glyphwright.world.entities import Actor, Entity, Position
+
+    return Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="P", hp=1, max_hp=1),
+    )
+
+
 def test_an_ability_with_an_unknown_primitive_fails_at_load() -> None:
     import pytest
 
     from glyphwright.content.pack import ContentPack
     from glyphwright.effects.abilities import Ability
-    from glyphwright.world.entities import Entity
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
@@ -183,7 +194,7 @@ def test_an_ability_with_an_unknown_primitive_fails_at_load() -> None:
         ContentPack(
             name="broken",
             areas=(space,),
-            entities=(Entity(id="e"),),
+            entities=(_lone_player(space),),
             abilities=(
                 Ability(
                     id="oops",
@@ -203,8 +214,12 @@ def test_an_actor_with_an_unknown_ability_fails_at_load() -> None:
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
+    from glyphwright.world.entities import Position
+
     caster = Entity(
-        id="e", actor=Actor(name="E", hp=1, max_hp=1, abilities=("no-such",))
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="E", hp=1, max_hp=1, abilities=("no-such",)),
     )
     with pytest.raises(ValueError, match="unknown ability"):
         ContentPack(name="broken", areas=(space,), entities=(caster,))
@@ -215,7 +230,6 @@ def test_apply_status_referencing_an_unknown_status_fails_at_load() -> None:
 
     from glyphwright.content.pack import ContentPack
     from glyphwright.effects.abilities import Ability
-    from glyphwright.world.entities import Entity
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
@@ -223,7 +237,7 @@ def test_apply_status_referencing_an_unknown_status_fails_at_load() -> None:
         ContentPack(
             name="broken",
             areas=(space,),
-            entities=(Entity(id="e"),),
+            entities=(_lone_player(space),),
             abilities=(
                 Ability(
                     id="hexed",
@@ -336,7 +350,6 @@ def test_malformed_primitive_params_fail_at_load() -> None:
 
     from glyphwright.content.pack import ContentPack
     from glyphwright.effects.abilities import Ability
-    from glyphwright.world.entities import Entity
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
@@ -344,7 +357,7 @@ def test_malformed_primitive_params_fail_at_load() -> None:
         ContentPack(
             name="broken",
             areas=(space,),
-            entities=(Entity(id="e"),),
+            entities=(_lone_player(space),),
             abilities=(
                 Ability(
                     id="oops",
@@ -358,7 +371,7 @@ def test_malformed_primitive_params_fail_at_load() -> None:
         ContentPack(
             name="broken",
             areas=(space,),
-            entities=(Entity(id="e"),),
+            entities=(_lone_player(space),),
             abilities=(
                 Ability(
                     id="oops",

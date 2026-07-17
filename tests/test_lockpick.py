@@ -181,35 +181,45 @@ def test_an_openable_with_unknown_contents_fails_at_load() -> None:
     import pytest
 
     from glyphwright.content.pack import ContentPack
-    from glyphwright.world.entities import Entity, Openable, Position
+    from glyphwright.world.entities import Actor, Entity, Openable, Position
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
+    player = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="P", hp=1, max_hp=1),
+    )
     chest = Entity(
         id="chest",
-        position=Position(at=space.pos(0, 0)),
+        position=Position(at=space.pos(1, 0)),
         openable=Openable(contains="no-such-loot"),
     )
     with pytest.raises(ValueError, match="unknown entity"):
-        ContentPack(name="broken", areas=(space,), entities=(chest,))
+        ContentPack(name="broken", areas=(space,), entities=(player, chest))
 
 
 def test_an_openable_with_an_unknown_key_fails_at_load() -> None:
     import pytest
 
     from glyphwright.content.pack import ContentPack
-    from glyphwright.world.entities import Entity, Item, Openable, Position
+    from glyphwright.world.entities import Actor, Entity, Item, Openable, Position
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("here", "..")
+    player = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="P", hp=1, max_hp=1),
+    )
     loot = Entity(id="loot", item=Item(name="Loot"))
     chest = Entity(
         id="chest",
-        position=Position(at=space.pos(0, 0)),
+        position=Position(at=space.pos(1, 0)),
         openable=Openable(contains="loot", key="no-such-key"),
     )
     with pytest.raises(ValueError, match="unknown key"):
-        ContentPack(name="broken", areas=(space,), entities=(chest, loot))
+        ContentPack(name="broken", areas=(space,), entities=(player, chest, loot))
 
 
 def test_the_strongbox_is_visible_in_the_cellar() -> None:

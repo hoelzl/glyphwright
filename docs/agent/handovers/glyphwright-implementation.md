@@ -248,6 +248,21 @@ Decisions taken by the implementing agent (owner delegated open choices):
    throwaway mana pool was deliberately declined (0004 §2).
 6. Event schema v5 → v6 (`StatusApplied`/`StatusExpired`/`CastFizzled`).
 
+## Slice 8 decisions (TOML content packs — design 0005)
+
+1. Four-file layout (`pack.toml`, `areas.toml`, `entities.toml`, `abilities.toml`);
+   positions are `"area:local"` strings; components mirror the dataclasses.
+2. The loader adds *location*, not a second validation layer: constructor errors are
+   re-raised as `PackError` with file + table + id; tomllib syntax errors carry
+   line/column. `0003` §8.2's "file/line" reads as: lines for syntax, exact content
+   object for semantics (recorded in 0005 §3).
+3. **The reference pack is TOML now** — `reference_pack()` loads the packaged files
+   (`importlib.resources`), so the entire suite exercises the loader; the
+   Python-built pack was deleted, not shadowed. The wheel verifiably ships the
+   files.
+4. `--pack <dir>` on the CLI, failing with a clean argparse error on broken packs.
+5. `tomllib` is stdlib: the zero-dependency stance holds.
+
 ## Next steps
 
 1. Finish slice 2 (see task breakdown in session, or re-derive from §18.2).

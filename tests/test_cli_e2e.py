@@ -77,6 +77,28 @@ def test_the_same_seed_and_commands_reproduce_across_processes() -> None:
     assert _run(argv, script).stdout == _run(argv, script).stdout
 
 
+def test_an_external_pack_plays_over_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    (tmp_path / "pack.toml").write_text('name = "closet"\n', encoding="utf-8")
+    (tmp_path / "areas.toml").write_text(
+        '[[grid]]\narea = "closet"\nrows = """\n...\n"""\n', encoding="utf-8"
+    )
+    (tmp_path / "entities.toml").write_text(
+        '[[entity]]\nid = "player"\nposition = "closet:0,0"\nblocker = true\n'
+        "[entity.actor]\nname = 'Mote'\nhp = 5\nmax_hp = 5\n",
+        encoding="utf-8",
+    )
+    result = _run(["--pack", str(tmp_path)], "move east\nquit\n")
+    assert result.returncode == 0
+    assert "closet" in result.stdout
+
+
+def test_a_broken_external_pack_fails_cleanly(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    (tmp_path / "pack.toml").write_text('name = "broken"\n', encoding="utf-8")
+    result = _run(["--pack", str(tmp_path)], "")
+    assert result.returncode == 2
+    assert "areas.toml" in result.stderr
+
+
 def test_help_is_available_without_playing() -> None:
     result = subprocess.run(
         _SCRIPT + ["--help"], capture_output=True, text=True, check=False

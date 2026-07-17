@@ -1,0 +1,27 @@
+[[grid]]
+area = "village"
+rows = """
+#########
+#.......#
+#..##...#
+#.......#
+#########"""
+
+[[rooms]]
+area = "inn"
+
+[[rooms.room]]
+id = "common-room"
+name = "The Gilded Tankard"
+description = "Lamplight pools on scarred oak tables, and the air is thick with woodsmoke and spilled ale."
+
+[rooms.room.exits]
+down = "cellar"
+
+[[rooms.room]]
+id = "cellar"
+name = "Inn Cellar"
+description = "Casks line the walls of this low vault, and something small glints between the flagstones."
+
+[rooms.room.exits]
+up = "common-room"

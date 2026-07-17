@@ -105,18 +105,23 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     rename, a serialization change — must be a deliberate, reviewed decision,
     which is exactly what breaking this pin forces."""
     from glyphwright.content.pack import ContentPack
-    from glyphwright.world.entities import Entity, Position
+    from glyphwright.world.entities import Actor, Entity, Position
     from glyphwright.world.grid import GridSpace
 
     space = GridSpace.from_text("pin", "..")
-    entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
+    entity = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="Pin", hp=1, max_hp=1),
+    )
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     # Re-pinned deliberately per slice when entity or area identity widens
     # (3A: AiBehavior; 4: Portal + full-area hashing; 6: Dialogue and
-    # Openable; 7: abilities/statuses tables) — a content-schema change
+    # Openable; 7: abilities/statuses tables; 8: the pack-level player and
+    # position preconditions reshaped the minimal pin pack) — a change
     # must show here.
     assert pack.pack_id == (
-        "pin@sha256:0f8b839f0e35a9a3826f8409140d6ef1a10f40c2ba5ef6ae840cbc7ced4a0e5d"
+        "pin@sha256:432babdb435cf56d7dab4755252f316fc3fb2404fdaf29f50023ed225bcdef84"
     )
 
 
