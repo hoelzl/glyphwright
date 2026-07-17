@@ -12,7 +12,7 @@ Vertical slices, ordered to exercise the verification boundary as early as possi
 | 1 | **Walking skeleton.** Kernel (`step`, events, seeded RNG, snapshots), `GridSpace`, `move`/`look`, plain + JSONL frontends, `glyphwright.api`, published schemas. | Done |
 | 2 | **Items and stats.** Inventory, `take`/`use`/`equip`, stat pipeline with provenance, `:query --explain`. | Done |
 | 3 | **Battle.** Menu battle first, forcing the mode stack and shared initiative scheduler into existence; tactics arena reusing `GridSpace` as a follow-up. | Done for menu battle (3A exploration combat + 3B menu battle mode); tactics arena deferred until FOV/visibility (§20.3) |
-| 4 | **Rooms and portals.** `RoomGraphSpace`, plus a portal between a grid area and a room area in the reference pack. | Not started |
+| 4 | **Rooms and portals.** `RoomGraphSpace`, plus a portal between a grid area and a room area in the reference pack. | Done |
 | 5 | **TUI.** Full-screen frontend; differential tests against plain. | Not started |
 | 6 | **Dialogue and one minigame.** Dialogue trees, plus a lockpicking or card minigame proving the mode interface is general. | Not started |
 

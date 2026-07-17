@@ -23,11 +23,13 @@ from glyphwright.world.entities import (
     Entity,
     Equippable,
     Item,
+    Portal,
     Position,
     Renderable,
     StatModifier,
 )
 from glyphwright.world.grid import GridSpace
+from glyphwright.world.roomgraph import Room, RoomGraphSpace
 from glyphwright.world.space import EntityId
 
 _REFERENCE_AREA = "village"
@@ -42,6 +44,29 @@ _REFERENCE_POTION_AT = (3, 1)
 _REFERENCE_SWORD_AT = (6, 3)
 _REFERENCE_GOBLIN_AT = (2, 3)
 _REFERENCE_BANDIT_AT = (1, 3)
+_REFERENCE_DOOR_AT = (7, 1)
+
+_INN_AREA = "inn"
+_INN_ROOMS = (
+    Room(
+        id="common-room",
+        name="The Gilded Tankard",
+        description=(
+            "Lamplight pools on scarred oak tables, and the air is thick "
+            "with woodsmoke and spilled ale."
+        ),
+        exits=(("down", "cellar"),),
+    ),
+    Room(
+        id="cellar",
+        name="Inn Cellar",
+        description=(
+            "Casks line the walls of this low vault, and something small "
+            "glints between the flagstones."
+        ),
+        exits=(("up", "common-room"),),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,7 +74,7 @@ class ContentPack:
     """Validated content plus the hash that identifies it."""
 
     name: str
-    areas: tuple[GridSpace, ...]
+    areas: tuple[GridSpace | RoomGraphSpace, ...]
     entities: tuple[Entity, ...]
 
     @property
@@ -64,8 +89,7 @@ class ContentPack:
             {
                 "name": self.name,
                 "areas": [
-                    {"area": space.area, "rows": list(space.rows)}
-                    for space in self.areas
+                    {"area": space.area, **asdict(space)} for space in self.areas
                 ],
                 "entities": [
                     asdict(entity)
@@ -142,8 +166,25 @@ def reference_pack() -> ContentPack:
         renderable=Renderable(glyph="b", label="bandit"),
         ai=AiBehavior(hostile=True, engages=True),
     )
+    inn = RoomGraphSpace(_area=_INN_AREA, rooms=_INN_ROOMS)
+    inn_door = Entity(
+        id="inn-door",
+        position=Position(at=space.pos(*_REFERENCE_DOOR_AT)),
+        portal=Portal(token="enter", to=inn.pos("common-room")),
+        renderable=Renderable(glyph="+", label="door"),
+    )
+    inn_exit = Entity(
+        id="inn-exit",
+        position=Position(at=inn.pos("common-room")),
+        portal=Portal(token="out", to=space.pos(*_REFERENCE_DOOR_AT)),
+    )
+    key = Entity(
+        id="rusty-key",
+        position=Position(at=inn.pos("cellar")),
+        item=Item(name="Rusty Key"),
+    )
     return ContentPack(
         name="reference-vale",
-        areas=(space,),
-        entities=(player, potion, sword, goblin, bandit),
+        areas=(space, inn),
+        entities=(player, potion, sword, goblin, bandit, inn_door, inn_exit, key),
     )

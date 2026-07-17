@@ -39,6 +39,20 @@ class GridView:
 
 
 @dataclass(frozen=True, slots=True)
+class RoomView:
+    """A room-graph viewport: classic IF presentation (0003 §7.3)."""
+
+    area: str
+    room: str
+    name: str
+    description: str
+    contents: tuple[EntityId, ...]
+    exits: tuple[str, ...]
+
+    kind: str = "room"
+
+
+@dataclass(frozen=True, slots=True)
 class MenuView:
     """A menu battle's viewport: who is in the fight (0003 §10.1).
 
@@ -52,7 +66,7 @@ class MenuView:
     kind: str = "menu"
 
 
-Viewport = GridView | MenuView
+Viewport = GridView | RoomView | MenuView
 
 
 @dataclass(frozen=True, slots=True)

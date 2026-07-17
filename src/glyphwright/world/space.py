@@ -67,6 +67,9 @@ class Space(Protocol):
     def positions(self) -> Iterable[PosId]:
         """Every position in the area, in a deterministic order."""
 
+    def contains(self, pos: PosId) -> bool:
+        """Whether ``pos`` names a position of this area."""
+
     def exits(self, pos: PosId) -> Mapping[ExitToken, PosId]:
         """Traversable exit tokens leading out of ``pos``, ignoring occupancy."""
 

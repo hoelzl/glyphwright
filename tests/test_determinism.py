@@ -111,10 +111,11 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     space = GridSpace.from_text("pin", "..")
     entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
-    # Re-pinned deliberately in slice 3A: the AiBehavior component widened
-    # entity identity, which is a content-schema change and must show here.
+    # Re-pinned deliberately per slice when entity or area identity widens
+    # (3A: AiBehavior; 4: Portal component and full-area hashing for mixed
+    # geometries) — a content-schema change must show here.
     assert pack.pack_id == (
-        "pin@sha256:3ce7afa774f9d970d5dd68fd5719e653d81ef850ee31e5102a67c3f7d163cd1c"
+        "pin@sha256:6c8df11b602beb22d5625b68a61464c5653d87fbd3f0995b23d47c43bfac9100"
     )
 
 

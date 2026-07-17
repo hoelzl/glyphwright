@@ -16,11 +16,12 @@ from dataclasses import dataclass
 from typing import TextIO
 
 from glyphwright.api import Engine
-from glyphwright.frames.frame import GridView, MenuView, SemanticFrame
+from glyphwright.frames.frame import GridView, MenuView, RoomView, SemanticFrame
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
 
 _DELIMITER = "=="
+_EXITS_ANCHOR = "Exits: "
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,16 +39,30 @@ class PlainProjection:
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
     combatants: tuple[str, ...] = ()
+    room: tuple[str, ...] = ()
+    exits: tuple[str, ...] = ()
+
+
+def _room_lines(viewport: RoomView) -> tuple[str, ...]:
+    lines = [viewport.name, viewport.description]
+    if viewport.contents:
+        lines.append(f"You see: {', '.join(viewport.contents)}.")
+    return tuple(lines)
 
 
 def project(frame: SemanticFrame) -> PlainProjection:
     """The projection the plain transcript is expected to preserve."""
     player = next((actor for actor in frame.actors if actor.id == "player"), None)
     combatants: tuple[str, ...] = ()
+    room: tuple[str, ...] = ()
+    exits: tuple[str, ...] = ()
     if isinstance(frame.viewport, MenuView):
         combatants = tuple(
             f"{actor.id} {actor.hp}/{actor.max_hp}" for actor in frame.actors
         )
+    if isinstance(frame.viewport, RoomView):
+        room = _room_lines(frame.viewport)
+        exits = frame.viewport.exits
     return PlainProjection(
         turn=frame.turn,
         mode=frame.mode,
@@ -56,6 +71,8 @@ def project(frame: SemanticFrame) -> PlainProjection:
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
         combatants=combatants,
+        room=room,
+        exits=exits,
     )
 
 
@@ -64,6 +81,9 @@ def render(frame: SemanticFrame) -> str:
     view = project(frame)
     lines = [f"{_DELIMITER} turn {view.turn} · {view.mode} · {view.area} {_DELIMITER}"]
     lines.extend(view.tiles)
+    lines.extend(view.room)
+    if view.exits:
+        lines.append(f"{_EXITS_ANCHOR}{', '.join(view.exits)}.")
     lines.extend(f"* {combatant}" for combatant in view.combatants)
     lines.extend(view.messages)
     if view.hp is not None:
@@ -99,6 +119,19 @@ def parse(text: str) -> PlainProjection:
         line.removeprefix("* ") for line in body if line.startswith("* ")
     )
     body = [line for line in body if not line.startswith("* ")]
+
+    # A room block runs from the header to its "Exits:" anchor line.
+    room: tuple[str, ...] = ()
+    exits: tuple[str, ...] = ()
+    anchored = [i for i, line in enumerate(body) if line.startswith(_EXITS_ANCHOR)]
+    if anchored:
+        cut = anchored[0]
+        room = tuple(body[:cut])
+        exits = tuple(
+            body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".").split(", ")
+        )
+        body = body[cut + 1 :]
+
     # Tiles are the leading run of space-free lines: content-independent, so
     # a pack may use any glyph. Message templates always contain spaces.
     tiles: tuple[str, ...] = ()
@@ -115,6 +148,8 @@ def parse(text: str) -> PlainProjection:
         messages=messages,
         hp=hp,
         combatants=combatants,
+        room=room,
+        exits=exits,
     )
 
 

@@ -87,6 +87,19 @@ class AiBehavior:
 
 
 @dataclass(frozen=True, slots=True)
+class Portal:
+    """A traversable link between areas.
+
+    A portal entity stands at a position and contributes one extra exit token
+    there; its twin at the destination authored explicitly, like room exits
+    (design 0003 §7.4).
+    """
+
+    token: str
+    to: PosId
+
+
+@dataclass(frozen=True, slots=True)
 class Item:
     """An entity that can be carried."""
 
@@ -149,6 +162,7 @@ class Entity:
     blocker: Blocker | None = None
     renderable: Renderable | None = None
     ai: AiBehavior | None = None
+    portal: Portal | None = None
     item: Item | None = None
     consumable: Consumable | None = None
     equippable: Equippable | None = None

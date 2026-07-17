@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.frame/2",
+  "$id": "glyphwright.frame/3",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -85,7 +85,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "glyphwright.frame/2"
+      "const": "glyphwright.frame/3"
     },
     "turn": {
       "type": "integer"
@@ -128,6 +128,48 @@
             "legend",
             "origin",
             "tiles"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "contents": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": {
+              "type": "string"
+            },
+            "exits": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "room"
+            },
+            "name": {
+              "type": "string"
+            },
+            "room": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "area",
+            "contents",
+            "description",
+            "exits",
+            "kind",
+            "name",
+            "room"
           ],
           "type": "object"
         },

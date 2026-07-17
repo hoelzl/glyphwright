@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
+from glyphwright.frames.frame import GridView, RoomView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
     Attack,
     Command,
@@ -45,8 +45,8 @@ from glyphwright.kernel.events import (
 # Widening a closed contract bumps the tag (ADR-006). Prior tags were retired
 # rather than kept in a compatibility matrix because no external consumer
 # existed before the bumps (event: items v2, combat v3, battle v4; frame: the
-# menu viewport variant v2).
-FRAME_SCHEMA = "glyphwright.frame/2"
+# menu viewport variant v2, the room viewport variant v3).
+FRAME_SCHEMA = "glyphwright.frame/3"
 EVENT_SCHEMA = "glyphwright.event/4"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
@@ -60,6 +60,16 @@ def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
             "origin": list(viewport.origin),
             "tiles": list(viewport.tiles),
             "legend": dict(viewport.legend),
+        }
+    if isinstance(viewport, RoomView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "room": viewport.room,
+            "name": viewport.name,
+            "description": viewport.description,
+            "contents": list(viewport.contents),
+            "exits": list(viewport.exits),
         }
     return {
         "kind": viewport.kind,
