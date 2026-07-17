@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from typing import TextIO
 
 from glyphwright.api import Engine
-from glyphwright.frames.frame import SemanticFrame
+from glyphwright.frames.frame import GridView, MenuView, SemanticFrame
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
 from glyphwright.modes import exploration
@@ -41,18 +41,25 @@ class PlainProjection:
     tiles: tuple[str, ...]
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
+    combatants: tuple[str, ...] = ()
 
 
 def project(frame: SemanticFrame) -> PlainProjection:
     """The projection the plain transcript is expected to preserve."""
     player = next((actor for actor in frame.actors if actor.id == "player"), None)
+    combatants: tuple[str, ...] = ()
+    if isinstance(frame.viewport, MenuView):
+        combatants = tuple(
+            f"{actor.id} {actor.hp}/{actor.max_hp}" for actor in frame.actors
+        )
     return PlainProjection(
         turn=frame.turn,
         mode=frame.mode,
         area=frame.viewport.area,
-        tiles=frame.viewport.tiles,
+        tiles=frame.viewport.tiles if isinstance(frame.viewport, GridView) else (),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
+        combatants=combatants,
     )
 
 
@@ -61,6 +68,7 @@ def render(frame: SemanticFrame) -> str:
     view = project(frame)
     lines = [f"{_DELIMITER} turn {view.turn} · {view.mode} · {view.area} {_DELIMITER}"]
     lines.extend(view.tiles)
+    lines.extend(f"* {combatant}" for combatant in view.combatants)
     lines.extend(view.messages)
     if view.hp is not None:
         lines.append(f"[hp {view.hp[0]}/{view.hp[1]}]")
@@ -91,6 +99,10 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
+    combatants = tuple(
+        line.removeprefix("* ") for line in body if line.startswith("* ")
+    )
+    body = [line for line in body if not line.startswith("* ")]
     tiles = tuple(line for line in body if line and set(line) <= _TILE_GLYPHS)
     messages = tuple(body[len(tiles) :])
     return PlainProjection(
@@ -100,6 +112,7 @@ def parse(text: str) -> PlainProjection:
         tiles=tiles,
         messages=messages,
         hp=hp,
+        combatants=combatants,
     )
 
 

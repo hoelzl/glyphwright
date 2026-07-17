@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.frame/1",
+  "$id": "glyphwright.frame/2",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -85,49 +85,76 @@
       "type": "object"
     },
     "schema": {
-      "const": "glyphwright.frame/1"
+      "const": "glyphwright.frame/2"
     },
     "turn": {
       "type": "integer"
     },
     "viewport": {
-      "additionalProperties": false,
-      "properties": {
-        "area": {
-          "type": "string"
-        },
-        "kind": {
-          "const": "grid"
-        },
-        "legend": {
-          "additionalProperties": {
-            "type": "string"
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "kind": {
+              "const": "grid"
+            },
+            "legend": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "origin": {
+              "items": {
+                "type": "integer"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            "tiles": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            }
           },
+          "required": [
+            "area",
+            "kind",
+            "legend",
+            "origin",
+            "tiles"
+          ],
           "type": "object"
         },
-        "origin": {
-          "items": {
-            "type": "integer"
+        {
+          "additionalProperties": false,
+          "properties": {
+            "area": {
+              "type": "string"
+            },
+            "combatants": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "kind": {
+              "const": "menu"
+            }
           },
-          "maxItems": 2,
-          "minItems": 2,
-          "type": "array"
-        },
-        "tiles": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
+          "required": [
+            "area",
+            "combatants",
+            "kind"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "area",
-        "kind",
-        "legend",
-        "origin",
-        "tiles"
-      ],
-      "type": "object"
+      ]
     }
   },
   "required": [

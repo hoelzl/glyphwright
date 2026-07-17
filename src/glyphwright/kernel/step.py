@@ -8,12 +8,27 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+from glyphwright import modes
 from glyphwright.kernel import scheduler
 from glyphwright.kernel.commands import Command
-from glyphwright.kernel.events import Event, TurnAdvanced
+from glyphwright.kernel.events import PLAYER_DEFEATED, Event, ModePopped, TurnAdvanced
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import WorldState, apply, fold
-from glyphwright.modes import exploration
+from glyphwright.kernel.state import MODE_BATTLE, PLAYER, WorldState, apply, fold
+
+
+def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
+    """Victory or defeat pops the battle with its outcome (0003 §10.1)."""
+    if state.mode != MODE_BATTLE:
+        return ()
+    foes_alive = any(
+        combatant != PLAYER and combatant in state.entities
+        for combatant in state.initiative
+    )
+    if not foes_alive:
+        return (ModePopped(mode=MODE_BATTLE, outcome="victory"),)
+    if state.flags.get(PLAYER_DEFEATED):
+        return (ModePopped(mode=MODE_BATTLE, outcome="defeat"),)
+    return ()
 
 
 def step(
@@ -28,22 +43,21 @@ def step(
     A command that spends the turn hands control to the scheduler before the
     turn closes: AI actors take their turns inside this same step (0003 §5.5),
     so the returned events are the whole round — player first, then AI, then
-    ``TurnAdvanced``. The closing ``TurnAdvanced`` is stamped with the round's
-    final RNG cursor, which is what keeps the successor state — cursor
-    included — exactly the fold of the events (0003 §5.3). A handler that
-    draws without spending the turn would break that bookkeeping, so it is
-    forbidden and enforced here.
+    any battle outcome, then ``TurnAdvanced``. The closing ``TurnAdvanced`` is
+    stamped with the round's final RNG cursor, which is what keeps the
+    successor state — cursor included — exactly the fold of the events
+    (0003 §5.3). A handler that draws without spending the turn would break
+    that bookkeeping, so it is forbidden and enforced here.
     """
-    if state.mode != exploration.NAME:
-        raise ValueError(f"unknown mode: {state.mode}")
-
-    events, next_rng = exploration.handle(state, command, rng)
+    events, next_rng = modes.active(state).handle(state, command, rng)
     next_state = fold(state, events)
 
     if events and isinstance(events[-1], TurnAdvanced):
         ai_events, next_state, next_rng = scheduler.run(next_state, next_rng)
+        outcome = _battle_outcome(next_state)
+        next_state = fold(next_state, outcome)
         closing = replace(events[-1], rng=next_rng.encode())
-        events = (*events[:-1], *ai_events, closing)
+        events = (*events[:-1], *ai_events, *outcome, closing)
         return apply(next_state, closing), events
 
     if next_rng != state.rng:

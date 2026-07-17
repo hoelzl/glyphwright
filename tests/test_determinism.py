@@ -16,6 +16,7 @@ from glyphwright.kernel.commands import (
     Attack,
     Command,
     Equip,
+    Flee,
     Look,
     Move,
     Take,
@@ -30,10 +31,11 @@ commands = st.one_of(
     st.sampled_from(_EXITS).map(Move),
     st.just(Look()),
     st.just(Wait()),
+    st.just(Flee()),
     st.sampled_from(_ITEMS).map(Take),
     st.sampled_from(_ITEMS).map(Use),
     st.sampled_from(_ITEMS).map(Equip),
-    st.sampled_from(("goblin-1", "no-such-target")).map(Attack),
+    st.sampled_from(("goblin-1", "bandit-1", "no-such-target")).map(Attack),
 )
 
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from glyphwright import modes
 from glyphwright.content.pack import ContentPack, reference_pack
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.harness.fingerprint import RunFingerprint
@@ -23,6 +24,7 @@ from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
     Equip,
+    Flee,
     Look,
     Move,
     Rejected,
@@ -44,6 +46,7 @@ __all__ = [
     "Engine",
     "Equip",
     "Event",
+    "Flee",
     "Look",
     "Move",
     "QueryResult",
@@ -117,11 +120,12 @@ class Engine:
 
         next_state, events = _step(self._state, command, self._state.rng)
         self._state = next_state
-        return StepResult(frame=exploration.view(next_state, events), events=events)
+        frame = modes.active(next_state).view(next_state, events)
+        return StepResult(frame=frame, events=events)
 
     def frame(self) -> SemanticFrame:
         """The current frame. Does not advance the turn."""
-        return exploration.view(self._state, ())
+        return modes.active(self._state).view(self._state, ())
 
     def query(self, path: str) -> QueryResult:
         """The oracle: read world state by stable path. No turn advance.
@@ -157,7 +161,7 @@ class Engine:
                 reason="defeated",
                 hint="you have fallen; only 'look' remains",
             )
-        grammar = exploration.available_commands(self._state)
+        grammar = modes.active(self._state).available_commands(self._state)
         vocabulary = _REJECTIONS.get(command.verb)
         if command.verb not in grammar.verb_names():
             if vocabulary is not None and command.args():

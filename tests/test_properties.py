@@ -16,6 +16,7 @@ from glyphwright.kernel.commands import (
     Attack,
     Command,
     Equip,
+    Flee,
     Look,
     Move,
     Take,
@@ -33,15 +34,17 @@ _BUILDERS: tuple[tuple[str, type], ...] = (
     ("equip", Equip),
     ("attack", Attack),
 )
+_NULLARY: dict[str, type] = {"look": Look, "wait": Wait, "flee": Flee}
 
 
 def _options(engine: Engine) -> list[Command]:
     """Every command the frame's grammar currently advertises."""
     grammar = engine.frame().commands
     names = grammar.verb_names()
-    options: list[Command] = [Look()]
-    if "wait" in names:
-        options.append(Wait())
+    options: list[Command] = []
+    for verb, builder in _NULLARY.items():
+        if verb in names:
+            options.append(builder())
     for verb, builder in _BUILDERS:
         if verb in names:
             options.extend(builder(argument) for argument in grammar.domains(verb)[0])
@@ -96,7 +99,10 @@ def test_the_player_never_leaves_the_area(choices: list[int]) -> None:
 def test_the_mode_stack_never_underflows(choices: list[int]) -> None:
     engine = Engine.new(reference_pack(), seed=7)
     _walk(engine, choices, len(choices))
-    assert engine._state.mode_stack == ("exploration",)
+    stack = engine._state.mode_stack
+    assert stack and stack[0] == "exploration", (
+        "exploration must always sit at the bottom of the stack"
+    )
 
 
 @settings(max_examples=40, deadline=None)

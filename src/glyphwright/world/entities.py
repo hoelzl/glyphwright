@@ -73,10 +73,12 @@ class AiBehavior:
 
     Hostiles are passive until provoked — by being attacked, or by the player
     stepping adjacent — and aggression is recorded as a world flag so it
-    replays like every other state change.
+    replays like every other state change. An ``engages`` hostile opens a
+    formal menu battle on contact instead of trading skirmish blows.
     """
 
     hostile: bool = True
+    engages: bool = False
 
 
 @dataclass(frozen=True, slots=True)

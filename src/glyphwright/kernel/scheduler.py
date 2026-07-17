@@ -18,13 +18,26 @@ from glyphwright.effects.combat import (
     hostile_actors,
     melee_adjacent,
     provoke,
+    roll_initiative,
     strike,
 )
-from glyphwright.kernel.events import PLAYER_DEFEATED, Event, Moved, aggro_flag
+from glyphwright.kernel.events import (
+    PLAYER_DEFEATED,
+    Event,
+    ModePushed,
+    Moved,
+    aggro_flag,
+)
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import PLAYER, WorldState, fold
+from glyphwright.kernel.state import (
+    MODE_BATTLE,
+    MODE_EXPLORATION,
+    PLAYER,
+    WorldState,
+    fold,
+)
 from glyphwright.world.entities import Entity
-from glyphwright.world.space import PosId, Space
+from glyphwright.world.space import EntityId, PosId, Space
 
 
 def _distances(
@@ -75,6 +88,47 @@ def _chase_step(
     return Moved(actor=mover.id, origin=at, destination=best[2], exit=best[1])
 
 
+def escape_step(
+    state: WorldState, mover_id: EntityId, foes: tuple[EntityId, ...]
+) -> Event | None:
+    """One step away from danger: the passable exit maximizing the distance to
+    the nearest foe, ties by token order. ``None`` when cornered."""
+    mover = state.entity(mover_id)
+    at = mover.at()
+    if at is None:
+        return None
+    space = state.areas[at.area]
+    foe_positions = [
+        foe_at
+        for foe in foes
+        if foe in state.entities and (foe_at := state.entity(foe).at()) is not None
+    ]
+    best: tuple[int, str, PosId] | None = None
+    for token, destination in sorted(space.exits(at).items()):
+        if not space.passable(state, destination, mover_id):
+            continue
+        nearest = min(
+            (
+                _distances(space, state, foe_at, mover_id).get(destination, 10**9)
+                for foe_at in foe_positions
+            ),
+            default=10**9,
+        )
+        if best is None or nearest > best[0]:
+            best = (nearest, token, destination)
+    if best is None:
+        return None
+    return Moved(actor=mover_id, origin=at, destination=best[2], exit=best[1])
+
+
+def _engage(
+    state: WorldState, entity: Entity, rng: Rng
+) -> tuple[tuple[Event, ...], Rng]:
+    """A formal opponent opens a battle instead of trading skirmish blows."""
+    order, rng = roll_initiative(state, (PLAYER, entity.id), rng)
+    return (ModePushed(mode=MODE_BATTLE, initiative=order),), rng
+
+
 def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...], Rng]:
     """One AI actor's turn: wake if provoked, then fight or give chase."""
     player_at = state.entity(PLAYER).at()
@@ -94,8 +148,13 @@ def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...]
         state = fold(state, tuple(events))
 
     if adjacent:
-        struck, rng = strike(state, entity.id, PLAYER, rng)
-        events.extend(struck)
+        assert entity.ai is not None
+        if entity.ai.engages:
+            engaged, rng = _engage(state, entity, rng)
+            events.extend(engaged)
+        else:
+            struck, rng = strike(state, entity.id, PLAYER, rng)
+            events.extend(struck)
     else:
         moved = _chase_step(space, state, entity, player_at)
         if moved is not None:
@@ -103,16 +162,38 @@ def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...]
     return tuple(events), rng
 
 
+def _run_battle(
+    state: WorldState, rng: Rng
+) -> tuple[tuple[Event, ...], WorldState, Rng]:
+    """Battle configures the same scheduler with the initiative queue."""
+    events: list[Event] = []
+    for combatant in state.initiative:
+        if combatant == PLAYER or combatant not in state.entities:
+            continue
+        if state.flags.get(PLAYER_DEFEATED):
+            break
+        struck, rng = strike(state, combatant, PLAYER, rng)
+        events.extend(struck)
+        state = fold(state, struck)
+    return tuple(events), state, rng
+
+
 def run(state: WorldState, rng: Rng) -> tuple[tuple[Event, ...], WorldState, Rng]:
     """Grant every due AI actor its turn, folding as it goes.
 
     Later actors see the effects of earlier ones, and everything stops the
-    moment the player is defeated. Returns the folded state alongside the
+    moment the player is defeated or the mode changes (an engagement hands the
+    rest of the round to the battle). Returns the folded state alongside the
     events so the caller does not fold them a second time.
     """
+    if state.mode == MODE_BATTLE:
+        return _run_battle(state, rng)
+    if state.mode != MODE_EXPLORATION:
+        return (), state, rng
+
     events: list[Event] = []
     for actor in hostile_actors(state):
-        if state.flags.get(PLAYER_DEFEATED):
+        if state.flags.get(PLAYER_DEFEATED) or state.mode != MODE_EXPLORATION:
             break
         if actor.id not in state.entities:
             continue

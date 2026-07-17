@@ -179,6 +179,39 @@ class FlagSet:
     type: str = "FlagSet"
 
 
+@dataclass(frozen=True, slots=True)
+class ModePushed:
+    """A mode took the top of the stack.
+
+    A battle push carries the rolled initiative order, which the fold installs
+    as the scheduler queue (0003 §5.5, §10).
+    """
+
+    mode: str
+    initiative: tuple[EntityId, ...] = ()
+
+    type: str = "ModePushed"
+
+
+@dataclass(frozen=True, slots=True)
+class ModePopped:
+    """The top mode ended, with the outcome the mode beneath consumes."""
+
+    mode: str
+    outcome: str
+
+    type: str = "ModePopped"
+
+
+@dataclass(frozen=True, slots=True)
+class FleeFailed:
+    """A flee attempt found no way out. The turn is spent; the battle is not."""
+
+    actor: EntityId
+
+    type: str = "FleeFailed"
+
+
 Event = (
     Moved
     | MoveBlocked
@@ -191,4 +224,7 @@ Event = (
     | AttackMissed
     | ActorDied
     | FlagSet
+    | ModePushed
+    | ModePopped
+    | FleeFailed
 )

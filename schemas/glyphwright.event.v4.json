@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/3",
+  "$id": "glyphwright.event/4",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -27,10 +27,22 @@
     "flag": {
       "type": "string"
     },
+    "initiative": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "item": {
       "type": "string"
     },
+    "mode": {
+      "type": "string"
+    },
     "origin": {
+      "type": "string"
+    },
+    "outcome": {
       "type": "string"
     },
     "reason": {
@@ -46,7 +58,7 @@
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/3"
+      "const": "glyphwright.event/4"
     },
     "slot": {
       "type": "string"
@@ -75,7 +87,10 @@
         "DamageDealt",
         "AttackMissed",
         "ActorDied",
-        "FlagSet"
+        "FlagSet",
+        "ModePushed",
+        "ModePopped",
+        "FleeFailed"
       ]
     },
     "value": {

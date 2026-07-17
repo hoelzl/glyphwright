@@ -11,7 +11,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | --- | --- |
 | 1 — Walking skeleton | **Done** (kernel, GridSpace, move/look/wait, plain + JSONL frontends, `glyphwright.api`, committed schemas, fingerprint; 82 tests green) |
 | 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
-| 3 — Battle | **In progress**: 3A (exploration combat + shared scheduler) done; 3B (menu battle mode, initiative queue, MenuView, flee) next |
+| 3 — Battle | **Done** (3A exploration combat + 3B menu battle: mode stack, rolled initiative, MenuView, flee, victory/defeat outcomes; tactics arena deferred to a later slice with FOV) |
 | 4 — Rooms and portals | Not started |
 | 5 — TUI | Not started |
 | 6 — Dialogue and one minigame | Not started |
@@ -101,6 +101,30 @@ Decisions taken by the implementing agent (owner delegated open choices):
    Flag vocabulary (`aggro:<id>`, `player-defeated`) lives in `kernel/events.py`
    beside `FlagSet`. Post-defeat rejections use reason `defeated` instead of
    misdescribing the world.
+
+## Slice 3B decisions (menu battle)
+
+1. **Engagement is a scheduler behavior**: `AiBehavior.engages` hostiles push a battle
+   (`ModePushed(mode="battle", initiative=…)`) on contact instead of trading skirmish
+   blows; the initiative order is rolled d20 + spd at push. The reference pack's
+   `bandit-1` engages; `goblin-1` stays a skirmisher — both scheduler configurations
+   of ADR-004 stay exercised.
+2. **Battle grammar**: `attack`/`use`/`flee`/`look`; `skill` waits for the abilities
+   system (§9.2). Menu battle abstracts distance; combatants are simply in the fight.
+3. **Flee gains ground**: pops the battle (`outcome="fled"`) and moves the player
+   through the passable exit maximizing the distance to the nearest foe; when
+   cornered, `FleeFailed` spends the turn and the battle continues. A fled foe stays
+   aggroed, chases, and re-engages on contact.
+4. **Outcomes are checked in `step` after AI turns**: no living foes on the initiative
+   list → `ModePopped(outcome="victory")`; `player-defeated` → `outcome="defeat"`.
+   The `ActorDied` fold prunes the initiative queue.
+5. **The world outside the battle is suspended** while battle is on top of the stack
+   (only initiative members act). Revisit if simultaneous off-battle simulation is
+   ever wanted.
+6. **Wire**: frame schema v1 → v2 (`viewport` is now `oneOf` grid/menu), event schema
+   v3 → v4 (`ModePushed`/`ModePopped`/`FleeFailed`); same retire-and-replace policy.
+   The plain transcript renders combatants as `* <id> <hp>/<max>` lines, and
+   `PlainProjection` gained a `combatants` field.
 
 ## Next steps
 
