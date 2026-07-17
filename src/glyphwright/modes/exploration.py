@@ -70,16 +70,9 @@ def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
 
 
 def _all_exits(state: WorldState, pos: PosId) -> dict[str, PosId]:
-    """The space's exits plus any portal standing here.
-
-    ``move <exit-token>`` is the only movement command, everywhere — a door to
-    another area is simply one more token (0003 §7.4).
-    """
-    merged = dict(state.areas[pos.area].exits(pos))
-    for entity in state.entities_at(pos):
-        if entity.portal is not None:
-            merged[entity.portal.token] = entity.portal.to
-    return merged
+    """``move <exit-token>`` is the only movement command, everywhere — a door
+    to another area is simply one more token (0003 §7.4)."""
+    return state.exits_from(pos)
 
 
 def _takeable(state: WorldState) -> tuple[str, ...]:
@@ -186,12 +179,14 @@ def _move(state: WorldState, token: str) -> tuple[Event, ...]:
     # An exit token outside the area's topology never reaches the kernel: it is
     # absent from the grammar, so the API rejects it before a turn is spent.
     # The destination's own space answers passability — a portal may land in
-    # a different area than it stands in.
-    reason = (
-        "edge"
-        if destination is None
-        else state.areas[destination.area].blocked_reason(state, destination, PLAYER)
-    )
+    # a different area than it stands in. A destination whose area is unknown
+    # (only possible with content that escaped pack validation) is off the map.
+    if destination is None or destination.area not in state.areas:
+        reason: str | None = "edge"
+    else:
+        reason = state.areas[destination.area].blocked_reason(
+            state, destination, PLAYER
+        )
     if destination is None or reason is not None:
         return (
             MoveBlocked(

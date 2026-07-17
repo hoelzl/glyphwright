@@ -41,11 +41,23 @@ class RoomGraphSpace:
         if len(ids) != len(set(ids)):
             raise ValueError("room ids must be unique within an area")
         for room in self.rooms:
+            tokens = [token for token, _ in room.exits]
+            if len(tokens) != len(set(tokens)):
+                raise ValueError(f"room {room.id!r} declares a duplicate exit token")
             for token, destination in room.exits:
                 if destination not in ids:
                     raise ValueError(
                         f"room {room.id!r} exit {token!r} leads to unknown "
                         f"room {destination!r}"
+                    )
+            for prose in (room.name, room.description):
+                # Transcript-safe prose: the plain frontend delimits room
+                # blocks structurally, so prose must not imitate its markup.
+                if "\n" in prose:
+                    raise ValueError(f"room {room.id!r} prose must be single-line")
+                if prose.startswith(("Exits: ", "* ", "== ")):
+                    raise ValueError(
+                        f"room {room.id!r} prose must not imitate transcript markup"
                     )
 
     @property
@@ -73,17 +85,21 @@ class RoomGraphSpace:
             token: self.pos(destination) for token, destination in self.room(pos).exits
         }
 
+    def melee_range(self, a: PosId, b: PosId) -> bool:
+        # A neighbouring room is behind a wall, not at arm's length.
+        return a == b
+
     def passable(self, state: WorldState, pos: PosId, mover: EntityId) -> bool:
         return self.blocked_reason(state, pos, mover) is None
 
     def blocked_reason(
         self, state: WorldState, pos: PosId, mover: EntityId
     ) -> str | None:
-        # Rooms hold many occupants; blocking arrives with closed/locked
-        # doors as flag-gated exits, not with bodies (0003 §7.1: a room graph
-        # says "closed").
+        # Rooms hold many occupants; bodies do not fill a room, so occupancy
+        # never blocks here. Room-scale blocking arrives with closed/locked
+        # exits ("closed", 0003 §7.1), gated by flags.
         if not self.contains(pos):
-            return "nowhere"
+            return "edge"
         return None
 
     def occupants(self, state: WorldState, pos: PosId) -> tuple[EntityId, ...]:

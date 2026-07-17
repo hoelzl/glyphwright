@@ -172,3 +172,155 @@ def test_mixed_world_walks_replay_identically() -> None:
         return [engine.step(Move(token)).events for token in script]
 
     assert run() == run()
+
+
+# -- cross-geometry combat and pursuit ---------------------------------------
+
+
+def _with_cellar_rat(engine: Engine) -> Engine:
+    from glyphwright.world.entities import Actor, AiBehavior, Entity, Position
+    from glyphwright.world.roomgraph import RoomGraphSpace
+
+    inn = engine._state.areas["inn"]
+    assert isinstance(inn, RoomGraphSpace)
+    rat = Entity(
+        id="cellar-rat",
+        position=Position(at=inn.pos("cellar")),
+        actor=Actor(name="Rat", hp=2, max_hp=2, base_stats=(("atk", 1), ("def", 0))),
+        ai=AiBehavior(hostile=True),
+    )
+    engine._state = engine._state.with_entity(rat)
+    return engine
+
+
+def test_room_melee_is_co_location_not_adjacent_rooms() -> None:
+    """A hostile one room away is behind a wall; a hostile in the same room is
+    at arm's length. The geometry answers, not the grid's adjacency rule."""
+    engine = _with_cellar_rat(_inside())
+    # Player in common-room, rat in the cellar below: no combat through floors.
+    assert "attack" not in engine.frame().commands.verb_names()
+    engine.step(Move("down"))
+    # Co-located now: melee works, and the provoked rat fights.
+    assert engine.frame().commands.domains("attack") == (("cellar-rat",),)
+
+
+def test_flee_survives_hostiles_in_other_areas() -> None:
+    """A battle flee must not crash on a hostile whose position lives in a
+    different geometry (regression: cross-area PosId into GridSpace.exits)."""
+    from glyphwright.kernel.commands import Flee
+
+    engine = _with_cellar_rat(_engine())
+    engine.step(Move("south"))  # bandit engages in the village
+    assert engine._state.mode == "battle"
+    result = engine.step(Flee())  # must not raise
+    assert result.accepted
+
+
+def test_an_aggroed_hostile_chases_through_the_portal() -> None:
+    """The pursuit graph is the player's movement graph: a door the player
+    can use is a door a pursuer can follow through."""
+    from glyphwright.kernel.commands import Attack, Wait
+
+    engine = _engine()
+    engine.step(Move("east"))
+    engine.step(Move("south"))  # (2,2): adjacent to the goblin
+    engine.step(Attack("goblin-1"))  # make sure it is properly provoked
+    engine.step(Move("north"))
+    for _ in range(5):
+        engine.step(Move("east"))  # run to the door at (7,1)
+    engine.step(Move("enter"))
+    at = engine._state.entity(PLAYER).at()
+    assert at is not None and at.area == "inn"
+    for _ in range(12):
+        goblin = engine._state.entities.get("goblin-1")
+        if goblin is None:
+            break  # it died en route? impossible without combat — keep looping
+        goblin_at = goblin.at()
+        if goblin_at is not None and goblin_at.area == "inn":
+            break
+        engine.step(Wait())
+    goblin = engine._state.entities.get("goblin-1")
+    assert goblin is not None
+    goblin_at = goblin.at()
+    assert goblin_at is not None and goblin_at.area == "inn", (
+        "an aggroed hostile must pursue through the portal"
+    )
+
+
+# -- content validation -------------------------------------------------------
+
+
+def test_a_portal_leading_nowhere_fails_at_load() -> None:
+    import pytest
+
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.world.entities import Entity, Portal, Position
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("here", "..")
+    bad = Entity(
+        id="hole",
+        position=Position(at=space.pos(0, 0)),
+        portal=Portal(token="enter", to=PosId(area="typo", local="room")),
+    )
+    with pytest.raises(ValueError, match="leads nowhere"):
+        ContentPack(name="broken", areas=(space,), entities=(bad,))
+
+
+def test_a_portal_may_not_shadow_a_geometric_exit() -> None:
+    import pytest
+
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.world.entities import Entity, Portal, Position
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("here", "..")
+    shadowing = Entity(
+        id="trap",
+        position=Position(at=space.pos(0, 0)),
+        portal=Portal(token="east", to=space.pos(1, 0)),
+    )
+    with pytest.raises(ValueError, match="shadows"):
+        ContentPack(name="broken", areas=(space,), entities=(shadowing,))
+
+
+def test_duplicate_room_exit_tokens_fail_at_construction() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="duplicate exit token"):
+        RoomGraphSpace(
+            _area="keep",
+            rooms=(
+                Room(
+                    id="hall",
+                    name="Hall",
+                    description="Two norths.",
+                    exits=(("north", "hall"), ("north", "hall")),
+                ),
+            ),
+        )
+
+
+def test_a_dead_end_room_still_round_trips() -> None:
+    from glyphwright.frames.frame import PromptSpec, RoomView, SemanticFrame
+    from glyphwright.kernel.commands import CommandGrammar
+
+    frame = SemanticFrame(
+        turn=3,
+        mode="exploration",
+        viewport=RoomView(
+            area="keep",
+            room="oubliette",
+            name="The Oubliette",
+            description="Smooth walls and no way back.",
+            contents=(),
+            exits=(),
+        ),
+        actors=(),
+        messages=("You fall.",),
+        prompt=PromptSpec(kind="command"),
+        commands=CommandGrammar(verbs=(("look", ()),)),
+    )
+    rendered = plain.render(frame)
+    assert "Exits: none." in rendered
+    assert plain.parse(rendered) == plain.project(frame)

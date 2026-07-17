@@ -82,8 +82,11 @@ def render(frame: SemanticFrame) -> str:
     lines = [f"{_DELIMITER} turn {view.turn} · {view.mode} · {view.area} {_DELIMITER}"]
     lines.extend(view.tiles)
     lines.extend(view.room)
-    if view.exits:
-        lines.append(f"{_EXITS_ANCHOR}{', '.join(view.exits)}.")
+    if view.room:
+        # The anchor is structural: it closes every room block, even a dead
+        # end's, so parse can always delimit the prose.
+        listed = ", ".join(view.exits) if view.exits else "none"
+        lines.append(f"{_EXITS_ANCHOR}{listed}.")
     lines.extend(f"* {combatant}" for combatant in view.combatants)
     lines.extend(view.messages)
     if view.hp is not None:
@@ -127,9 +130,8 @@ def parse(text: str) -> PlainProjection:
     if anchored:
         cut = anchored[0]
         room = tuple(body[:cut])
-        exits = tuple(
-            body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".").split(", ")
-        )
+        listed = body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".")
+        exits = () if listed == "none" else tuple(listed.split(", "))
         body = body[cut + 1 :]
 
     # Tiles are the leading run of space-free lines: content-independent, so

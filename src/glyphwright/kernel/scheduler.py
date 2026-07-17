@@ -38,49 +38,59 @@ from glyphwright.kernel.state import (
     fold,
 )
 from glyphwright.world.entities import Entity
-from glyphwright.world.space import EntityId, PosId, Space
+from glyphwright.world.space import EntityId, PosId
 
 
-def _distances(
-    space: Space, state: WorldState, goal: PosId, mover: str
-) -> dict[PosId, int]:
-    """Breadth-first distances to ``goal`` over traversable terrain.
+def _traversable(state: WorldState, pos: PosId, mover: EntityId) -> bool:
+    area = state.areas.get(pos.area)
+    if area is None:
+        return False
+    reason = area.blocked_reason(state, pos, mover)
+    return reason is None or reason == "occupied"
 
-    Occupancy does not sever the graph — a body in a doorway should not
-    convince a pursuer the target is unreachable — but walls and edges do.
-    Geometry stays behind the Space protocol, so this works unchanged for
-    room graphs.
+
+def _distances(state: WorldState, goal: PosId, mover: EntityId) -> dict[PosId, int]:
+    """Breadth-first distances to ``goal`` over the movement graph.
+
+    The graph is ``state.exits_from`` — space exits plus portals — so pursuit
+    crosses areas exactly where the player can. Occupancy does not sever the
+    graph (a body in a doorway should not convince a pursuer the target is
+    unreachable), but walls and edges do. One-way exits make this an
+    approximation from the goal side; determinism is unaffected, only chase
+    quality on asymmetric maps.
     """
     found = {goal: 0}
     frontier = deque([goal])
     while frontier:
         pos = frontier.popleft()
-        for neighbour in space.exits(pos).values():
+        for neighbour in state.exits_from(pos).values():
             if neighbour in found:
                 continue
-            reason = space.blocked_reason(state, neighbour, mover)
-            if reason is not None and reason != "occupied":
+            if not _traversable(state, neighbour, mover):
                 continue
             found[neighbour] = found[pos] + 1
             frontier.append(neighbour)
     return found
 
 
-def _chase_step(
-    space: Space, state: WorldState, mover: Entity, target: PosId
-) -> Event | None:
+def _passable(state: WorldState, pos: PosId, mover: EntityId) -> bool:
+    area = state.areas.get(pos.area)
+    return area is not None and area.passable(state, pos, mover)
+
+
+def _chase_step(state: WorldState, mover: Entity, target: PosId) -> Event | None:
     at = mover.at()
     if at is None:
         return None
-    distances = _distances(space, state, target, mover.id)
+    distances = _distances(state, target, mover.id)
     current = distances.get(at)
     if current is None:
         return None
     best: tuple[int, str, PosId] | None = None
-    for token, destination in sorted(space.exits(at).items()):
+    for token, destination in sorted(state.exits_from(at).items()):
         if destination not in distances:
             continue
-        if not space.passable(state, destination, mover.id):
+        if not _passable(state, destination, mover.id):
             continue
         if best is None or distances[destination] < best[0]:
             best = (distances[destination], token, destination)
@@ -93,26 +103,25 @@ def escape_step(
     state: WorldState, mover_id: EntityId, foes: tuple[EntityId, ...]
 ) -> Moved | None:
     """One step away from danger: the passable exit maximizing the distance to
-    the nearest foe, ties by token order. ``None`` when cornered."""
+    the nearest foe, ties by token order. ``None`` when cornered. Distances
+    run over the same cross-area movement graph pursuit uses, so foes in
+    other areas neither crash the search nor skew it."""
     mover = state.entity(mover_id)
     at = mover.at()
     if at is None:
         return None
-    space = state.areas[at.area]
     foe_positions = [
         foe_at
         for foe in foes
         if foe in state.entities and (foe_at := state.entity(foe).at()) is not None
     ]
+    foe_distances = [_distances(state, foe_at, mover_id) for foe_at in foe_positions]
     best: tuple[int, str, PosId] | None = None
-    for token, destination in sorted(space.exits(at).items()):
-        if not space.passable(state, destination, mover_id):
+    for token, destination in sorted(state.exits_from(at).items()):
+        if not _passable(state, destination, mover_id):
             continue
         nearest = min(
-            (
-                _distances(space, state, foe_at, mover_id).get(destination, 10**9)
-                for foe_at in foe_positions
-            ),
+            (distances.get(destination, 10**9) for distances in foe_distances),
             default=10**9,
         )
         if best is None or nearest > best[0]:
@@ -170,13 +179,18 @@ def _engage(
 
 
 def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...], Rng]:
-    """One AI actor's turn: wake if provoked, then fight or give chase."""
+    """One AI actor's turn: wake if provoked, then fight or give chase.
+
+    Melee only exists inside one area; an aggroed hostile in another area
+    chases through the same movement graph the player uses, portals included.
+    """
     player_at = state.entity(PLAYER).at()
     at = entity.at()
-    if player_at is None or at is None or at.area != player_at.area:
+    if player_at is None or at is None:
         return (), rng
-    space = state.areas[at.area]
-    adjacent = melee_adjacent(space, at, player_at)
+    adjacent = at.area == player_at.area and melee_adjacent(
+        state.areas[at.area], at, player_at
+    )
 
     aggroed = bool(state.flags.get(aggro_flag(entity.id)))
     if not aggroed and not adjacent:
@@ -196,7 +210,7 @@ def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...]
             struck, rng = strike(state, entity.id, PLAYER, rng)
             events.extend(struck)
     else:
-        moved = _chase_step(space, state, entity, player_at)
+        moved = _chase_step(state, entity, player_at)
         if moved is not None:
             events.append(moved)
     return tuple(events), rng

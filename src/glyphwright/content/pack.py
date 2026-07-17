@@ -71,26 +71,67 @@ _INN_ROOMS = (
 
 @dataclass(frozen=True, slots=True)
 class ContentPack:
-    """Validated content plus the hash that identifies it."""
+    """Validated content plus the hash that identifies it.
+
+    Construction validates the cross-area wiring — a portal must stand on a
+    real position, lead to a real position, and neither shadow a geometric
+    exit nor collide with another portal — because a load-time diagnostic
+    beats a mid-session crash (0003 §8.2).
+    """
 
     name: str
     areas: tuple[GridSpace | RoomGraphSpace, ...]
     entities: tuple[Entity, ...]
 
+    def __post_init__(self) -> None:
+        spaces = {space.area: space for space in self.areas}
+        if len(spaces) != len(self.areas):
+            raise ValueError("area ids must be unique")
+        claimed: set[tuple[str, str]] = set()
+        for entity in self.entities:
+            portal = entity.portal
+            if portal is None:
+                continue
+            at = entity.at()
+            if at is None:
+                raise ValueError(f"portal {entity.id!r} stands nowhere")
+            if at.area not in spaces or not spaces[at.area].contains(at):
+                raise ValueError(f"portal {entity.id!r} stands off the map: {at}")
+            if portal.to.area not in spaces or not spaces[portal.to.area].contains(
+                portal.to
+            ):
+                raise ValueError(f"portal {entity.id!r} leads nowhere: {portal.to}")
+            if portal.token in spaces[at.area].exits(at):
+                raise ValueError(
+                    f"portal {entity.id!r} token {portal.token!r} shadows a "
+                    f"geometric exit at {at}"
+                )
+            key = (str(at), portal.token)
+            if key in claimed:
+                raise ValueError(
+                    f"two portals at {at} claim the token {portal.token!r}"
+                )
+            claimed.add(key)
+
     @property
     def pack_id(self) -> str:
         """A stable ``name@sha256:…`` identifier over canonical content.
 
-        Hashing walks every component field via ``asdict``, so adding a
-        component automatically widens the identity — a pack cannot change
+        Hashing walks every field via ``asdict``, so adding a component or an
+        area kind automatically widens the identity — a pack cannot change
         content without changing its id.
         """
+
+        def canonical_area(space: GridSpace | RoomGraphSpace) -> dict[str, object]:
+            fields = asdict(space)
+            fields["area"] = fields.pop("_area")
+            fields["kind"] = type(space).__name__
+            return fields
+
         payload = json.dumps(
             {
                 "name": self.name,
-                "areas": [
-                    {"area": space.area, **asdict(space)} for space in self.areas
-                ],
+                "areas": [canonical_area(space) for space in self.areas],
                 "entities": [
                     asdict(entity)
                     for entity in sorted(self.entities, key=lambda e: e.id)

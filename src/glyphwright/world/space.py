@@ -73,6 +73,14 @@ class Space(Protocol):
     def exits(self, pos: PosId) -> Mapping[ExitToken, PosId]:
         """Traversable exit tokens leading out of ``pos``, ignoring occupancy."""
 
+    def melee_range(self, a: PosId, b: PosId) -> bool:
+        """Whether positions ``a`` and ``b`` are within striking distance.
+
+        Each geometry answers in its own terms: on a grid, adjacency; in a
+        room graph, co-location — a neighbouring room is behind a wall, not
+        at arm's length.
+        """
+
     def passable(self, state: WorldState, pos: PosId, mover: EntityId) -> bool:
         """Whether ``mover`` may enter ``pos`` given the current state."""
 

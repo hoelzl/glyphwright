@@ -160,10 +160,22 @@ Decisions taken by the implementing agent (owner delegated open choices):
 3. **RoomView** carries room id, name, description, contents (items and actors,
    not portals), and the merged exit list. The plain transcript renders prose with
    an `Exits: …` anchor line; `PlainProjection` gained `room` and `exits` fields.
-4. **AI does not path through portals yet**: chase BFS runs over one area's exits.
-   Fine while hostiles live outdoors; revisit if an interior hostile should pursue.
-5. **Pack identity hashes areas via `asdict`** now too (full room prose included);
+4. **One movement graph for everyone** (post-review): `WorldState.exits_from` (space
+   exits + portals) feeds the player's grammar *and* AI pursuit — a door the player
+   can use is a door a pursuer follows through. Chase/escape BFS runs over that
+   cross-area graph, so foes in other areas neither freeze pursuit nor crash flee.
+5. **Pack identity hashes areas via `asdict`** (with `kind` and a public `area` key);
    the pin was deliberately re-pinned.
+6. **Melee is answered by the geometry** (post-review): `Space.melee_range` — grid
+   says one exit away, room graph says the same room (a neighbouring room is behind
+   a wall). Same-room combat works; through-the-wall combat cannot happen.
+7. **Content is validated at construction** (post-review): `ContentPack` rejects
+   portals that stand nowhere/off-map, lead nowhere, shadow a geometric exit, or
+   collide on a token; `RoomGraphSpace` rejects duplicate exit tokens and
+   transcript-unsafe prose (newlines, lines imitating `Exits: `/`* `/`== ` markup).
+   `_move` still guards unknown areas defensively with a `MoveBlocked("edge")`.
+8. **Every room block closes with an `Exits:` anchor**, `Exits: none.` for dead
+   ends, so the plain parse round-trip holds for any authored room.
 
 ## Next steps
 

@@ -115,7 +115,7 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     # (3A: AiBehavior; 4: Portal component and full-area hashing for mixed
     # geometries) — a content-schema change must show here.
     assert pack.pack_id == (
-        "pin@sha256:6c8df11b602beb22d5625b68a61464c5653d87fbd3f0995b23d47c43bfac9100"
+        "pin@sha256:498816e5ab9c4ce53ed9d9da6808db14e2f29ea6f8bc288dfd453b9be9990f80"
     )
 
 
@@ -123,9 +123,12 @@ def test_content_changes_change_the_pack_id() -> None:
     from glyphwright.world.grid import GridSpace
 
     pack = reference_pack()
+    # One tile turned to wall; everything else — including portal wiring —
+    # stays valid, so this isolates the identity change to the content change.
+    altered_map = "#########\n#.......#\n#..##..##\n#.......#\n#########"
     altered = type(pack)(
         name=pack.name,
-        areas=(GridSpace.from_text("village", "###\n#.#\n###"),),
+        areas=(GridSpace.from_text("village", altered_map), *pack.areas[1:]),
         entities=pack.entities,
     )
     assert altered.pack_id != pack.pack_id, "a content change must invalidate baselines"
