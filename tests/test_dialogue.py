@@ -115,7 +115,9 @@ def test_world_verbs_are_wrong_mode_during_dialogue() -> None:
     assert result.rejection.reason == "wrong_mode"
 
 
-def test_the_world_is_suspended_while_talking() -> None:
+def test_passive_hostiles_do_not_act_while_talking() -> None:
+    """The world does not freeze during a conversation — but an unprovoked
+    hostile far away has no reason to act either."""
     engine = _talking()
     before = {
         entity_id: entity.at() for entity_id, entity in engine._state.entities.items()
@@ -124,7 +126,7 @@ def test_the_world_is_suspended_while_talking() -> None:
     after = {
         entity_id: entity.at() for entity_id, entity in engine._state.entities.items()
     }
-    assert before == after, "nobody moves while the player is in conversation"
+    assert before == after, "passive hostiles have no reason to move"
 
 
 # -- determinism --------------------------------------------------------------
@@ -154,6 +156,64 @@ def test_look_during_dialogue_costs_nothing() -> None:
     assert engine.step(Look()).accepted
     assert engine.frame().turn == turn
     assert engine.step(Wait()).rejection is not None, "no waiting mid-sentence"
+
+
+def test_a_dialogue_without_a_reachable_farewell_is_unrepresentable() -> None:
+    import pytest
+
+    from glyphwright.world.entities import Dialogue, DialogueChoice, DialogueNode
+
+    with pytest.raises(ValueError, match="farewell"):
+        Dialogue(
+            root="a",
+            nodes=(
+                DialogueNode(
+                    id="a",
+                    line="Round",
+                    choices=(DialogueChoice(text="and round", next="b"),),
+                ),
+                DialogueNode(
+                    id="b",
+                    line="we go",
+                    choices=(DialogueChoice(text="again", next="a"),),
+                ),
+            ),
+        )
+
+
+def test_hostiles_keep_acting_while_the_player_talks() -> None:
+    """Talking does not stop the world: a hostile that reaches the player
+    mid-conversation interrupts it with a battle."""
+    from glyphwright.world.entities import Actor, AiBehavior, Entity, Position
+    from glyphwright.world.roomgraph import RoomGraphSpace
+
+    engine = _at_innkeeper()
+    inn = engine._state.areas["inn"]
+    assert isinstance(inn, RoomGraphSpace)
+    brute = Entity(
+        id="cellar-brute",
+        position=Position(at=inn.pos("cellar")),
+        actor=Actor(name="Brute", hp=8, max_hp=8, base_stats=(("atk", 3),)),
+        ai=AiBehavior(hostile=True, engages=True),
+    )
+    engine._state = engine._state.with_entity(brute)
+    from glyphwright.kernel.events import FlagSet as Flag
+    from glyphwright.kernel.state import fold as _fold
+
+    engine._state = _fold(engine._state, (Flag(flag="aggro:cellar-brute", value=True),))
+    engine.step(Talk("innkeeper"))
+    assert engine._state.mode == "dialogue"
+    # The brute climbs from the cellar and engages: the conversation is
+    # interrupted by a battle pushed on top of it.
+    for _ in range(4):
+        if engine._state.mode == "battle":
+            break
+        engine.step(Choose("2"))
+    assert engine._state.mode == "battle"
+    assert engine._state.mode_stack == ("exploration", "dialogue", "battle")
+    assert engine._state.focus is not None, (
+        "the conversation's cursor must survive beneath the battle"
+    )
 
 
 def test_talking_again_after_farewell_restarts_the_tree() -> None:

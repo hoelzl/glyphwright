@@ -172,3 +172,128 @@ def test_the_rng_cursor_lands_in_state_per_pick() -> None:
     before = engine._state.rng
     engine.step(Pick())
     assert engine._state.rng != before
+
+
+# -- adversarial review regressions -------------------------------------------
+
+
+def test_an_openable_with_unknown_contents_fails_at_load() -> None:
+    import pytest
+
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.world.entities import Entity, Openable, Position
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("here", "..")
+    chest = Entity(
+        id="chest",
+        position=Position(at=space.pos(0, 0)),
+        openable=Openable(contains="no-such-loot"),
+    )
+    with pytest.raises(ValueError, match="unknown entity"):
+        ContentPack(name="broken", areas=(space,), entities=(chest,))
+
+
+def test_an_openable_with_an_unknown_key_fails_at_load() -> None:
+    import pytest
+
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.world.entities import Entity, Item, Openable, Position
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("here", "..")
+    loot = Entity(id="loot", item=Item(name="Loot"))
+    chest = Entity(
+        id="chest",
+        position=Position(at=space.pos(0, 0)),
+        openable=Openable(contains="loot", key="no-such-key"),
+    )
+    with pytest.raises(ValueError, match="unknown key"):
+        ContentPack(name="broken", areas=(space,), entities=(chest, loot))
+
+
+def test_the_strongbox_is_visible_in_the_cellar() -> None:
+    from glyphwright.frames.frame import RoomView
+
+    engine = _at_chest()
+    viewport = engine.frame().viewport
+    assert isinstance(viewport, RoomView)
+    assert "strongbox" in viewport.contents
+
+
+def test_the_key_path_leaves_evidence() -> None:
+    from glyphwright.kernel.events import ItemUsed
+
+    engine = _with_key()
+    result = engine.step(Open("strongbox"))
+    used = [e for e in result.events if isinstance(e, ItemUsed)]
+    assert used and used[0].item == "rusty-key" and not used[0].consumed
+    assert "You use rusty-key." in result.frame.messages
+    assert "rusty-key" in (engine._state.entity(PLAYER).inventory or ()).items  # type: ignore[union-attr]
+
+
+def test_a_hostile_interrupts_the_lockpicking() -> None:
+    """Picking a lock next to an awake hostile is not risk-free."""
+    from glyphwright.kernel.events import AttackMissed, DamageDealt
+    from glyphwright.world.entities import Actor, AiBehavior, Entity, Position
+    from glyphwright.world.roomgraph import RoomGraphSpace
+
+    engine = _at_chest()
+    inn = engine._state.areas["inn"]
+    assert isinstance(inn, RoomGraphSpace)
+    rat = Entity(
+        id="cellar-rat",
+        position=Position(at=inn.pos("cellar")),
+        actor=Actor(name="Rat", hp=4, max_hp=4, base_stats=(("atk", 1),)),
+        ai=AiBehavior(hostile=True),
+    )
+    engine._state = engine._state.with_entity(rat)
+    result = engine.step(Open("strongbox"))
+    hostile_acts = [
+        e
+        for e in result.events
+        if isinstance(e, (DamageDealt, AttackMissed)) and e.source == "cellar-rat"
+    ]
+    if not hostile_acts:
+        result = engine.step(Pick())
+        hostile_acts = [
+            e
+            for e in result.events
+            if isinstance(e, (DamageDealt, AttackMissed)) and e.source == "cellar-rat"
+        ]
+    assert hostile_acts, "the world does not pause for a lock"
+
+
+def test_defeat_mid_lockpick_collapses_to_the_defeated_grammar() -> None:
+    import dataclasses
+
+    from glyphwright.world.entities import Actor, AiBehavior, Entity, Position
+    from glyphwright.world.roomgraph import RoomGraphSpace
+
+    engine = _at_chest()
+    inn = engine._state.areas["inn"]
+    assert isinstance(inn, RoomGraphSpace)
+    brute = Entity(
+        id="cellar-brute",
+        position=Position(at=inn.pos("cellar")),
+        actor=Actor(name="Brute", hp=20, max_hp=20, base_stats=(("atk", 8),)),
+        ai=AiBehavior(hostile=True),
+    )
+    engine._state = engine._state.with_entity(brute)
+    player = engine._state.entity(PLAYER)
+    assert player.actor is not None
+    frail = dataclasses.replace(
+        player,
+        actor=dataclasses.replace(player.actor, hp=1, base_stats=(("def", 0),)),
+    )
+    engine._state = engine._state.with_entity(frail)
+    engine.step(Open("strongbox"))
+    for _ in range(30):
+        if engine._state.flags.get("player-defeated"):
+            break
+        engine.step(Pick())
+    assert engine._state.flags.get("player-defeated") is True
+    assert engine._state.mode == "exploration", (
+        "defeat must collapse the minigame to the defeated grammar"
+    )
+    assert engine.frame().commands.verb_names() == ("look",)

@@ -51,8 +51,11 @@ def _viewport_lines(frame: SemanticFrame) -> list[str]:
             lines.append(f"You see: {', '.join(viewport.contents)}.")
         lines.extend(textwrap.wrap(viewport.description, _WIDTH))
     elif isinstance(viewport, DialogueView):
+        # Choices own the region's tail: long prose truncates, options never.
+        budget = _VIEWPORT_LINES - 1
+        prose_room = max(1, budget - 1 - len(viewport.choices))
         lines = [f"{viewport.speaker}:"]
-        lines.extend(textwrap.wrap(viewport.text, _WIDTH - 2))
+        lines.extend(textwrap.wrap(viewport.text, _WIDTH - 2)[:prose_room])
         for index, choice in enumerate(viewport.choices):
             lines.append(f"  {index + 1}) {choice}")
     elif isinstance(viewport, LockView):
@@ -60,7 +63,7 @@ def _viewport_lines(frame: SemanticFrame) -> list[str]:
         lines = [
             f"-- lockpicking: {viewport.target} --",
             f"pins: [{drawn}]",
-            "[p]ick the next pin, [;] for commands, abort with ';abort'",
+            "[p]ick the next pin, [z] to abort",
         ]
     else:
         assert isinstance(viewport, MenuView)

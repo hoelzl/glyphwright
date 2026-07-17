@@ -144,6 +144,18 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
+    # A room block runs from the header to its "Exits:" anchor line; cutting
+    # it first protects room prose from every marker heuristic below.
+    room: tuple[str, ...] = ()
+    exits: tuple[str, ...] = ()
+    anchored = [i for i, line in enumerate(body) if line.startswith(_EXITS_ANCHOR)]
+    if anchored:
+        cut = anchored[0]
+        room = tuple(body[:cut])
+        listed = body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".")
+        exits = () if listed == "none" else tuple(listed.split(", "))
+        body = body[cut + 1 :]
+
     combatants = tuple(
         line.removeprefix("* ") for line in body if line.startswith("* ")
     )
@@ -154,17 +166,6 @@ def parse(text: str) -> PlainProjection:
         (line.removeprefix("% ") for line in body if line.startswith("% ")), None
     )
     body = [line for line in body if not line.startswith("% ")]
-
-    # A room block runs from the header to its "Exits:" anchor line.
-    room: tuple[str, ...] = ()
-    exits: tuple[str, ...] = ()
-    anchored = [i for i, line in enumerate(body) if line.startswith(_EXITS_ANCHOR)]
-    if anchored:
-        cut = anchored[0]
-        room = tuple(body[:cut])
-        listed = body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".")
-        exits = () if listed == "none" else tuple(listed.split(", "))
-        body = body[cut + 1 :]
 
     # Tiles are the leading run of space-free lines: content-independent, so
     # a pack may use any glyph. Message templates always contain spaces.
@@ -196,6 +197,9 @@ _PLACEHOLDERS = {
     "use": "<item>",
     "equip": "<item>",
     "attack": "<target>",
+    "talk": "<npc>",
+    "open": "<container>",
+    "choose": "<n>",
 }
 
 

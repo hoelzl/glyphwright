@@ -95,9 +95,9 @@ def describe(event: Event) -> str:
             return ""
         case FleeFailed():
             return "There is no way out!"
-        case DialogueLine():
-            return f'{event.speaker}: "{event.text}"'
-        case ChoiceOffered() | FocusSet():
+        case DialogueLine() | ChoiceOffered() | FocusSet():
+            # The dialogue viewport already carries speaker, line, and
+            # choices; a message copy would print every line twice.
             return ""
         case PinSet():
             return "A pin clicks into place."

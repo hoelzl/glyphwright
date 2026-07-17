@@ -216,7 +216,18 @@ Decisions taken by the implementing agent (owner delegated open choices):
    `abort` pops with outcome `abandoned` and the chest stays available.
 5. **Wire**: event v4 → v5, frame v3 → v4 (dialogue + lock viewports); same
    retire-and-replace policy. Plain marks dialogue lines with `| ` and the lock line
-   with `% `; TUI digits choose when a dialogue is open, `p` picks.
+   with `% ` (parse cuts the room block first, so prose is safe from the markers,
+   and room prose bans them at construction); TUI digits choose when a dialogue is
+   open, `p` picks, `z` aborts.
+6. **The world does not stop for talk or locks** (post-review): dialogue and
+   lockpick serve the same activity list as exploration, so an aggroed hostile
+   chases mid-conversation and an engager interrupts with a battle pushed on top;
+   `ModePopped` clears focus only for focus-owning modes, so the conversation
+   resumes after the fight. Defeat mid-focus-mode collapses the stack to the
+   defeated grammar.
+7. **Load-time guarantees** (post-review): dialogue trees must have a reachable
+   farewell; `Openable.contains`/`key` must reference pack entities. The key path
+   leaves `ItemUsed` evidence; openables are listed in room contents.
 
 ## Next steps
 

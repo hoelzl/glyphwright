@@ -48,6 +48,11 @@ MODE_BATTLE = "battle"
 MODE_DIALOGUE = "dialogue"
 MODE_LOCKPICK = "minigame:lockpick"
 
+# Modes whose per-mode cursor lives in ``WorldState.focus``. Popping one
+# clears the focus; popping anything else (a battle atop a conversation)
+# must leave the underlying mode's cursor intact.
+FOCUS_MODES = frozenset({MODE_DIALOGUE, MODE_LOCKPICK})
+
 
 @dataclass(frozen=True, slots=True)
 class WorldState:
@@ -218,11 +223,12 @@ def apply(state: WorldState, event: Event) -> WorldState:
                     f"cannot pop {event.mode!r}: the active mode is {state.mode!r}"
                 )
             initiative = () if event.mode == MODE_BATTLE else state.initiative
+            focus = None if event.mode in FOCUS_MODES else state.focus
             return replace(
                 state,
                 mode_stack=state.mode_stack[:-1],
                 initiative=initiative,
-                focus=None,
+                focus=focus,
             )
         case FleeFailed():
             return state

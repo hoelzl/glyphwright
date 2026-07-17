@@ -91,6 +91,23 @@ class ContentPack:
         spaces = {space.area: space for space in self.areas}
         if len(spaces) != len(self.areas):
             raise ValueError("area ids must be unique")
+        ids = {entity.id for entity in self.entities}
+        for entity in self.entities:
+            openable = entity.openable
+            if openable is not None:
+                # A chest that references nothing crashes the fold mid-open;
+                # a mistyped key silently forces the minigame. Both are
+                # load-time diagnostics.
+                if openable.contains not in ids:
+                    raise ValueError(
+                        f"openable {entity.id!r} contains unknown entity "
+                        f"{openable.contains!r}"
+                    )
+                if openable.key is not None and openable.key not in ids:
+                    raise ValueError(
+                        f"openable {entity.id!r} answers to unknown key "
+                        f"{openable.key!r}"
+                    )
         claimed: set[tuple[str, str]] = set()
         for entity in self.entities:
             portal = entity.portal

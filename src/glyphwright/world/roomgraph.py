@@ -55,7 +55,7 @@ class RoomGraphSpace:
                 # blocks structurally, so prose must not imitate its markup.
                 if "\n" in prose:
                     raise ValueError(f"room {room.id!r} prose must be single-line")
-                if prose.startswith(("Exits: ", "* ", "== ")):
+                if prose.startswith(("Exits: ", "* ", "== ", "| ", "% ")):
                     raise ValueError(
                         f"room {room.id!r} prose must not imitate transcript markup"
                     )

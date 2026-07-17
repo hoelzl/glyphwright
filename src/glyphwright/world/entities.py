@@ -121,10 +121,10 @@ class DialogueNode:
 class Dialogue:
     """An authored conversation tree (design 0003 §10.2).
 
-    Trees are content; the dialogue mode walks them and emits events. Every
-    node must offer at least one choice, and some choice must end the
-    conversation somewhere, but that is the author's craft — construction
-    validates only referential integrity.
+    Trees are content; the dialogue mode walks them and emits events.
+    Construction enforces what a soft-lock would otherwise punish at play
+    time: unique node ids, resolvable links, no choiceless nodes, and a
+    farewell reachable from the root.
     """
 
     root: str
@@ -145,6 +145,19 @@ class Dialogue:
                         f"dialogue node {node.id!r} choice leads to unknown "
                         f"node {choice.next!r}"
                     )
+        # A conversation the player can never leave is a soft-locked run:
+        # some node reachable from the root must offer a way out.
+        reachable = {self.root}
+        frontier = [self.root]
+        while frontier:
+            node = self.node(frontier.pop())
+            for choice in node.choices:
+                if choice.next is None:
+                    return
+                if choice.next not in reachable:
+                    reachable.add(choice.next)
+                    frontier.append(choice.next)
+        raise ValueError(f"dialogue rooted at {self.root!r} has no reachable farewell")
 
     def node(self, node_id: str) -> DialogueNode:
         for node in self.nodes:

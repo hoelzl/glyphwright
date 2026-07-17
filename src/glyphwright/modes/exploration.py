@@ -40,6 +40,7 @@ from glyphwright.kernel.events import (
     Event,
     ItemAcquired,
     ItemEquipped,
+    ItemUsed,
     MoveBlocked,
     Moved,
     TurnAdvanced,
@@ -227,8 +228,10 @@ def _open(state: WorldState, target_id: str) -> tuple[Event, ...]:
     assert openable is not None, "the grammar only offers openables"
     carried = state.entity(PLAYER).carries()
     if openable.key is not None and openable.key in carried:
-        # The honest way in: the key opens it outright.
+        # The honest way in: the key opens it outright, and the transcript
+        # says so — a silent open is indistinguishable from a bug.
         return (
+            ItemUsed(actor=PLAYER, item=openable.key, target=target_id, consumed=False),
             *common.unlock_events(state, target_id),
             TurnAdvanced(turn=state.turn + 1),
         )
@@ -336,7 +339,12 @@ def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
     contents = tuple(
         entity.id
         for entity in state.entities_at(at)
-        if entity.id != PLAYER and (entity.item is not None or entity.actor is not None)
+        if entity.id != PLAYER
+        and (
+            entity.item is not None
+            or entity.actor is not None
+            or entity.openable is not None
+        )
     )
     return RoomView(
         area=space.area,
