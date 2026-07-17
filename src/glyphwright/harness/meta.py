@@ -68,4 +68,6 @@ def render_text(payload: dict[str, Any]) -> str:
         case schema if schema == REJECTION_SCHEMA:
             return f"? {payload['reason']}: {payload['hint']}"
         case _:
-            return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+            # Pretty-printed so each line stays short and no token is ever
+            # split by a frontend's width-wrapping.
+            return json.dumps(payload, indent=1, sort_keys=True)

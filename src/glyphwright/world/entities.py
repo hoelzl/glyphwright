@@ -246,6 +246,10 @@ class Statuses:
         return tuple(sorted(status for status, _ in self.active))
 
     def with_status(self, status: str, expires: int) -> Statuses:
+        # A refresh extends the clock; it never truncates a longer one.
+        for existing, current in self.active:
+            if existing == status:
+                expires = max(expires, current)
         kept = tuple(pair for pair in self.active if pair[0] != status)
         return Statuses(active=tuple(sorted((*kept, (status, expires)))))
 

@@ -91,7 +91,7 @@ class ContentPack:
     statuses: tuple[Status, ...] = ()
 
     def __post_init__(self) -> None:
-        from glyphwright.effects.primitives import PRIMITIVES
+        from glyphwright.effects.primitives import PRIMITIVES, validate_params
 
         ability_ids = {ability.id for ability in self.abilities}
         status_ids = {status.id for status in self.statuses}
@@ -105,6 +105,10 @@ class ContentPack:
                     raise ValueError(
                         f"ability {ability.id!r} names unknown primitive {name!r}"
                     )
+                try:
+                    validate_params(name, params)
+                except ValueError as error:
+                    raise ValueError(f"ability {ability.id!r}: {error}") from error
                 if name == "apply_status" and params.get("status") not in status_ids:
                     raise ValueError(
                         f"ability {ability.id!r} applies unknown status "

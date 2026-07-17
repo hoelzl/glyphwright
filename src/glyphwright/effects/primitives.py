@@ -21,9 +21,40 @@ if TYPE_CHECKING:
     from glyphwright.kernel.state import WorldState
 
 
+# What each primitive accepts, used by pack validation so malformed params are
+# load-time diagnostics, never mid-session crashes. "ability" is reserved: the
+# engine injects the casting ability's id for evidence labelling.
+PARAM_SPECS: dict[str, dict[str, type]] = {
+    "deal_damage": {"amount": int, "spread": int},
+    "heal": {"amount": int},
+    "apply_status": {"status": str, "duration": int},
+}
+RESERVED_PARAMS = frozenset({"ability"})
+
+
+def validate_params(primitive: str, params: Mapping[str, object]) -> None:
+    """Raise ``ValueError`` unless ``params`` fit the primitive's spec."""
+    spec = PARAM_SPECS[primitive]
+    for key, value in params.items():
+        if key in RESERVED_PARAMS:
+            raise ValueError(
+                f"primitive {primitive!r} parameter {key!r} is reserved for the engine"
+            )
+        if key not in spec:
+            raise ValueError(f"primitive {primitive!r} takes no parameter {key!r}")
+        if not isinstance(value, spec[key]) or isinstance(value, bool):
+            raise ValueError(
+                f"primitive {primitive!r} parameter {key!r} must be "
+                f"{spec[key].__name__}, got {value!r}"
+            )
+    if primitive == "apply_status" and "status" not in params:
+        raise ValueError("apply_status requires a 'status' parameter")
+
+
 def _int_param(params: Mapping[str, object], key: str, default: int = 0) -> int:
     value = params.get(key, default)
-    assert isinstance(value, int), f"primitive parameter {key!r} must be an integer"
+    if not isinstance(value, int):
+        raise ValueError(f"primitive parameter {key!r} must be an integer")
     return value
 
 
@@ -75,8 +106,10 @@ def _apply_status(
 ) -> tuple[tuple[Event, ...], Rng]:
     status = str(params["status"])
     duration = _int_param(params, "duration", 1)
+    # The cast's own step advances the turn once, so a duration-1 status must
+    # survive that advance and cover the caster's next action (design 0004 §3).
     return (
-        StatusApplied(target=target, status=status, expires=state.turn + duration),
+        StatusApplied(target=target, status=status, expires=state.turn + 1 + duration),
     ), rng
 
 

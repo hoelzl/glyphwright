@@ -240,15 +240,27 @@ def test_named_keys_are_not_spliced_into_typed_text() -> None:
     assert engine.frame().turn == 0
 
 
-def test_long_meta_payloads_are_wrapped_not_cut() -> None:
+def test_meta_payload_lines_fit_the_screen_unbroken() -> None:
+    """The frame payload is pretty-printed so each rendered line carries whole
+    tokens within the screen width — width-wrapping never splits a token."""
+    from glyphwright.harness import meta
+
+    engine = _engine()
+    payload = meta.handle(engine, ":frame")
+    lines = meta.render_text(payload).splitlines()
+    assert any('"schema"' in line for line in lines)
+    assert any("glyphwright.frame/4" in line for line in lines)
+    for line in lines:
+        assert len(line) <= render.WIDTH, f"overwide payload line: {line!r}"
+
+
+def test_small_meta_payloads_render_intact_on_screen() -> None:
     engine = _engine()
     output = io.StringIO()
-    session.run_session(engine, iter([*":frame\r", "q"]), output, harness=True)
-    # Wrapping may split tokens at the 78-column boundary; joining the lines
-    # back together must recover the full payload with nothing cut.
-    joined = output.getvalue().replace("\r\n", "").replace("\n", "")
-    assert '"schema"' in joined
-    assert "glyphwright.frame/4" in joined
+    session.run_session(
+        engine, iter([*":query player.hp\r", "q"]), output, harness=True
+    )
+    assert "player.hp = [17, 20]" in output.getvalue()
 
 
 def test_room_contents_survive_a_long_description() -> None:

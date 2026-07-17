@@ -18,10 +18,16 @@ A registry `name -> primitive`, where a primitive is:
 
 ```python
 def primitive(
-    state: WorldState, source: EntityId, target: EntityId, params: Mapping[str, int],
+    state: WorldState, source: EntityId, target: EntityId,
+    params: Mapping[str, object],  # per-primitive specs: ints, plus str ids
     rng: Rng,
 ) -> tuple[tuple[Event, ...], Rng]
 ```
+
+Each primitive declares a parameter spec (name → type); pack validation checks
+every authored param against it at load, and the key ``ability`` is reserved
+for the engine's evidence labelling. Malformed params are load-time errors,
+never mid-session crashes.
 
 Slice 7 ships three, chosen because each exercises a different consequence shape:
 
@@ -88,9 +94,12 @@ and cleared by the `StatusExpired` fold.
   equipment, with provenance `"{status-id} (status)"` (`0003` §9.1 order:
   additive from any source before multiplicative from any source; within a
   kind, statuses before equipment, both in sorted-id order).
-- **Expiry**: at the close of any turn-spending step, the scheduler epilogue
-  emits `StatusExpired` for every application whose `expires-turn <= turn` —
-  in the event log like everything else, so expiry replays.
+- **Expiry**: `expires = (turn after application) + duration`, so a
+  duration-1 status survives the casting step's own turn advance and covers
+  the caster's next action. At the close of any turn-spending step, the
+  scheduler epilogue emits `StatusExpired` for every application whose
+  `expires-turn <= turn` — in the event log like everything else, so expiry
+  replays. Re-application extends the clock and never truncates it.
 - **Frames**: `ActorSummary.statuses` (present since slice 1, always empty
   until now) lists active status ids.
 - **Hooks** (`0003` §9.3 event-triggered effects) are explicitly out of scope

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 
 from glyphwright.api import Engine
-from glyphwright.content.pack import reference_pack
+from glyphwright.content.pack import ContentPack, reference_pack
 from glyphwright.kernel.commands import Cast, Move, Wait
 from glyphwright.kernel.events import (
     CastFizzled,
@@ -233,6 +233,164 @@ def test_apply_status_referencing_an_unknown_status_fails_at_load() -> None:
                 ),
             ),
         )
+
+
+# -- multi-effect chains (design 0004 §6) -------------------------------------
+
+
+def _chain_pack() -> ContentPack:
+    """A pack whose one ability chains a status before damage."""
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.effects.abilities import Ability, Status
+    from glyphwright.world.entities import (
+        Actor,
+        AiBehavior,
+        Entity,
+        Position,
+        StatModifier,
+    )
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("pit", "...")
+    hexbolt = Ability(
+        id="hexbolt",
+        name="Hexbolt",
+        targeting="foe",
+        effects=(
+            ("apply_status", {"status": "withered", "duration": 2}),
+            ("deal_damage", {"amount": 4}),
+        ),
+    )
+    withered = Status(
+        id="withered",
+        name="Withered",
+        modifiers=(StatModifier(stat="def", op="add", value=-2),),
+    )
+    caster = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="Caster", hp=10, max_hp=10, abilities=("hexbolt",)),
+    )
+    victim = Entity(
+        id="wisp-1",
+        position=Position(at=space.pos(1, 0)),
+        actor=Actor(name="Wisp", hp=9, max_hp=9, base_stats=(("def", 2),)),
+        ai=AiBehavior(hostile=True),
+    )
+    return ContentPack(
+        name="chain-pit",
+        areas=(space,),
+        entities=(caster, victim),
+        abilities=(hexbolt,),
+        statuses=(withered,),
+    )
+
+
+def test_a_chain_applies_its_effects_in_order_and_folds() -> None:
+    engine = Engine.new(_chain_pack(), seed=61)
+    before = engine._state
+    result = engine.step(Cast("hexbolt", "wisp-1"))
+    kinds = [type(e) for e in result.events]
+    assert kinds.index(StatusApplied) < kinds.index(DamageDealt), (
+        "effects execute in authored order"
+    )
+    # The status folded before the damage primitive ran: withered drops the
+    # wisp's def from 2 to 0, so amount is 4 instead of 4 - 2//2 = 3.
+    hit = next(e for e in result.events if isinstance(e, DamageDealt))
+    assert hit.amount == 4, "the chain folds between effects"
+    assert fold(before, result.events) == engine._state
+
+
+def test_a_target_dying_mid_chain_stops_later_effects() -> None:
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.effects.abilities import Ability
+    from glyphwright.kernel.events import ActorDied
+
+    pack = _chain_pack()
+    overkill = Ability(
+        id="hexbolt",
+        name="Hexbolt",
+        targeting="foe",
+        effects=(
+            ("deal_damage", {"amount": 40}),
+            ("apply_status", {"status": "withered", "duration": 2}),
+        ),
+    )
+    pack = ContentPack(
+        name=pack.name,
+        areas=pack.areas,
+        entities=pack.entities,
+        abilities=(overkill,),
+        statuses=pack.statuses,
+    )
+    engine = Engine.new(pack, seed=61)
+    result = engine.step(Cast("hexbolt", "wisp-1"))
+    assert any(isinstance(e, ActorDied) for e in result.events)
+    assert not any(isinstance(e, StatusApplied) for e in result.events), (
+        "a dead target cannot receive the rest of the chain"
+    )
+
+
+def test_malformed_primitive_params_fail_at_load() -> None:
+    import pytest
+
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.effects.abilities import Ability
+    from glyphwright.world.entities import Entity
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("here", "..")
+    with pytest.raises(ValueError, match="must be int"):
+        ContentPack(
+            name="broken",
+            areas=(space,),
+            entities=(Entity(id="e"),),
+            abilities=(
+                Ability(
+                    id="oops",
+                    name="Oops",
+                    targeting="self",
+                    effects=(("deal_damage", {"amount": "3"}),),
+                ),
+            ),
+        )
+    with pytest.raises(ValueError, match="reserved"):
+        ContentPack(
+            name="broken",
+            areas=(space,),
+            entities=(Entity(id="e"),),
+            abilities=(
+                Ability(
+                    id="oops",
+                    name="Oops",
+                    targeting="self",
+                    effects=(("deal_damage", {"ability": "spoof"}),),
+                ),
+            ),
+        )
+
+
+def test_a_duration_one_status_covers_the_next_action() -> None:
+    engine = _engine()
+    from glyphwright.content.pack import reference_pack as _rp  # noqa: F401
+
+    # Reuse guard but check the general rule via the schedule: after casting,
+    # the status must survive the cast's own turn advance.
+    engine.step(Cast("guard", "player"))
+    player = next(a for a in engine.frame().actors if a.id == PLAYER)
+    assert "stoneskin" in player.statuses, (
+        "a fresh status must outlive the step that applied it"
+    )
+
+
+def test_a_bad_target_hint_names_targets_not_abilities() -> None:
+    engine = _engine()  # only guard castable; only player targetable
+    result = engine.step(Cast("guard", "balrog"))
+    assert result.rejection is not None
+    assert result.rejection.hint.startswith("valid targets:")
+    assert result.rejection.command == "cast guard at balrog", (
+        "the echo must be re-parseable command text"
+    )
 
 
 # -- determinism --------------------------------------------------------------
