@@ -12,7 +12,11 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
     Event,
+    FlagSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
@@ -20,6 +24,7 @@ from glyphwright.kernel.events import (
     MoveBlocked,
     Moved,
     TurnAdvanced,
+    aggro_flag,
 )
 from glyphwright.kernel.rng import Rng
 from glyphwright.world.entities import Entity, Equipment, Inventory, Position
@@ -94,6 +99,8 @@ def apply(state: WorldState, event: Event) -> WorldState:
         case MoveBlocked():
             return state
         case TurnAdvanced():
+            if event.rng is not None:
+                return replace(state, turn=event.turn, rng=Rng.decode(event.rng))
             return replace(state, turn=event.turn)
         case ItemAcquired():
             item = replace(state.entity(event.item), position=None)
@@ -142,6 +149,26 @@ def apply(state: WorldState, event: Event) -> WorldState:
                 hp=min(target.actor.hp + event.amount, target.actor.max_hp),
             )
             return state.with_entity(replace(target, actor=healed))
+        case DamageDealt():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"DamageDealt target {event.target} is not an actor")
+            hurt = replace(target.actor, hp=max(target.actor.hp - event.amount, 0))
+            return state.with_entity(replace(target, actor=hurt))
+        case AttackMissed():
+            return state
+        case ActorDied():
+            # The dead leave no dangling aggression behind them.
+            survivors = state.without_entity(event.actor)
+            if aggro_flag(event.actor) in survivors.flags:
+                flags = dict(survivors.flags)
+                del flags[aggro_flag(event.actor)]
+                return replace(survivors, flags=flags)
+            return survivors
+        case FlagSet():
+            flags = dict(state.flags)
+            flags[event.flag] = event.value
+            return replace(state, flags=flags)
 
 
 def fold(state: WorldState, events: tuple[Event, ...]) -> WorldState:

@@ -4,7 +4,7 @@ A deterministic, terminal-first turn-based RPG engine, drivable by people and au
 
 GlyphWright is an RPG engine in the tradition of RPG Maker and the Neverwinter Nights toolset: worlds are authored in a grid/tile or room-based format and played through characters, items and inventory, turn-based battles, stats and abilities, and embedded minigames. It separates world semantics from presentation — a state plus a command produces a new immutable state and ordered semantic events — so that structured evidence, not screen-scraped text, is the primary observation.
 
-The current vertical slice adds items and stats on top of the walking skeleton: a pure `step` over immutable state, typed events, a seeded PCG64 stream, a grid world behind the `Space` protocol, inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain and JSONL frontends, the `glyphwright.api` public surface, and committed wire schemas.
+The current vertical slice adds exploration combat on top of items and stats: a pure `step` over immutable state, typed events, a seeded PCG64 stream, a grid world behind the `Space` protocol, inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, melee combat against AI hostiles whose turns run inside the same `step` (`attack`), an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain and JSONL frontends, the `glyphwright.api` public surface, and committed wire schemas.
 
 ## Why
 
@@ -21,7 +21,7 @@ uv --no-config sync --all-groups --locked
 uv --no-config run glyphwright
 ```
 
-The session accepts `move <north|east|south|west>`, `look`, `wait`, `take <item>`, `use <item>`, `equip <item>`, `help`, and `quit`. Each turn prints a transcript block anchored by `== turn N · mode · area ==`. The frame's command grammar always names exactly what is valid right now.
+The session accepts `move <north|east|south|west>`, `look`, `wait`, `take <item>`, `use <item>`, `equip <item>`, `attack <target>`, `help`, and `quit`. Each turn prints a transcript block anchored by `== turn N · mode · area ==`. The frame's command grammar always names exactly what is valid right now.
 
 With `--harness`, a namespaced meta-channel is available beside the game commands — the engine's oracle interface, which never advances the turn:
 

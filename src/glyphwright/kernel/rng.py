@@ -55,6 +55,18 @@ class Rng:
         state = (state + seed) & _MASK_128
         return cls(state=_advance(state, increment), increment=increment)
 
+    def encode(self) -> str:
+        """The cursor as an opaque token, carried by ``TurnAdvanced`` so the
+        event fold reproduces the stream position exactly."""
+        return f"{self.state:032x}.{self.increment:032x}"
+
+    @classmethod
+    def decode(cls, text: str) -> Rng:
+        state, separator, increment = text.partition(".")
+        if not separator:
+            raise ValueError(f"malformed rng cursor: {text!r}")
+        return cls(state=int(state, 16), increment=int(increment, 16))
+
     def next_u64(self) -> tuple[int, Rng]:
         """Draw one 64-bit value and return it with the successor cursor.
 

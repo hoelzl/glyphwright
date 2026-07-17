@@ -12,6 +12,22 @@ from dataclasses import dataclass
 
 from glyphwright.world.space import EntityId, ExitToken, PosId
 
+# The flag vocabulary lives beside the FlagSet event that writes it, so every
+# consumer spells flags one way.
+PLAYER_DEFEATED = "player-defeated"
+_AGGRO_PREFIX = "aggro:"
+
+
+def aggro_flag(entity_id: EntityId) -> str:
+    return f"{_AGGRO_PREFIX}{entity_id}"
+
+
+def aggro_subject(flag: str) -> EntityId | None:
+    """The entity an aggro flag names, or ``None`` for other flags."""
+    if flag.startswith(_AGGRO_PREFIX):
+        return flag.removeprefix(_AGGRO_PREFIX)
+    return None
+
 
 @dataclass(frozen=True, slots=True)
 class Moved:
@@ -39,9 +55,17 @@ class MoveBlocked:
 
 @dataclass(frozen=True, slots=True)
 class TurnAdvanced:
-    """The turn counter moved on."""
+    """The turn counter moved on, closing the round.
+
+    ``rng`` is the encoded RNG cursor after every draw of the round; the fold
+    applies it, so the successor state — cursor included — is exactly the fold
+    of the events (0003 §5.3) and replay-from-log cannot drift from
+    snapshot/restore. Handlers construct this event without the cursor;
+    ``step`` stamps it once the round's last draw is known.
+    """
 
     turn: int
+    rng: str | None = None
 
     type: str = "TurnAdvanced"
 
@@ -104,6 +128,67 @@ class Healed:
     type: str = "Healed"
 
 
+@dataclass(frozen=True, slots=True)
+class DamageDealt:
+    """An attack landed."""
+
+    source: EntityId
+    target: EntityId
+    ability: str
+    damage_type: str
+    amount: int
+
+    type: str = "DamageDealt"
+
+
+@dataclass(frozen=True, slots=True)
+class AttackMissed:
+    """An attack was attempted and failed to land.
+
+    Evidence of the attempt: the turn is spent and the roll advanced the RNG
+    cursor, so a miss must appear in the log or replay diverges.
+    """
+
+    source: EntityId
+    target: EntityId
+    ability: str
+
+    type: str = "AttackMissed"
+
+
+@dataclass(frozen=True, slots=True)
+class ActorDied:
+    """An actor's hit points reached zero; the fold removes it from the world.
+
+    The player never dies through this event — defeat is a world flag
+    (`player-defeated`), because the world must survive its protagonist.
+    """
+
+    actor: EntityId
+
+    type: str = "ActorDied"
+
+
+@dataclass(frozen=True, slots=True)
+class FlagSet:
+    """A quest or world flag changed."""
+
+    flag: str
+    value: bool
+
+    type: str = "FlagSet"
+
+
 Event = (
-    Moved | MoveBlocked | TurnAdvanced | ItemAcquired | ItemUsed | ItemEquipped | Healed
+    Moved
+    | MoveBlocked
+    | TurnAdvanced
+    | ItemAcquired
+    | ItemUsed
+    | ItemEquipped
+    | Healed
+    | DamageDealt
+    | AttackMissed
+    | ActorDied
+    | FlagSet
 )

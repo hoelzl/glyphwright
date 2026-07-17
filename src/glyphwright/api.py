@@ -19,6 +19,7 @@ from glyphwright.harness.fingerprint import RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
+    Attack,
     Command,
     CommandGrammar,
     Equip,
@@ -29,13 +30,14 @@ from glyphwright.kernel.commands import (
     Use,
     Wait,
 )
-from glyphwright.kernel.events import Event
+from glyphwright.kernel.events import PLAYER_DEFEATED, Event
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import WorldState
 from glyphwright.kernel.step import step as _step
 from glyphwright.modes import exploration
 
 __all__ = [
+    "Attack",
     "Command",
     "CommandGrammar",
     "ContentPack",
@@ -148,6 +150,13 @@ class Engine:
         A rejection means the engine never ran the command: the turn does not
         advance and no events are emitted (0003 appendix A.4).
         """
+        if self._state.flags.get(PLAYER_DEFEATED) and not isinstance(command, Look):
+            # The one true reason: anything else would misdescribe the world.
+            return Rejected(
+                command=_render(command),
+                reason="defeated",
+                hint="you have fallen; only 'look' remains",
+            )
         grammar = exploration.available_commands(self._state)
         vocabulary = _REJECTIONS.get(command.verb)
         if command.verb not in grammar.verb_names():
@@ -200,6 +209,9 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
     ),
     "equip": _RejectionVocabulary(
         "not_equippable", "you can equip", "you are carrying nothing equippable"
+    ),
+    "attack": _RejectionVocabulary(
+        "no_such_target", "you can attack", "there is nothing here to fight"
     ),
 }
 

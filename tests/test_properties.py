@@ -12,7 +12,16 @@ from hypothesis import strategies as st
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
-from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
+from glyphwright.kernel.commands import (
+    Attack,
+    Command,
+    Equip,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
 from glyphwright.kernel.events import Moved
 from glyphwright.kernel.state import PLAYER, WorldState
 from glyphwright.world.grid import WALL, GridSpace
@@ -22,15 +31,19 @@ _BUILDERS: tuple[tuple[str, type], ...] = (
     ("take", Take),
     ("use", Use),
     ("equip", Equip),
+    ("attack", Attack),
 )
 
 
 def _options(engine: Engine) -> list[Command]:
     """Every command the frame's grammar currently advertises."""
     grammar = engine.frame().commands
-    options: list[Command] = [Look(), Wait()]
+    names = grammar.verb_names()
+    options: list[Command] = [Look()]
+    if "wait" in names:
+        options.append(Wait())
     for verb, builder in _BUILDERS:
-        if verb in grammar.verb_names():
+        if verb in names:
             options.extend(builder(argument) for argument in grammar.domains(verb)[0])
     return options
 
@@ -100,13 +113,20 @@ def test_the_turn_counter_only_ever_rises(choices: list[int]) -> None:
 @settings(max_examples=40, deadline=None)
 @given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=30))
 def test_every_move_lands_where_its_event_says(choices: list[int]) -> None:
+    """Checked against the fold itself, event by event, so movers that later
+    leave the world are verified too."""
+    from glyphwright.kernel.state import apply
+
     engine = Engine.new(reference_pack(), seed=9)
     for index in range(len(choices)):
         options = _options(engine)
+        before = engine._state
         result = engine.step(options[choices[index] % len(options)])
+        state = before
         for event in result.events:
+            state = apply(state, event)
             if isinstance(event, Moved):
-                assert engine._state.entity(PLAYER).at() == event.destination
+                assert state.entity(event.actor).at() == event.destination
 
 
 def _held_anywhere(state: WorldState) -> list[str]:

@@ -8,8 +8,15 @@ inherit determinism, replay, and enumeration-driven fuzzing for free (design
 
 from __future__ import annotations
 
+from glyphwright.effects.combat import (
+    hostile_actors,
+    melee_adjacent,
+    provoke,
+    strike,
+)
 from glyphwright.frames.frame import ActorSummary, GridView, PromptSpec, SemanticFrame
 from glyphwright.kernel.commands import (
+    Attack,
     Command,
     CommandGrammar,
     Equip,
@@ -20,7 +27,12 @@ from glyphwright.kernel.commands import (
     Wait,
 )
 from glyphwright.kernel.events import (
+    PLAYER_DEFEATED,
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
     Event,
+    FlagSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
@@ -28,9 +40,10 @@ from glyphwright.kernel.events import (
     MoveBlocked,
     Moved,
     TurnAdvanced,
+    aggro_subject,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import PLAYER, WorldState
+from glyphwright.kernel.state import PLAYER, WorldState, fold
 from glyphwright.world.entities import Equipment
 from glyphwright.world.grid import GridSpace
 
@@ -44,6 +57,7 @@ LEGEND: tuple[tuple[str, str], ...] = (
     (".", "floor"),
     ("!", "potion"),
     ("/", "weapon"),
+    ("g", "goblin"),
 )
 
 
@@ -74,6 +88,21 @@ def _usable(state: WorldState) -> tuple[str, ...]:
     )
 
 
+def _attackable(state: WorldState) -> tuple[str, ...]:
+    """Adjacent hostiles. Exploration combat is melee: the attack range is one
+    exit, and anything farther must be closed with first. Ranged attacks
+    arrive with abilities."""
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return ()
+    space = state.areas[player_at.area]
+    return tuple(
+        entity.id
+        for entity in hostile_actors(state)
+        if (at := entity.at()) is not None and melee_adjacent(space, player_at, at)
+    )
+
+
 def _equippable(state: WorldState) -> tuple[str, ...]:
     player = state.entity(PLAYER)
     worn = (player.equipment or Equipment()).equipped_items()
@@ -92,6 +121,9 @@ def available_commands(state: WorldState) -> CommandGrammar:
     argument domain is empty are not advertised: a grammar entry is a promise
     that a command can be formed from it.
     """
+    if state.flags.get(PLAYER_DEFEATED):
+        # A defeated protagonist can only survey the wreckage.
+        return CommandGrammar(verbs=(("look", ()),))
     space = state.space_of(PLAYER)
     at = state.entity(PLAYER).at()
     assert at is not None  # space_of would have raised
@@ -104,6 +136,7 @@ def available_commands(state: WorldState) -> CommandGrammar:
         ("take", _takeable(state)),
         ("use", _usable(state)),
         ("equip", _equippable(state)),
+        ("attack", _attackable(state)),
     ):
         if domain:
             verbs.append((verb, (domain,)))
@@ -132,6 +165,8 @@ def handle(
             return _use(state, item_id), rng
         case Equip(item=item_id):
             return _equip(state, item_id), rng
+        case Attack(target=target_id):
+            return _attack(state, target_id, rng)
 
 
 def _move(state: WorldState, token: str) -> tuple[Event, ...]:
@@ -181,6 +216,20 @@ def _use(state: WorldState, item_id: str) -> tuple[Event, ...]:
         Healed(target=PLAYER, amount=healed, source=item_id),
         TurnAdvanced(turn=state.turn + 1),
     )
+
+
+def _attack(
+    state: WorldState, target_id: str, rng: Rng
+) -> tuple[tuple[Event, ...], Rng]:
+    struck, rng = strike(state, PLAYER, target_id, rng)
+    # Being struck is provocation, recorded as a flag so it replays — but only
+    # a survivor can be provoked; a corpse does not snarl.
+    events: list[Event] = [
+        *struck,
+        *provoke(fold(state, struck), target_id),
+        TurnAdvanced(turn=state.turn + 1),
+    ]
+    return tuple(events), rng
 
 
 def _equip(state: WorldState, item_id: str) -> tuple[Event, ...]:
@@ -259,8 +308,10 @@ def _actors(state: WorldState) -> tuple[ActorSummary, ...]:
 def describe(event: Event) -> str:
     """Render one event as prose from a template, never free-written text."""
     match event:
-        case Moved():
+        case Moved(actor=actor) if actor == PLAYER:
             return f"You go {event.exit}."
+        case Moved():
+            return f"{event.actor} moves {event.exit}."
         case MoveBlocked(reason="wall"):
             return f"A wall blocks the way {event.exit}."
         case MoveBlocked(reason="occupied"):
@@ -277,5 +328,23 @@ def describe(event: Event) -> str:
             return f"You equip {event.item}, putting away {event.replaced}."
         case Healed():
             return f"You recover {event.amount} hp."
+        case DamageDealt(source=source) if source == PLAYER:
+            return f"You strike {event.target} for {event.amount} damage."
+        case DamageDealt(target=target) if target == PLAYER:
+            return f"{event.source} hits you for {event.amount} damage."
+        case DamageDealt():
+            return f"{event.source} strikes {event.target} for {event.amount} damage."
+        case AttackMissed(source=source) if source == PLAYER:
+            return f"You miss {event.target}."
+        case AttackMissed():
+            return f"{event.source} lunges and misses."
+        case ActorDied():
+            return f"{event.actor} dies."
+        case FlagSet(flag=flag) if aggro_subject(flag) is not None:
+            return f"{aggro_subject(flag)} snarls and turns on you!"
+        case FlagSet(flag=flag) if flag == PLAYER_DEFEATED:
+            return "You are defeated."
+        case FlagSet():
+            return ""
         case TurnAdvanced():
             return ""
