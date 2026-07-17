@@ -1,8 +1,11 @@
 {
-  "$id": "glyphwright.event/2",
+  "$id": "glyphwright.event/3",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "ability": {
+      "type": "string"
+    },
     "actor": {
       "type": "string"
     },
@@ -12,10 +15,16 @@
     "consumed": {
       "type": "boolean"
     },
+    "damage_type": {
+      "type": "string"
+    },
     "destination": {
       "type": "string"
     },
     "exit": {
+      "type": "string"
+    },
+    "flag": {
       "type": "string"
     },
     "item": {
@@ -34,7 +43,7 @@
       ]
     },
     "schema": {
-      "const": "glyphwright.event/2"
+      "const": "glyphwright.event/3"
     },
     "slot": {
       "type": "string"
@@ -59,8 +68,15 @@
         "ItemAcquired",
         "ItemUsed",
         "ItemEquipped",
-        "Healed"
+        "Healed",
+        "DamageDealt",
+        "AttackMissed",
+        "ActorDied",
+        "FlagSet"
       ]
+    },
+    "value": {
+      "type": "boolean"
     }
   },
   "required": [

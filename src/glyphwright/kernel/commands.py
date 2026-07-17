@@ -85,7 +85,23 @@ class Equip:
         return (self.item,)
 
 
-Command = Move | Look | Wait | Take | Use | Equip
+@dataclass(frozen=True, slots=True)
+class Attack:
+    """Strike a visible hostile with whatever is equipped.
+
+    Arity-1 like ``use``: the weapon is the equipped one, until abilities
+    introduce explicit weapon choice.
+    """
+
+    target: EntityId
+
+    verb: str = "attack"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.target,)
+
+
+Command = Move | Look | Wait | Take | Use | Equip | Attack
 
 
 @dataclass(frozen=True, slots=True)

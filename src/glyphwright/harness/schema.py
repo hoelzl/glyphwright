@@ -128,6 +128,10 @@ def event_schema() -> dict[str, Any]:
                     "ItemUsed",
                     "ItemEquipped",
                     "Healed",
+                    "DamageDealt",
+                    "AttackMissed",
+                    "ActorDied",
+                    "FlagSet",
                 ]
             },
             "actor": _STRING,
@@ -143,6 +147,10 @@ def event_schema() -> dict[str, Any]:
             "replaced": {"type": ["string", "null"]},
             "amount": _INTEGER,
             "source": _STRING,
+            "ability": _STRING,
+            "damage_type": _STRING,
+            "flag": _STRING,
+            "value": {"type": "boolean"},
         },
         "additionalProperties": False,
     }
@@ -188,7 +196,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     return {
         "glyphwright.session.v1.json": session_schema(),
         "glyphwright.frame.v1.json": frame_schema(),
-        "glyphwright.event.v2.json": event_schema(),
+        "glyphwright.event.v3.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

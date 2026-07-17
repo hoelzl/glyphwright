@@ -17,6 +17,7 @@ from dataclasses import asdict, dataclass
 
 from glyphwright.world.entities import (
     Actor,
+    AiBehavior,
     Blocker,
     Consumable,
     Entity,
@@ -39,6 +40,7 @@ _REFERENCE_MAP = """\
 _REFERENCE_START = (1, 1)
 _REFERENCE_POTION_AT = (3, 1)
 _REFERENCE_SWORD_AT = (6, 3)
+_REFERENCE_GOBLIN_AT = (2, 3)
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +115,19 @@ def reference_pack() -> ContentPack:
         ),
         renderable=Renderable(glyph="/"),
     )
+    goblin = Entity(
+        id="goblin-1",
+        position=Position(at=space.pos(*_REFERENCE_GOBLIN_AT)),
+        actor=Actor(
+            name="Goblin",
+            hp=6,
+            max_hp=6,
+            base_stats=(("atk", 3), ("def", 1)),
+        ),
+        blocker=Blocker(),
+        renderable=Renderable(glyph="g"),
+        ai=AiBehavior(hostile=True),
+    )
     return ContentPack(
-        name="reference-vale", areas=(space,), entities=(player, potion, sword)
+        name="reference-vale", areas=(space,), entities=(player, potion, sword, goblin)
     )

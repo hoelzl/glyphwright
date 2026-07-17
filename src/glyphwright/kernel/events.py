@@ -104,6 +104,67 @@ class Healed:
     type: str = "Healed"
 
 
+@dataclass(frozen=True, slots=True)
+class DamageDealt:
+    """An attack landed."""
+
+    source: EntityId
+    target: EntityId
+    ability: str
+    damage_type: str
+    amount: int
+
+    type: str = "DamageDealt"
+
+
+@dataclass(frozen=True, slots=True)
+class AttackMissed:
+    """An attack was attempted and failed to land.
+
+    Evidence of the attempt: the turn is spent and the roll advanced the RNG
+    cursor, so a miss must appear in the log or replay diverges.
+    """
+
+    source: EntityId
+    target: EntityId
+    ability: str
+
+    type: str = "AttackMissed"
+
+
+@dataclass(frozen=True, slots=True)
+class ActorDied:
+    """An actor's hit points reached zero; the fold removes it from the world.
+
+    The player never dies through this event — defeat is a world flag
+    (`player-defeated`), because the world must survive its protagonist.
+    """
+
+    actor: EntityId
+
+    type: str = "ActorDied"
+
+
+@dataclass(frozen=True, slots=True)
+class FlagSet:
+    """A quest or world flag changed."""
+
+    flag: str
+    value: bool
+
+    type: str = "FlagSet"
+
+
 Event = (
-    Moved | MoveBlocked | TurnAdvanced | ItemAcquired | ItemUsed | ItemEquipped | Healed
+    Moved
+    | MoveBlocked
+    | TurnAdvanced
+    | ItemAcquired
+    | ItemUsed
+    | ItemEquipped
+    | Healed
+    | DamageDealt
+    | AttackMissed
+    | ActorDied
+    | FlagSet
 )

@@ -12,6 +12,7 @@ from typing import Any
 
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.kernel.commands import (
+    Attack,
     Command,
     CommandGrammar,
     Equip,
@@ -23,7 +24,11 @@ from glyphwright.kernel.commands import (
     Wait,
 )
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
     Event,
+    FlagSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
@@ -34,10 +39,11 @@ from glyphwright.kernel.events import (
 )
 
 FRAME_SCHEMA = "glyphwright.frame/1"
-# Slice 2 widened the event vocabulary; a closed-enum contract cannot widen in
-# place, so the tag bumped (ADR-006). v1 was retired rather than kept in a
-# compatibility matrix because no external consumer existed before this bump.
-EVENT_SCHEMA = "glyphwright.event/2"
+# Widening the event vocabulary bumps the tag: a closed-enum contract cannot
+# widen in place (ADR-006). Prior tags were retired rather than kept in a
+# compatibility matrix because no external consumer existed before the bumps
+# (v1 -> v2 with items, v2 -> v3 with combat).
+EVENT_SCHEMA = "glyphwright.event/3"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -133,6 +139,24 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
                 "amount": event.amount,
                 "source": event.source,
             }
+        case DamageDealt():
+            payload |= {
+                "source": event.source,
+                "target": event.target,
+                "ability": event.ability,
+                "damage_type": event.damage_type,
+                "amount": event.amount,
+            }
+        case AttackMissed():
+            payload |= {
+                "source": event.source,
+                "target": event.target,
+                "ability": event.ability,
+            }
+        case ActorDied():
+            payload |= {"actor": event.actor}
+        case FlagSet():
+            payload |= {"flag": event.flag, "value": event.value}
     return payload
 
 
@@ -164,5 +188,7 @@ def decode_command(text: str) -> Command | None:
             return Use(item=item)
         case ["equip", item]:
             return Equip(item=item)
+        case ["attack", target]:
+            return Attack(target=target)
         case _:
             return None

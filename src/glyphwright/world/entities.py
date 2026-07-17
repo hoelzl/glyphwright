@@ -68,6 +68,18 @@ class StatModifier:
 
 
 @dataclass(frozen=True, slots=True)
+class AiBehavior:
+    """An AI-controlled actor's disposition.
+
+    Hostiles are passive until provoked — by being attacked, or by the player
+    stepping adjacent — and aggression is recorded as a world flag so it
+    replays like every other state change.
+    """
+
+    hostile: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class Item:
     """An entity that can be carried."""
 
@@ -129,6 +141,7 @@ class Entity:
     actor: Actor | None = None
     blocker: Blocker | None = None
     renderable: Renderable | None = None
+    ai: AiBehavior | None = None
     item: Item | None = None
     consumable: Consumable | None = None
     equippable: Equippable | None = None

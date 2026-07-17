@@ -19,6 +19,7 @@ from glyphwright.harness.fingerprint import RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
+    Attack,
     Command,
     CommandGrammar,
     Equip,
@@ -36,6 +37,7 @@ from glyphwright.kernel.step import step as _step
 from glyphwright.modes import exploration
 
 __all__ = [
+    "Attack",
     "Command",
     "CommandGrammar",
     "ContentPack",
@@ -200,6 +202,9 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
     ),
     "equip": _RejectionVocabulary(
         "not_equippable", "you can equip", "you are carrying nothing equippable"
+    ),
+    "attack": _RejectionVocabulary(
+        "no_such_target", "you can attack", "there is nothing here to fight"
     ),
 }
 

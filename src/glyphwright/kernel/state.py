@@ -12,7 +12,11 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
     Event,
+    FlagSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
@@ -142,6 +146,20 @@ def apply(state: WorldState, event: Event) -> WorldState:
                 hp=min(target.actor.hp + event.amount, target.actor.max_hp),
             )
             return state.with_entity(replace(target, actor=healed))
+        case DamageDealt():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"DamageDealt target {event.target} is not an actor")
+            hurt = replace(target.actor, hp=max(target.actor.hp - event.amount, 0))
+            return state.with_entity(replace(target, actor=hurt))
+        case AttackMissed():
+            return state
+        case ActorDied():
+            return state.without_entity(event.actor)
+        case FlagSet():
+            flags = dict(state.flags)
+            flags[event.flag] = event.value
+            return replace(state, flags=flags)
 
 
 def fold(state: WorldState, events: tuple[Event, ...]) -> WorldState:

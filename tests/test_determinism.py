@@ -12,7 +12,16 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, StepResult
 from glyphwright.content.pack import reference_pack
 from glyphwright.frontends.wire import encode_frame
-from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
+from glyphwright.kernel.commands import (
+    Attack,
+    Command,
+    Equip,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
 
 _EXITS = ("north", "east", "south", "west")
 _ITEMS = ("potion-minor", "iron-sword", "no-such-item")
@@ -24,6 +33,7 @@ commands = st.one_of(
     st.sampled_from(_ITEMS).map(Take),
     st.sampled_from(_ITEMS).map(Use),
     st.sampled_from(_ITEMS).map(Equip),
+    st.sampled_from(("goblin-1", "no-such-target")).map(Attack),
 )
 
 
@@ -99,8 +109,10 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     space = GridSpace.from_text("pin", "..")
     entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
+    # Re-pinned deliberately in slice 3A: the AiBehavior component widened
+    # entity identity, which is a content-schema change and must show here.
     assert pack.pack_id == (
-        "pin@sha256:3f3a5af4b9ae4b57baa14b2c90e7fb1f80f72d307608c831ce150a2e8928dabe"
+        "pin@sha256:3ce7afa774f9d970d5dd68fd5719e653d81ef850ee31e5102a67c3f7d163cd1c"
     )
 
 

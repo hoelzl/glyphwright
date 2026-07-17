@@ -11,7 +11,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | --- | --- |
 | 1 — Walking skeleton | **Done** (kernel, GridSpace, move/look/wait, plain + JSONL frontends, `glyphwright.api`, committed schemas, fingerprint; 82 tests green) |
 | 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
-| 3 — Battle | Not started |
+| 3 — Battle | **In progress**: 3A (exploration combat + shared scheduler) done; 3B (menu battle mode, initiative queue, MenuView, flee) next |
 | 4 — Rooms and portals | Not started |
 | 5 — TUI | Not started |
 | 6 — Dialogue and one minigame | Not started |
@@ -67,6 +67,28 @@ Decisions taken by the implementing agent (owner delegated open choices):
 9. **The oracle never fabricates**: `stats` queries error (`no_such_stat`) for stats the
    entity does not declare (base stats ∪ equipped modifier stats) and for non-actors,
    while kernel-level `derive` stays total (missing stat = 0) for future battle math.
+
+## Slice 3A decisions (exploration combat)
+
+1. **Exploration combat is real** (0003 appendix B shows attack resolving in mode
+   `exploration`): the shared scheduler (`kernel/scheduler.py`) grants AI turns inside
+   `step` after any turn-spending command. Battle mode (3B) will configure the same
+   scheduler with an initiative queue (ADR-004).
+2. **Melee is adjacency**: `attack` domains list adjacent hostiles only. A.2's sketch
+   showing a distant goblin as attackable is read as sketch looseness; ranged attacks
+   arrive with abilities (§9.2).
+3. **`attack <target>` is arity-1** like `use`: the weapon is the equipped one, until
+   abilities introduce explicit weapon choice (`attack X with Y`).
+4. **Hostiles are passive until provoked** (attacked, or player steps adjacent);
+   aggression is a world flag (`aggro:<id>`) set by a `FlagSet` event so it replays.
+   Aggroed hostiles chase via BFS over the `Space` protocol (geometry-independent).
+5. **The player never dies through `ActorDied`**: defeat is the `player-defeated` world
+   flag; the grammar collapses to `look`. Interim until 3B gives defeat a real outcome
+   via `ModePopped`.
+6. **Combat math** (`effects/combat.py`): to-hit `d20 + atk >= 10 + def`; damage
+   `1..atk` minus `def // 2`, min 1; one `strike` function serves player and AI.
+7. **Event schema bumped v2 → v3** (DamageDealt, AttackMissed, ActorDied, FlagSet);
+   same retire-and-replace policy as v1 → v2 while no consumer exists.
 
 ## Next steps
 

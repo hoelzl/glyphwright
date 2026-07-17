@@ -106,7 +106,7 @@ def parse(text: str) -> PlainProjection:
 _PROMPT = "> "
 _HELP = (
     "commands: move <north|east|south|west> | look | wait"
-    " | take <item> | use <item> | equip <item> | quit\n"
+    " | take <item> | use <item> | equip <item> | attack <target> | quit\n"
 )
 
 

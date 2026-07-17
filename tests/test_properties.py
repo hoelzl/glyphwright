@@ -12,7 +12,16 @@ from hypothesis import strategies as st
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
-from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
+from glyphwright.kernel.commands import (
+    Attack,
+    Command,
+    Equip,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
 from glyphwright.kernel.events import Moved
 from glyphwright.kernel.state import PLAYER, WorldState
 from glyphwright.world.grid import WALL, GridSpace
@@ -22,15 +31,19 @@ _BUILDERS: tuple[tuple[str, type], ...] = (
     ("take", Take),
     ("use", Use),
     ("equip", Equip),
+    ("attack", Attack),
 )
 
 
 def _options(engine: Engine) -> list[Command]:
     """Every command the frame's grammar currently advertises."""
     grammar = engine.frame().commands
-    options: list[Command] = [Look(), Wait()]
+    names = grammar.verb_names()
+    options: list[Command] = [Look()]
+    if "wait" in names:
+        options.append(Wait())
     for verb, builder in _BUILDERS:
-        if verb in grammar.verb_names():
+        if verb in names:
             options.extend(builder(argument) for argument in grammar.domains(verb)[0])
     return options
 
@@ -104,9 +117,14 @@ def test_every_move_lands_where_its_event_says(choices: list[int]) -> None:
     for index in range(len(choices)):
         options = _options(engine)
         result = engine.step(options[choices[index] % len(options)])
+        # The last Moved event per actor names where that actor now stands.
+        landed: dict[str, object] = {}
         for event in result.events:
             if isinstance(event, Moved):
-                assert engine._state.entity(PLAYER).at() == event.destination
+                landed[event.actor] = event.destination
+        for actor, destination in landed.items():
+            if actor in engine._state.entities:
+                assert engine._state.entity(actor).at() == destination
 
 
 def _held_anywhere(state: WorldState) -> list[str]:
