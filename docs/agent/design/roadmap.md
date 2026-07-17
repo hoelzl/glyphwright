@@ -1,0 +1,37 @@
+# Early roadmap
+
+The authoritative implementation plan is `0003-glyphwright-design.md` §18. This page tracks
+progress against it and must not introduce an ordering of its own.
+
+## Slice order (`0003` §18)
+
+Vertical slices, ordered to exercise the verification boundary as early as possible. The TUI is deliberately fifth: the engine must be fully verifiable before a single ANSI escape exists.
+
+| # | Slice | State |
+|---|---|---|
+| 1 | **Walking skeleton.** Kernel (`step`, events, seeded RNG, snapshots), `GridSpace`, `move`/`look`, plain + JSONL frontends, `glyphwright.api`, published schemas. | In progress |
+| 2 | **Items and stats.** Inventory, `take`/`use`/`equip`, stat pipeline with provenance, `:query --explain`. | Not started |
+| 3 | **Battle.** Menu battle first, forcing the mode stack and shared initiative scheduler into existence; tactics arena reusing `GridSpace` as a follow-up. | Not started |
+| 4 | **Rooms and portals.** `RoomGraphSpace`, plus a portal between a grid area and a room area in the reference pack. | Not started |
+| 5 | **TUI.** Full-screen frontend; differential tests against plain. | Not started |
+| 6 | **Dialogue and one minigame.** Dialogue trees, plus a lockpicking or card minigame proving the mode interface is general. | Not started |
+
+## Slice 1 scope
+
+- Kernel: `step(state, command, rng)`, typed events with fold semantics, seeded PCG64 stream with its cursor in world state, snapshots (`0003` §5).
+- `Space` protocol with `GridSpace` as its first implementation (`0003` §7.1–§7.2).
+- Area-qualified position identifiers (`village:7,3`) in events, frames, and queries (`0003` §7.5).
+- Semantic commands `move <exit-token>` and `look`, with typed rejections and `CommandGrammar` enumeration (`0003` §6).
+- `SemanticFrame` as the canonical observation (`0003` §11).
+- Plain and JSONL frontends as pure functions over frames (`0003` §12).
+- The `glyphwright.api` public surface (`0003` §14).
+- Generated, committed, golden-tested wire schemas with tags and session fingerprints (`0003` §15).
+- Determinism, purity, schema-golden, and renderer round-trip tests (`0003` §17).
+
+Deferred within slice 1: the meta-channel beyond what the API needs, FOV/visibility (`0003` §20.3), and the mode stack beyond a single exploration mode.
+
+TermVerify side, out of this repository's scope for now: the direct adapter and one PTY golden against the plain frontend (`0003` §20.5 decides where that lives).
+
+## Open questions
+
+`0003` §20 holds the live list: TUI substrate, snapshot format, FOV/visibility timing, and adapter placement. Repository placement was resolved on 2026-07-17 in favour of a standalone repository.

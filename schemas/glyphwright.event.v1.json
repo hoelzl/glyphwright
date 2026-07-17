@@ -1,0 +1,45 @@
+{
+  "$id": "glyphwright.event/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actor": {
+      "type": "string"
+    },
+    "destination": {
+      "type": "string"
+    },
+    "exit": {
+      "type": "string"
+    },
+    "origin": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "glyphwright.event/1"
+    },
+    "turn": {
+      "type": "integer"
+    },
+    "turn_now": {
+      "type": "integer"
+    },
+    "type": {
+      "enum": [
+        "Moved",
+        "MoveBlocked",
+        "TurnAdvanced"
+      ]
+    }
+  },
+  "required": [
+    "schema",
+    "turn",
+    "type"
+  ],
+  "title": "GlyphWright event",
+  "type": "object"
+}

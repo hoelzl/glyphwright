@@ -1,0 +1,31 @@
+{
+  "$id": "glyphwright.rejection/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "hint": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "glyphwright.rejection/1"
+    },
+    "turn": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "command",
+    "hint",
+    "reason",
+    "schema",
+    "turn"
+  ],
+  "title": "GlyphWright rejection",
+  "type": "object"
+}

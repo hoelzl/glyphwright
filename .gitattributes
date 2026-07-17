@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+# GitHub's canonical Apache-2.0 body intentionally ends with a blank line.
+LICENSE -whitespace

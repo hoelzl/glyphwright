@@ -1,0 +1,145 @@
+{
+  "$id": "glyphwright.frame/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "actors": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "at": {
+            "type": "string"
+          },
+          "hp": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "statuses": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "at",
+          "hp",
+          "id",
+          "name",
+          "statuses"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "commands": {
+      "additionalProperties": false,
+      "properties": {
+        "verbs": {
+          "additionalProperties": {
+            "items": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
+          "type": "object"
+        }
+      },
+      "required": [
+        "verbs"
+      ],
+      "type": "object"
+    },
+    "messages": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "mode": {
+      "type": "string"
+    },
+    "prompt": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "type": "object"
+    },
+    "schema": {
+      "const": "glyphwright.frame/1"
+    },
+    "turn": {
+      "type": "integer"
+    },
+    "viewport": {
+      "additionalProperties": false,
+      "properties": {
+        "area": {
+          "type": "string"
+        },
+        "kind": {
+          "const": "grid"
+        },
+        "legend": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "origin": {
+          "items": {
+            "type": "integer"
+          },
+          "maxItems": 2,
+          "minItems": 2,
+          "type": "array"
+        },
+        "tiles": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "area",
+        "kind",
+        "legend",
+        "origin",
+        "tiles"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "actors",
+    "commands",
+    "messages",
+    "mode",
+    "prompt",
+    "schema",
+    "turn",
+    "viewport"
+  ],
+  "title": "GlyphWright semantic frame",
+  "type": "object"
+}
