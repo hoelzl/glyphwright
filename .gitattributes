@@ -5,3 +5,4 @@
 *.yaml text eol=lf
 # GitHub's canonical Apache-2.0 body intentionally ends with a blank line.
 LICENSE -whitespace
+tests/goldens/*.txt -text
