@@ -13,9 +13,19 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
-from glyphwright.world.entities import Actor, Blocker, Entity, Position, Renderable
+from glyphwright.world.entities import (
+    Actor,
+    Blocker,
+    Consumable,
+    Entity,
+    Equippable,
+    Item,
+    Position,
+    Renderable,
+    StatModifier,
+)
 from glyphwright.world.grid import GridSpace
 from glyphwright.world.space import EntityId
 
@@ -27,6 +37,8 @@ _REFERENCE_MAP = """\
 #.......#
 #########"""
 _REFERENCE_START = (1, 1)
+_REFERENCE_POTION_AT = (3, 1)
+_REFERENCE_SWORD_AT = (6, 3)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,7 +51,12 @@ class ContentPack:
 
     @property
     def pack_id(self) -> str:
-        """A stable ``name@sha256:…`` identifier over canonical content."""
+        """A stable ``name@sha256:…`` identifier over canonical content.
+
+        Hashing walks every component field via ``asdict``, so adding a
+        component automatically widens the identity — a pack cannot change
+        content without changing its id.
+        """
         payload = json.dumps(
             {
                 "name": self.name,
@@ -48,25 +65,7 @@ class ContentPack:
                     for space in self.areas
                 ],
                 "entities": [
-                    {
-                        "id": entity.id,
-                        "at": str(entity.at()) if entity.at() else None,
-                        "actor": (
-                            None
-                            if entity.actor is None
-                            else {
-                                "name": entity.actor.name,
-                                "hp": entity.actor.hp,
-                                "max_hp": entity.actor.max_hp,
-                            }
-                        ),
-                        "glyph": (
-                            None
-                            if entity.renderable is None
-                            else entity.renderable.glyph
-                        ),
-                        "blocker": entity.blocker is not None,
-                    }
+                    asdict(entity)
                     for entity in sorted(self.entities, key=lambda e: e.id)
                 ],
             },
@@ -78,14 +77,42 @@ class ContentPack:
 
 
 def reference_pack() -> ContentPack:
-    """The built-in pack the demo session and the test suite both use."""
+    """The built-in pack the demo session and the test suite both use.
+
+    The player starts wounded (17/20, matching the design's transcripts) so the
+    healing potion has something observable to do.
+    """
     space = GridSpace.from_text(_REFERENCE_AREA, _REFERENCE_MAP)
     player_id: EntityId = "player"
     player = Entity(
         id=player_id,
         position=Position(at=space.pos(*_REFERENCE_START)),
-        actor=Actor(name="Wren", hp=20, max_hp=20),
+        actor=Actor(
+            name="Wren",
+            hp=17,
+            max_hp=20,
+            base_stats=(("atk", 5), ("def", 3)),
+        ),
         blocker=Blocker(),
         renderable=Renderable(glyph="@"),
     )
-    return ContentPack(name="reference-vale", areas=(space,), entities=(player,))
+    potion = Entity(
+        id="potion-minor",
+        position=Position(at=space.pos(*_REFERENCE_POTION_AT)),
+        item=Item(name="Minor Potion"),
+        consumable=Consumable(heal=6),
+        renderable=Renderable(glyph="!"),
+    )
+    sword = Entity(
+        id="iron-sword",
+        position=Position(at=space.pos(*_REFERENCE_SWORD_AT)),
+        item=Item(name="Iron Sword"),
+        equippable=Equippable(
+            slot="weapon",
+            modifiers=(StatModifier(stat="atk", op="add", value=3),),
+        ),
+        renderable=Renderable(glyph="/"),
+    )
+    return ContentPack(
+        name="reference-vale", areas=(space,), entities=(player, potion, sword)
+    )

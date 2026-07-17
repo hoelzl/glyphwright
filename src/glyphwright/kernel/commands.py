@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from glyphwright.world.space import ExitToken
+from glyphwright.world.space import EntityId, ExitToken
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,12 +21,18 @@ class Move:
 
     verb: str = "move"
 
+    def args(self) -> tuple[str, ...]:
+        return (self.exit,)
+
 
 @dataclass(frozen=True, slots=True)
 class Look:
     """Re-observe the surroundings. Does not advance the turn."""
 
     verb: str = "look"
+
+    def args(self) -> tuple[str, ...]:
+        return ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,8 +41,51 @@ class Wait:
 
     verb: str = "wait"
 
+    def args(self) -> tuple[str, ...]:
+        return ()
 
-Command = Move | Look | Wait
+
+@dataclass(frozen=True, slots=True)
+class Take:
+    """Pick an item up from the current position."""
+
+    item: EntityId
+
+    verb: str = "take"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.item,)
+
+
+@dataclass(frozen=True, slots=True)
+class Use:
+    """Use a carried consumable on yourself.
+
+    Targeting another actor arrives with battle; keeping one argument keeps
+    the grammar's shape uniform for every consumer (0003 appendix A.2).
+    """
+
+    item: EntityId
+
+    verb: str = "use"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.item,)
+
+
+@dataclass(frozen=True, slots=True)
+class Equip:
+    """Fill an equipment slot with a carried item."""
+
+    item: EntityId
+
+    verb: str = "equip"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.item,)
+
+
+Command = Move | Look | Wait | Take | Use | Equip
 
 
 @dataclass(frozen=True, slots=True)

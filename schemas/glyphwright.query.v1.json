@@ -1,0 +1,29 @@
+{
+  "$id": "glyphwright.query/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "type": "string"
+    },
+    "explanation": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "path": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "glyphwright.query/1"
+    },
+    "value": {}
+  },
+  "required": [
+    "schema",
+    "path"
+  ],
+  "title": "GlyphWright query result",
+  "type": "object"
+}

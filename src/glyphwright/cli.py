@@ -47,7 +47,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     engine = Engine.new(reference_pack(), seed=args.seed)
     if args.frontend == "jsonl":
         return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
-    return plain.run_session(engine, sys.stdin, sys.stdout)
+    return plain.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
 
 
 if __name__ == "__main__":

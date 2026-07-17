@@ -12,14 +12,18 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, StepResult
 from glyphwright.content.pack import reference_pack
 from glyphwright.frontends.wire import encode_frame
-from glyphwright.kernel.commands import Command, Look, Move, Wait
+from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
 
 _EXITS = ("north", "east", "south", "west")
+_ITEMS = ("potion-minor", "iron-sword", "no-such-item")
 
 commands = st.one_of(
     st.sampled_from(_EXITS).map(Move),
     st.just(Look()),
     st.just(Wait()),
+    st.sampled_from(_ITEMS).map(Take),
+    st.sampled_from(_ITEMS).map(Use),
+    st.sampled_from(_ITEMS).map(Equip),
 )
 
 
@@ -81,6 +85,23 @@ def test_the_fingerprint_records_what_produced_the_evidence() -> None:
     assert fingerprint.seed == 424242
     assert fingerprint.pack.startswith("reference-vale@sha256:")
     assert fingerprint.engine.startswith("glyphwright ")
+
+
+def test_the_pack_identity_derivation_is_pinned() -> None:
+    """The pack-id scheme is part of the replay contract: recorded fingerprints
+    must stay resolvable. Any refactor that shifts this hash — a component field
+    rename, a serialization change — must be a deliberate, reviewed decision,
+    which is exactly what breaking this pin forces."""
+    from glyphwright.content.pack import ContentPack
+    from glyphwright.world.entities import Entity, Position
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("pin", "..")
+    entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
+    pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
+    assert pack.pack_id == (
+        "pin@sha256:3f3a5af4b9ae4b57baa14b2c90e7fb1f80f72d307608c831ce150a2e8928dabe"
+    )
 
 
 def test_content_changes_change_the_pack_id() -> None:

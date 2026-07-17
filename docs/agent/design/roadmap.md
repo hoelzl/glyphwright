@@ -9,8 +9,8 @@ Vertical slices, ordered to exercise the verification boundary as early as possi
 
 | # | Slice | State |
 |---|---|---|
-| 1 | **Walking skeleton.** Kernel (`step`, events, seeded RNG, snapshots), `GridSpace`, `move`/`look`, plain + JSONL frontends, `glyphwright.api`, published schemas. | In progress |
-| 2 | **Items and stats.** Inventory, `take`/`use`/`equip`, stat pipeline with provenance, `:query --explain`. | Not started |
+| 1 | **Walking skeleton.** Kernel (`step`, events, seeded RNG, snapshots), `GridSpace`, `move`/`look`, plain + JSONL frontends, `glyphwright.api`, published schemas. | Done |
+| 2 | **Items and stats.** Inventory, `take`/`use`/`equip`, stat pipeline with provenance, `:query --explain`. | Done |
 | 3 | **Battle.** Menu battle first, forcing the mode stack and shared initiative scheduler into existence; tactics arena reusing `GridSpace` as a follow-up. | Not started |
 | 4 | **Rooms and portals.** `RoomGraphSpace`, plus a portal between a grid area and a room area in the reference pack. | Not started |
 | 5 | **TUI.** Full-screen frontend; differential tests against plain. | Not started |
@@ -31,6 +31,20 @@ Vertical slices, ordered to exercise the verification boundary as early as possi
 Deferred within slice 1: the meta-channel beyond what the API needs, FOV/visibility (`0003` §20.3), and the mode stack beyond a single exploration mode.
 
 TermVerify side, out of this repository's scope for now: the direct adapter and one PTY golden against the plain frontend (`0003` §20.5 decides where that lives).
+
+## Slice 2 scope (shipped)
+
+- Inventory as components: `Item`, `Consumable`, `Equippable`, `Inventory`, `Equipment`
+  (`0003` §8.1); `take`/`use`/`equip` with grammar-drawn argument domains (`0003` §6).
+- Events `ItemAcquired`, `ItemUsed`, `ItemEquipped`, `Healed`, folded like every other
+  state change (`0003` §5.3).
+- Stat pipeline base → additive → multiplicative → clamps with provenance on every
+  contribution (`0003` §9.1), equipment as the first modifier source.
+- Introspection meta-channel `:query <path> [--explain]`, `:seed`, `:frame [--json]`
+  behind `--harness` in both frontends, and `Engine.query` in the public API
+  (`0003` §13–§14). `:events --since` and `:save`/`:load` are deferred until a consumer
+  needs them.
+- `glyphwright.query/1` wire schema; event vocabulary changes bumped the tag to `glyphwright.event/2` (v1 retired before any consumer existed).
 
 ## Open questions
 

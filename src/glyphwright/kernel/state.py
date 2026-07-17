@@ -11,9 +11,18 @@ from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from types import MappingProxyType
 
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 from glyphwright.kernel.rng import Rng
-from glyphwright.world.entities import Entity, Position
+from glyphwright.world.entities import Entity, Equipment, Inventory, Position
 from glyphwright.world.space import EntityId, PosId, Space
 
 PLAYER: EntityId = "player"
@@ -64,6 +73,11 @@ class WorldState:
         entities[entity.id] = entity
         return replace(self, entities=entities)
 
+    def without_entity(self, entity_id: EntityId) -> WorldState:
+        entities = dict(self.entities)
+        del entities[entity_id]
+        return replace(self, entities=entities)
+
 
 def apply(state: WorldState, event: Event) -> WorldState:
     """Fold one event into a state.
@@ -81,6 +95,53 @@ def apply(state: WorldState, event: Event) -> WorldState:
             return state
         case TurnAdvanced():
             return replace(state, turn=event.turn)
+        case ItemAcquired():
+            item = replace(state.entity(event.item), position=None)
+            actor = state.entity(event.actor)
+            carried = actor.inventory or Inventory()
+            actor = replace(
+                actor, inventory=Inventory(items=(*carried.items, event.item))
+            )
+            return state.with_entity(item).with_entity(actor)
+        case ItemUsed():
+            if not event.consumed:
+                return state
+            actor = state.entity(event.actor)
+            carried = actor.inventory or Inventory()
+            actor = replace(
+                actor,
+                inventory=Inventory(
+                    items=tuple(i for i in carried.items if i != event.item)
+                ),
+            )
+            if actor.equipment is not None:
+                # A consumed item must not leave a dangling slot reference.
+                actor = replace(
+                    actor,
+                    equipment=Equipment(
+                        slots=tuple(
+                            pair
+                            for pair in actor.equipment.slots
+                            if pair[1] != event.item
+                        )
+                    ),
+                )
+            return state.with_entity(actor).without_entity(event.item)
+        case ItemEquipped():
+            actor = state.entity(event.actor)
+            worn = actor.equipment or Equipment()
+            return state.with_entity(
+                replace(actor, equipment=worn.with_slot(event.slot, event.item))
+            )
+        case Healed():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"Healed target {event.target} is not an actor")
+            healed = replace(
+                target.actor,
+                hp=min(target.actor.hp + event.amount, target.actor.max_hp),
+            )
+            return state.with_entity(replace(target, actor=healed))
 
 
 def fold(state: WorldState, events: tuple[Event, ...]) -> WorldState:

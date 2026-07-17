@@ -18,8 +18,13 @@ from typing import TextIO
 from glyphwright.api import Engine
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.frontends.wire import decode_command
+from glyphwright.harness import meta
+from glyphwright.modes import exploration
 
 _DELIMITER = "=="
+
+# The tile character set is the legend's: one source of glyph knowledge.
+_TILE_GLYPHS = frozenset(glyph for glyph, _ in exploration.LEGEND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,7 +91,7 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
-    tiles = tuple(line for line in body if line and set(line) <= set("#.@~"))
+    tiles = tuple(line for line in body if line and set(line) <= _TILE_GLYPHS)
     messages = tuple(body[len(tiles) :])
     return PlainProjection(
         turn=turn,
@@ -99,10 +104,15 @@ def parse(text: str) -> PlainProjection:
 
 
 _PROMPT = "> "
-_HELP = "commands: move <north|east|south|west> | look | wait | quit\n"
+_HELP = (
+    "commands: move <north|east|south|west> | look | wait"
+    " | take <item> | use <item> | equip <item> | quit\n"
+)
 
 
-def run_session(engine: Engine, input_stream: TextIO, output: TextIO) -> int:
+def run_session(
+    engine: Engine, input_stream: TextIO, output: TextIO, *, harness: bool = False
+) -> int:
     """Drive a run as a human-readable transcript."""
     output.write(_HELP)
     output.write(render(engine.frame()) + "\n")
@@ -116,6 +126,16 @@ def run_session(engine: Engine, input_stream: TextIO, output: TextIO) -> int:
             return 0
         if line.strip() == "help":
             output.write(_HELP)
+            continue
+        if line.strip().startswith(":"):
+            if not harness:
+                output.write("? the meta-channel needs --harness\n")
+                continue
+            if line.strip() == ":frame":
+                # The plain reading of the current frame; --json for the wire form.
+                output.write(render(engine.frame()) + "\n")
+                continue
+            output.write(meta.render_text(meta.handle(engine, line.strip())) + "\n")
             continue
 
         command = decode_command(line)

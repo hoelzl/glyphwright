@@ -12,11 +12,13 @@ from typing import TextIO
 
 from glyphwright.api import Engine
 from glyphwright.frontends.wire import (
+    REJECTION_SCHEMA,
     decode_command,
     encode_event,
     encode_frame,
     encode_rejection,
 )
+from glyphwright.harness import meta
 
 
 def run_session(
@@ -30,6 +32,22 @@ def run_session(
         line = input_stream.readline()
         if not line or line.strip() == "quit":
             return 0
+
+        if line.strip().startswith(":"):
+            if not harness:
+                _emit(
+                    output,
+                    {
+                        "schema": REJECTION_SCHEMA,
+                        "turn": engine.frame().turn,
+                        "command": line.strip(),
+                        "reason": "harness_disabled",
+                        "hint": "start the session with --harness",
+                    },
+                )
+                continue
+            _emit(output, meta.handle(engine, line.strip()))
+            continue
 
         command = decode_command(line)
         if command is None:

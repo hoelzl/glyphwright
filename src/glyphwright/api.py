@@ -16,12 +16,17 @@ from dataclasses import dataclass
 from glyphwright.content.pack import ContentPack, reference_pack
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.harness.fingerprint import RunFingerprint
+from glyphwright.harness.query import QueryResult
+from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
+    Equip,
     Look,
     Move,
     Rejected,
+    Take,
+    Use,
     Wait,
 )
 from glyphwright.kernel.events import Event
@@ -35,14 +40,18 @@ __all__ = [
     "CommandGrammar",
     "ContentPack",
     "Engine",
+    "Equip",
     "Event",
     "Look",
     "Move",
+    "QueryResult",
     "Rejected",
     "RunFingerprint",
     "SemanticFrame",
     "Snapshot",
     "StepResult",
+    "Take",
+    "Use",
     "Wait",
     "reference_pack",
 ]
@@ -112,6 +121,14 @@ class Engine:
         """The current frame. Does not advance the turn."""
         return exploration.view(self._state, ())
 
+    def query(self, path: str) -> QueryResult:
+        """The oracle: read world state by stable path. No turn advance.
+
+        Unknown paths are error values, not exceptions. Stat queries carry
+        their full derivation.
+        """
+        return _query(self._state, path)
+
     def fingerprint(self) -> RunFingerprint:
         """Engine version, pack id, seed, and turn."""
         return RunFingerprint.create(
@@ -126,29 +143,66 @@ class Engine:
         return cls(state=snap._state, seed=snap._seed, pack_id=snap._pack_id)
 
     def _validate(self, command: Command) -> Rejected | None:
+        """Answer validity against the frame's grammar, as the design requires.
+
+        A rejection means the engine never ran the command: the turn does not
+        advance and no events are emitted (0003 appendix A.4).
+        """
         grammar = exploration.available_commands(self._state)
+        vocabulary = _REJECTIONS.get(command.verb)
         if command.verb not in grammar.verb_names():
+            if vocabulary is not None and command.args():
+                # A real verb whose domain is empty right now: reject in its
+                # own vocabulary, not as an unknown word.
+                return Rejected(
+                    command=_render(command),
+                    reason=vocabulary.reason,
+                    hint=vocabulary.empty_hint,
+                )
             return Rejected(
                 command=_render(command),
                 reason="unknown_verb",
                 hint=f"try one of: {', '.join(grammar.verb_names())}",
             )
-        if isinstance(command, Move):
-            valid = grammar.domains("move")[0]
-            if command.exit not in valid:
+        domains = grammar.domains(command.verb)
+        for argument, domain in zip(command.args(), domains, strict=True):
+            if argument not in domain:
+                assert vocabulary is not None, "verbs with arguments have vocabulary"
                 return Rejected(
                     command=_render(command),
-                    reason="no_such_exit",
-                    hint=(
-                        f"exits here: {', '.join(valid)}"
-                        if valid
-                        else "there are no exits here"
-                    ),
+                    reason=vocabulary.reason,
+                    hint=vocabulary.hint(domain),
                 )
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class _RejectionVocabulary:
+    reason: str
+    options_hint: str
+    empty_hint: str
+
+    def hint(self, domain: tuple[str, ...]) -> str:
+        if not domain:
+            return self.empty_hint
+        return f"{self.options_hint}: {', '.join(domain)}"
+
+
+_REJECTIONS: dict[str, _RejectionVocabulary] = {
+    "move": _RejectionVocabulary(
+        "no_such_exit", "exits here", "there are no exits here"
+    ),
+    "take": _RejectionVocabulary(
+        "not_here", "you can take", "there is nothing here to take"
+    ),
+    "use": _RejectionVocabulary(
+        "not_usable", "you can use", "you are carrying nothing usable"
+    ),
+    "equip": _RejectionVocabulary(
+        "not_equippable", "you can equip", "you are carrying nothing equippable"
+    ),
+}
+
+
 def _render(command: Command) -> str:
-    if isinstance(command, Move):
-        return f"move {command.exit}"
-    return command.verb
+    return " ".join((command.verb, *command.args()))
