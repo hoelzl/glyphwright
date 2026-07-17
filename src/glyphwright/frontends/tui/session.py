@@ -19,6 +19,25 @@ _ALT_SCREEN_ON = "\x1b[?1049h\x1b[?25l"
 _ALT_SCREEN_OFF = "\x1b[?25h\x1b[?1049l"
 
 
+def _enable_vt() -> None:  # pragma: no cover - real consoles only
+    """Turn on VT processing for legacy Windows consoles.
+
+    Modern terminals already interpret ANSI; this makes the classic conhost
+    behave. A no-op everywhere else, and harmless when it fails.
+    """
+    import sys
+
+    if sys.platform != "win32":
+        return
+    import ctypes
+
+    kernel32 = ctypes.windll.kernel32
+    handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+    mode = ctypes.c_uint32()
+    if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+        kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # VT processing
+
+
 def _read_line(key_source: Iterator[str], output: TextIO, prompt: str) -> str:
     """Collect typed characters until Enter, echoing as they come."""
     output.write(prompt)
@@ -50,7 +69,11 @@ def run_session(
     ``key_source`` is any iterator of key names; ``None`` reads the real
     keyboard. Scripted iterators make the loop testable without a PTY.
     """
-    source = key_source if key_source is not None else keys.read_keys()
+    if key_source is None:  # pragma: no cover - real terminals only
+        _enable_vt()
+        source = keys.read_keys()
+    else:
+        source = key_source
     log: list[str] = []
     output.write(_ALT_SCREEN_ON)
     try:
@@ -61,7 +84,8 @@ def run_session(
                 key = next(source)
             except StopIteration:
                 return 0
-            if key == "q":
+            if key in ("q", "\x03"):
+                # Raw mode swallows the Ctrl-C signal; honour the intent.
                 return 0
 
             if key == ";":

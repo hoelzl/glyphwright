@@ -18,4 +18,5 @@ hp 17/20
 
 
 ------------------------------------------------------------------------------
-[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee  [.]w
+[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee
+[.]wait  [x]look  [;]command  [:]meta  [q]uit

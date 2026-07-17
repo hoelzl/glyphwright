@@ -22,8 +22,8 @@ _VIEWPORT_LINES = 9
 _LOG_LINES = 6
 
 _HINTS = (
-    "[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  "
-    "[f]lee  [.]wait  [x]look  [;]command  [:]meta  [q]uit"
+    "[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee",
+    "[.]wait  [x]look  [;]command  [:]meta  [q]uit",
 )
 
 
@@ -48,9 +48,6 @@ def _viewport_lines(frame: SemanticFrame) -> list[str]:
         lines = ["-- battle --"]
         for actor in frame.actors:
             lines.append(f"  {actor.id:<12} {actor.hp:>3}/{actor.max_hp}")
-    exits = _numbered_exits(frame)
-    if exits:
-        lines.append(f"exits: {exits}")
     return lines
 
 
@@ -70,10 +67,14 @@ def paint(frame: SemanticFrame, log: tuple[str, ...]) -> str:
     """One full screen. Pure: same frame and log, same bytes."""
     header = f"GlyphWright · turn {frame.turn} · {frame.mode} · {frame.viewport.area}"
     lines = [header[:_WIDTH], "-" * _WIDTH]
-    lines.extend(_fit(_viewport_lines(frame), _VIEWPORT_LINES))
+    # The exits line owns the region's last row, so a tall viewport can never
+    # push the player's movement options off the screen.
+    lines.extend(_fit(_viewport_lines(frame), _VIEWPORT_LINES - 1))
+    exits = _numbered_exits(frame)
+    lines.append(f"exits: {exits}"[:_WIDTH] if exits else "")
     lines.append(_status_line(frame))
     lines.append("-" * _WIDTH)
     lines.extend(_fit(list(log[-_LOG_LINES:]), _LOG_LINES))
     lines.append("-" * _WIDTH)
-    lines.append(_HINTS[:_WIDTH])
+    lines.extend(hint[:_WIDTH] for hint in _HINTS)
     return _CLEAR + "\r\n".join(lines) + "\r\n"
