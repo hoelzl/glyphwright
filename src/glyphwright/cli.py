@@ -26,7 +26,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--frontend",
-        choices=("plain", "jsonl"),
+        choices=("plain", "jsonl", "tui"),
         default="plain",
         help="presentation to drive the session with (default: plain)",
     )
@@ -47,6 +47,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     engine = Engine.new(reference_pack(), seed=args.seed)
     if args.frontend == "jsonl":
         return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
+    if args.frontend == "tui":
+        from glyphwright.frontends.tui import session as tui_session
+
+        return tui_session.run_session(engine, None, sys.stdout, harness=args.harness)
     return plain.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
 
 

@@ -4,7 +4,7 @@ A deterministic, terminal-first turn-based RPG engine, drivable by people and au
 
 GlyphWright is an RPG engine in the tradition of RPG Maker and the Neverwinter Nights toolset: worlds are authored in a grid/tile or room-based format and played through characters, items and inventory, turn-based battles, stats and abilities, and embedded minigames. It separates world semantics from presentation — a state plus a command produces a new immutable state and ordered semantic events — so that structured evidence, not screen-scraped text, is the primary observation.
 
-The current vertical slice adds rooms and portals on top of battle, items, and stats: a pure `step` over immutable state, typed events, a seeded PCG64 stream, grid *and* room-graph worlds behind one `Space` protocol — the reference world mixes a village grid with an IF-style inn interior through a portal door — inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, melee skirmishes and formal menu battles (a real mode stack with rolled initiative, `attack`/`use`/`flee`, victory and defeat outcomes) whose AI turns run inside the same `step`, an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain and JSONL frontends, the `glyphwright.api` public surface, and committed wire schemas.
+The current vertical slice adds the full-screen TUI on top of rooms, battle, items, and stats: a pure `step` over immutable state, typed events, a seeded PCG64 stream, grid *and* room-graph worlds behind one `Space` protocol — the reference world mixes a village grid with an IF-style inn interior through a portal door — inventory (`take`/`use`/`equip`), a stat pipeline with per-modifier provenance, melee skirmishes and formal menu battles (a real mode stack with rolled initiative, `attack`/`use`/`flee`, victory and defeat outcomes) whose AI turns run inside the same `step`, an introspection meta-channel (`:query player.stats.atk --explain`), semantic frames, plain, JSONL, and full-screen TUI frontends, the `glyphwright.api` public surface, and committed wire schemas.
 
 ## Why
 
@@ -41,6 +41,12 @@ quit
 ' | uv --no-config run glyphwright
 ```
 
+A full-screen session (hand-rolled ANSI, arrows/hjkl plus hotkeys, `;` for a typed command bar, `:` for the meta bar, `q` to quit):
+
+```bash
+uv --no-config run glyphwright --frontend tui --harness
+```
+
 Agents and out-of-process verification should prefer the JSONL frontend, which emits one `SemanticFrame` per line and needs no ANSI parsing:
 
 ```bash
@@ -65,7 +71,7 @@ See [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the [kno
 
 ## Status and scope
 
-GlyphWright is pre-alpha. Battle, room-graph areas and portals, a TUI, dialogue, and minigames are all planned but not built yet, and must grow from the deterministic core rather than bypass it. The design document below sets the order.
+GlyphWright is pre-alpha. Dialogue, minigames, abilities/statuses/perks, the tactics-battle arena, and TOML content-pack loading are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design document below sets the order.
 
 Deferred, but not ruled out: graphical rendering, animation timing, and audio. The world model is deliberately presentation-independent, so a graphical frontend consuming the same frames and events could be added later.
 

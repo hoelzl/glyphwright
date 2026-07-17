@@ -13,7 +13,7 @@ Vertical slices, ordered to exercise the verification boundary as early as possi
 | 2 | **Items and stats.** Inventory, `take`/`use`/`equip`, stat pipeline with provenance, `:query --explain`. | Done |
 | 3 | **Battle.** Menu battle first, forcing the mode stack and shared initiative scheduler into existence; tactics arena reusing `GridSpace` as a follow-up. | Done for menu battle (3A exploration combat + 3B menu battle mode); tactics arena deferred until FOV/visibility (§20.3) |
 | 4 | **Rooms and portals.** `RoomGraphSpace`, plus a portal between a grid area and a room area in the reference pack. | Done |
-| 5 | **TUI.** Full-screen frontend; differential tests against plain. | Not started |
+| 5 | **TUI.** Full-screen frontend; differential tests against plain. | Done — hand-rolled ANSI (`0003` §20.1 resolved); TermVerify-side PTY differential tests remain external (§20.5) |
 | 6 | **Dialogue and one minigame.** Dialogue trees, plus a lockpicking or card minigame proving the mode interface is general. | Not started |
 
 ## Slice 1 scope
@@ -48,4 +48,4 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
 
 ## Open questions
 
-`0003` §20 holds the live list: TUI substrate, snapshot format, FOV/visibility timing, and adapter placement. Repository placement was resolved on 2026-07-17 in favour of a standalone repository.
+`0003` §20 holds the live list: snapshot format, FOV/visibility timing, and adapter placement. Repository placement (own repository) and the TUI substrate (hand-rolled ANSI) were resolved on 2026-07-17.
