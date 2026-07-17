@@ -212,6 +212,71 @@ class FleeFailed:
     type: str = "FleeFailed"
 
 
+@dataclass(frozen=True, slots=True)
+class FocusSet:
+    """The active mode's subject and cursor changed.
+
+    Dialogue tracks ``(speaker, node)``, lockpicking ``(chest, pins-set)`` —
+    the fold installs it as :attr:`WorldState.focus`, so mode-local progress
+    replays like everything else.
+    """
+
+    entity: EntityId
+    detail: str
+
+    type: str = "FocusSet"
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueLine:
+    """A speaker said something. Pure evidence; the cursor is ``FocusSet``."""
+
+    speaker: EntityId
+    text: str
+
+    type: str = "DialogueLine"
+
+
+@dataclass(frozen=True, slots=True)
+class ChoiceOffered:
+    """The conversation waits on a numbered choice."""
+
+    speaker: EntityId
+    choices: tuple[str, ...]
+
+    type: str = "ChoiceOffered"
+
+
+@dataclass(frozen=True, slots=True)
+class PinSet:
+    """A lock pin clicked into place."""
+
+    target: EntityId
+    pins: int
+
+    type: str = "PinSet"
+
+
+@dataclass(frozen=True, slots=True)
+class PinSlipped:
+    """The pick slipped; the lock resets."""
+
+    target: EntityId
+
+    type: str = "PinSlipped"
+
+
+@dataclass(frozen=True, slots=True)
+class MinigameResolved:
+    """A minigame reached its outcome (design 0003 §5.3)."""
+
+    minigame: str
+    outcome: str
+    target: EntityId
+
+    type: str = "MinigameResolved"
+
+
 Event = (
     Moved
     | MoveBlocked
@@ -227,4 +292,10 @@ Event = (
     | ModePushed
     | ModePopped
     | FleeFailed
+    | FocusSet
+    | DialogueLine
+    | ChoiceOffered
+    | PinSet
+    | PinSlipped
+    | MinigameResolved
 )

@@ -10,22 +10,28 @@ from glyphwright.kernel.events import (
     PLAYER_DEFEATED,
     ActorDied,
     AttackMissed,
+    ChoiceOffered,
     DamageDealt,
+    DialogueLine,
     Event,
     FlagSet,
     FleeFailed,
+    FocusSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    MinigameResolved,
     ModePopped,
     ModePushed,
     MoveBlocked,
     Moved,
+    PinSet,
+    PinSlipped,
     TurnAdvanced,
     aggro_subject,
 )
-from glyphwright.kernel.state import MODE_BATTLE, PLAYER
+from glyphwright.kernel.state import MODE_BATTLE, MODE_LOCKPICK, PLAYER
 
 
 def describe(event: Event) -> str:
@@ -71,6 +77,8 @@ def describe(event: Event) -> str:
             return ""
         case ModePushed(mode=mode) if mode == MODE_BATTLE:
             return "Battle is joined!"
+        case ModePushed(mode=mode) if mode == MODE_LOCKPICK:
+            return "You bend to the lock."
         case ModePushed():
             return ""
         case ModePopped(outcome="victory"):
@@ -79,9 +87,25 @@ def describe(event: Event) -> str:
             return "You have fallen."
         case ModePopped(outcome="fled"):
             return "You break away and flee!"
+        case ModePopped(outcome="done"):
+            return "You end the conversation."
+        case ModePopped(outcome="abandoned"):
+            return "You step back from the lock."
         case ModePopped():
             return ""
         case FleeFailed():
             return "There is no way out!"
+        case DialogueLine() | ChoiceOffered() | FocusSet():
+            # The dialogue viewport already carries speaker, line, and
+            # choices; a message copy would print every line twice.
+            return ""
+        case PinSet():
+            return "A pin clicks into place."
+        case PinSlipped():
+            return "The pick slips and the pins reset."
+        case MinigameResolved(outcome="opened"):
+            return "The lock springs open!"
+        case MinigameResolved():
+            return ""
         case TurnAdvanced():
             return ""

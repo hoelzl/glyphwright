@@ -29,7 +29,9 @@ from glyphwright.kernel.commands import (
     Equip,
     Look,
     Move,
+    Open,
     Take,
+    Talk,
     Use,
     Wait,
 )
@@ -38,6 +40,7 @@ from glyphwright.kernel.events import (
     Event,
     ItemAcquired,
     ItemEquipped,
+    ItemUsed,
     MoveBlocked,
     Moved,
     TurnAdvanced,
@@ -52,7 +55,9 @@ from glyphwright.world.space import PosId
 
 NAME = MODE_EXPLORATION
 
-VERBS = frozenset({"move", "look", "wait", "take", "use", "equip", "attack"})
+VERBS = frozenset(
+    {"move", "look", "wait", "take", "use", "equip", "attack", "talk", "open"}
+)
 
 _TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
 
@@ -103,6 +108,41 @@ def _attackable(state: WorldState) -> tuple[str, ...]:
     )
 
 
+def _in_reach(state: WorldState) -> tuple[str, ...]:
+    """Entity ids within the geometry's striking distance of the player."""
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return ()
+    space = state.areas[player_at.area]
+    return tuple(
+        sorted(
+            entity.id
+            for entity in state.entities.values()
+            if entity.id != PLAYER
+            and (at := entity.at()) is not None
+            and at.area == player_at.area
+            and melee_adjacent(space, player_at, at)
+        )
+    )
+
+
+def _speakers(state: WorldState) -> tuple[str, ...]:
+    return tuple(
+        entity_id
+        for entity_id in _in_reach(state)
+        if state.entity(entity_id).dialogue is not None
+    )
+
+
+def _openable(state: WorldState) -> tuple[str, ...]:
+    return tuple(
+        entity_id
+        for entity_id in _in_reach(state)
+        if state.entity(entity_id).openable is not None
+        and not state.flags.get(common.opened_flag(entity_id))
+    )
+
+
 def _equippable(state: WorldState) -> tuple[str, ...]:
     player = state.entity(PLAYER)
     worn = (player.equipment or Equipment()).equipped_items()
@@ -136,6 +176,8 @@ def available_commands(state: WorldState) -> CommandGrammar:
         ("use", _usable(state)),
         ("equip", _equippable(state)),
         ("attack", _attackable(state)),
+        ("talk", _speakers(state)),
+        ("open", _openable(state)),
     ):
         if domain:
             verbs.append((verb, (domain,)))
@@ -166,8 +208,37 @@ def handle(
             return _equip(state, item_id), rng
         case Attack(target=target_id):
             return _attack(state, target_id, rng)
+        case Talk(target=target_id):
+            from glyphwright.modes import dialogue
+
+            return (
+                *dialogue.open_events(state, target_id),
+                TurnAdvanced(turn=state.turn + 1),
+            ), rng
+        case Open(target=target_id):
+            return _open(state, target_id), rng
         case _:
             raise ValueError(f"exploration cannot handle {command.verb!r}")
+
+
+def _open(state: WorldState, target_id: str) -> tuple[Event, ...]:
+    from glyphwright.modes import lockpick
+
+    openable = state.entity(target_id).openable
+    assert openable is not None, "the grammar only offers openables"
+    carried = state.entity(PLAYER).carries()
+    if openable.key is not None and openable.key in carried:
+        # The honest way in: the key opens it outright, and the transcript
+        # says so — a silent open is indistinguishable from a bug.
+        return (
+            ItemUsed(actor=PLAYER, item=openable.key, target=target_id, consumed=False),
+            *common.unlock_events(state, target_id),
+            TurnAdvanced(turn=state.turn + 1),
+        )
+    return (
+        *lockpick.open_events(state, target_id),
+        TurnAdvanced(turn=state.turn + 1),
+    )
 
 
 def _move(state: WorldState, token: str) -> tuple[Event, ...]:
@@ -268,7 +339,12 @@ def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
     contents = tuple(
         entity.id
         for entity in state.entities_at(at)
-        if entity.id != PLAYER and (entity.item is not None or entity.actor is not None)
+        if entity.id != PLAYER
+        and (
+            entity.item is not None
+            or entity.actor is not None
+            or entity.openable is not None
+        )
     )
     return RoomView(
         area=space.area,

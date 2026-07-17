@@ -31,8 +31,8 @@ from glyphwright.kernel.events import (
 )
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import (
+    FOCUS_MODES,
     MODE_BATTLE,
-    MODE_EXPLORATION,
     PLAYER,
     WorldState,
     fold,
@@ -218,12 +218,12 @@ def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...]
 
 def _queue(state: WorldState) -> tuple[EntityId, ...]:
     """The scheduler's configuration per mode (ADR-004): battle serves the
-    initiative queue; exploration serves the activity list."""
+    initiative queue; every other mode serves the activity list — talking or
+    picking a lock does not stop the world, and a hostile that reaches the
+    player mid-conversation interrupts it with a battle."""
     if state.mode == MODE_BATTLE:
         return tuple(c for c in state.initiative if c != PLAYER)
-    if state.mode == MODE_EXPLORATION:
-        return tuple(actor.id for actor in hostile_actors(state))
-    return ()
+    return tuple(actor.id for actor in hostile_actors(state))
 
 
 def _take_turn(
@@ -275,4 +275,11 @@ def run(state: WorldState, rng: Rng) -> tuple[tuple[Event, ...], WorldState, Rng
     outcome = _battle_outcome(state)
     events.extend(outcome)
     state = fold(state, outcome)
+
+    # A defeated player cannot keep choosing or picking: collapse any focus
+    # mode so the defeated grammar (look only) applies.
+    while state.flags.get(PLAYER_DEFEATED) and state.mode in FOCUS_MODES:
+        popped = ModePopped(mode=state.mode, outcome="defeat")
+        events.append(popped)
+        state = fold(state, (popped,))
     return tuple(events), state, rng

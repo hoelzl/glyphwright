@@ -6,8 +6,35 @@ resolution keeps the two modes from drifting apart.
 
 from __future__ import annotations
 
-from glyphwright.kernel.events import Event, Healed, ItemUsed, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    FlagSet,
+    Healed,
+    ItemAcquired,
+    ItemUsed,
+    TurnAdvanced,
+)
 from glyphwright.kernel.state import PLAYER, WorldState
+
+
+def opened_flag(target: str) -> str:
+    return f"opened:{target}"
+
+
+def unlock_events(state: WorldState, target: str) -> tuple[Event, ...]:
+    """A container yields: mark it open and hand over what it holds.
+
+    Shared by the key path and the lockpick path so a chest cannot behave
+    differently depending on how it was defeated.
+    """
+    openable = state.entity(target).openable
+    assert openable is not None, "only openables reach here"
+    at = state.entity(target).at()
+    assert at is not None
+    return (
+        FlagSet(flag=opened_flag(target), value=True),
+        ItemAcquired(actor=PLAYER, item=openable.contains, origin=at),
+    )
 
 
 def usable_items(state: WorldState) -> tuple[str, ...]:

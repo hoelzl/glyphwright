@@ -91,7 +91,33 @@ def frame_schema() -> dict[str, Any]:
             "combatants": _array(_STRING),
         }
     )
-    viewport = {"oneOf": [grid_viewport, room_viewport, menu_viewport]}
+    dialogue_viewport = _object(
+        {
+            "kind": {"const": "dialogue"},
+            "area": _STRING,
+            "speaker": _STRING,
+            "text": _STRING,
+            "choices": _array(_STRING),
+        }
+    )
+    lock_viewport = _object(
+        {
+            "kind": {"const": "lock"},
+            "area": _STRING,
+            "target": _STRING,
+            "pins": _INTEGER,
+            "total": _INTEGER,
+        }
+    )
+    viewport = {
+        "oneOf": [
+            grid_viewport,
+            room_viewport,
+            menu_viewport,
+            dialogue_viewport,
+            lock_viewport,
+        ]
+    }
     actor = _object(
         {
             "id": _STRING,
@@ -154,6 +180,12 @@ def event_schema() -> dict[str, Any]:
                     "ModePushed",
                     "ModePopped",
                     "FleeFailed",
+                    "FocusSet",
+                    "DialogueLine",
+                    "ChoiceOffered",
+                    "PinSet",
+                    "PinSlipped",
+                    "MinigameResolved",
                 ]
             },
             "actor": _STRING,
@@ -177,6 +209,13 @@ def event_schema() -> dict[str, Any]:
             "mode": _STRING,
             "initiative": _array(_STRING),
             "outcome": _STRING,
+            "entity": _STRING,
+            "detail": _STRING,
+            "speaker": _STRING,
+            "text": _STRING,
+            "choices": _array(_STRING),
+            "pins": _INTEGER,
+            "minigame": _STRING,
         },
         "additionalProperties": False,
     }
@@ -221,8 +260,8 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
         "glyphwright.session.v1.json": session_schema(),
-        "glyphwright.frame.v3.json": frame_schema(),
-        "glyphwright.event.v4.json": event_schema(),
+        "glyphwright.frame.v4.json": frame_schema(),
+        "glyphwright.event.v5.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

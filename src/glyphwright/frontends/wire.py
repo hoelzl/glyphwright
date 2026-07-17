@@ -10,44 +10,63 @@ from __future__ import annotations
 
 from typing import Any
 
-from glyphwright.frames.frame import GridView, RoomView, SemanticFrame, Viewport
+from glyphwright.frames.frame import (
+    DialogueView,
+    GridView,
+    LockView,
+    RoomView,
+    SemanticFrame,
+    Viewport,
+)
 from glyphwright.kernel.commands import (
+    Abort,
     Attack,
+    Choose,
     Command,
     CommandGrammar,
     Equip,
     Flee,
     Look,
     Move,
+    Open,
+    Pick,
     Rejected,
     Take,
+    Talk,
     Use,
     Wait,
 )
 from glyphwright.kernel.events import (
     ActorDied,
     AttackMissed,
+    ChoiceOffered,
     DamageDealt,
+    DialogueLine,
     Event,
     FlagSet,
     FleeFailed,
+    FocusSet,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    MinigameResolved,
     ModePopped,
     ModePushed,
     MoveBlocked,
     Moved,
+    PinSet,
+    PinSlipped,
     TurnAdvanced,
 )
 
 # Widening a closed contract bumps the tag (ADR-006). Prior tags were retired
 # rather than kept in a compatibility matrix because no external consumer
 # existed before the bumps (event: items v2, combat v3, battle v4; frame: the
-# menu viewport variant v2, the room viewport variant v3).
-FRAME_SCHEMA = "glyphwright.frame/3"
-EVENT_SCHEMA = "glyphwright.event/4"
+# menu viewport variant v2, the room viewport variant v3, the
+# dialogue and lock viewport variants v4).
+FRAME_SCHEMA = "glyphwright.frame/4"
+EVENT_SCHEMA = "glyphwright.event/5"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -60,6 +79,22 @@ def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
             "origin": list(viewport.origin),
             "tiles": list(viewport.tiles),
             "legend": dict(viewport.legend),
+        }
+    if isinstance(viewport, DialogueView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "speaker": viewport.speaker,
+            "text": viewport.text,
+            "choices": list(viewport.choices),
+        }
+    if isinstance(viewport, LockView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "target": viewport.target,
+            "pins": viewport.pins,
+            "total": viewport.total,
         }
     if isinstance(viewport, RoomView):
         return {
@@ -189,6 +224,22 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"mode": event.mode, "outcome": event.outcome}
         case FleeFailed():
             payload |= {"actor": event.actor}
+        case FocusSet():
+            payload |= {"entity": event.entity, "detail": event.detail}
+        case DialogueLine():
+            payload |= {"speaker": event.speaker, "text": event.text}
+        case ChoiceOffered():
+            payload |= {"speaker": event.speaker, "choices": list(event.choices)}
+        case PinSet():
+            payload |= {"target": event.target, "pins": event.pins}
+        case PinSlipped():
+            payload |= {"target": event.target}
+        case MinigameResolved():
+            payload |= {
+                "minigame": event.minigame,
+                "outcome": event.outcome,
+                "target": event.target,
+            }
     return payload
 
 
@@ -224,5 +275,15 @@ def decode_command(text: str) -> Command | None:
             return Attack(target=target)
         case ["flee"]:
             return Flee()
+        case ["talk", target]:
+            return Talk(target=target)
+        case ["open", target]:
+            return Open(target=target)
+        case ["choose", number]:
+            return Choose(choice=number)
+        case ["pick"]:
+            return Pick()
+        case ["abort"]:
+            return Abort()
         case _:
             return None

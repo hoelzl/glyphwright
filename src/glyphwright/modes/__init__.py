@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, cast
 
-from glyphwright.modes import battle, exploration
+from glyphwright.modes import battle, dialogue, exploration, lockpick
 
 if TYPE_CHECKING:
     from glyphwright.frames.frame import SemanticFrame
@@ -40,6 +40,8 @@ class Mode(Protocol):
 _MODES: dict[str, Mode] = {
     exploration.NAME: cast(Mode, exploration),
     battle.NAME: cast(Mode, battle),
+    dialogue.NAME: cast(Mode, dialogue),
+    lockpick.NAME: cast(Mode, lockpick),
 }
 
 

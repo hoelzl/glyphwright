@@ -20,15 +20,20 @@ from glyphwright.harness.fingerprint import RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
+    Abort,
     Attack,
+    Choose,
     Command,
     CommandGrammar,
     Equip,
     Flee,
     Look,
     Move,
+    Open,
+    Pick,
     Rejected,
     Take,
+    Talk,
     Use,
     Wait,
 )
@@ -39,7 +44,9 @@ from glyphwright.kernel.step import step as _step
 from glyphwright.modes import exploration
 
 __all__ = [
+    "Abort",
     "Attack",
+    "Choose",
     "Command",
     "CommandGrammar",
     "ContentPack",
@@ -49,6 +56,8 @@ __all__ = [
     "Flee",
     "Look",
     "Move",
+    "Open",
+    "Pick",
     "QueryResult",
     "Rejected",
     "RunFingerprint",
@@ -56,6 +65,7 @@ __all__ = [
     "Snapshot",
     "StepResult",
     "Take",
+    "Talk",
     "Use",
     "Wait",
     "reference_pack",
@@ -228,6 +238,15 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
     ),
     "attack": _RejectionVocabulary(
         "no_such_target", "you can attack", "there is nothing here to fight"
+    ),
+    "talk": _RejectionVocabulary(
+        "no_one_to_talk_to", "you can talk to", "there is no one here to talk to"
+    ),
+    "open": _RejectionVocabulary(
+        "nothing_to_open", "you can open", "there is nothing here to open"
+    ),
+    "choose": _RejectionVocabulary(
+        "no_such_choice", "choose one of", "there is nothing to choose"
     ),
 }
 

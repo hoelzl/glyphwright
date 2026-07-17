@@ -100,6 +100,85 @@ class Portal:
 
 
 @dataclass(frozen=True, slots=True)
+class DialogueChoice:
+    """One numbered option: prose, an optional flag, and where it leads."""
+
+    text: str
+    next: str | None = None
+    sets_flag: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class DialogueNode:
+    """One beat of a conversation."""
+
+    id: str
+    line: str
+    choices: tuple[DialogueChoice, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class Dialogue:
+    """An authored conversation tree (design 0003 §10.2).
+
+    Trees are content; the dialogue mode walks them and emits events.
+    Construction enforces what a soft-lock would otherwise punish at play
+    time: unique node ids, resolvable links, no choiceless nodes, and a
+    farewell reachable from the root.
+    """
+
+    root: str
+    nodes: tuple[DialogueNode, ...]
+
+    def __post_init__(self) -> None:
+        ids = [node.id for node in self.nodes]
+        if len(ids) != len(set(ids)):
+            raise ValueError("dialogue node ids must be unique")
+        if self.root not in ids:
+            raise ValueError(f"dialogue root {self.root!r} is not a node")
+        for node in self.nodes:
+            if not node.choices:
+                raise ValueError(f"dialogue node {node.id!r} offers no choices")
+            for choice in node.choices:
+                if choice.next is not None and choice.next not in ids:
+                    raise ValueError(
+                        f"dialogue node {node.id!r} choice leads to unknown "
+                        f"node {choice.next!r}"
+                    )
+        # A conversation the player can never leave is a soft-locked run:
+        # some node reachable from the root must offer a way out.
+        reachable = {self.root}
+        frontier = [self.root]
+        while frontier:
+            node = self.node(frontier.pop())
+            for choice in node.choices:
+                if choice.next is None:
+                    return
+                if choice.next not in reachable:
+                    reachable.add(choice.next)
+                    frontier.append(choice.next)
+        raise ValueError(f"dialogue rooted at {self.root!r} has no reachable farewell")
+
+    def node(self, node_id: str) -> DialogueNode:
+        for node in self.nodes:
+            if node.id == node_id:
+                return node
+        raise KeyError(f"no such dialogue node: {node_id}")
+
+
+@dataclass(frozen=True, slots=True)
+class Openable:
+    """A container: what it holds, and what its lock answers to.
+
+    ``key`` names an item that opens it outright; without the key, opening
+    pushes the lockpicking minigame.
+    """
+
+    contains: EntityId
+    key: EntityId | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Item:
     """An entity that can be carried."""
 
@@ -163,6 +242,8 @@ class Entity:
     renderable: Renderable | None = None
     ai: AiBehavior | None = None
     portal: Portal | None = None
+    dialogue: Dialogue | None = None
+    openable: Openable | None = None
     item: Item | None = None
     consumable: Consumable | None = None
     equippable: Equippable | None = None

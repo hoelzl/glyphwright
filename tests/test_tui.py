@@ -246,7 +246,7 @@ def test_long_meta_payloads_are_wrapped_not_cut() -> None:
     session.run_session(engine, iter([*":frame\r", "q"]), output, harness=True)
     screen = output.getvalue()
     assert '"schema"' in screen
-    assert "glyphwright.frame/3" in screen
+    assert "glyphwright.frame/4" in screen
 
 
 def test_room_contents_survive_a_long_description() -> None:

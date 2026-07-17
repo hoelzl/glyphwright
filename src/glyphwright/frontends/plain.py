@@ -16,7 +16,14 @@ from dataclasses import dataclass
 from typing import TextIO
 
 from glyphwright.api import Engine
-from glyphwright.frames.frame import GridView, MenuView, RoomView, SemanticFrame
+from glyphwright.frames.frame import (
+    DialogueView,
+    GridView,
+    LockView,
+    MenuView,
+    RoomView,
+    SemanticFrame,
+)
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
 
@@ -41,6 +48,8 @@ class PlainProjection:
     combatants: tuple[str, ...] = ()
     room: tuple[str, ...] = ()
     exits: tuple[str, ...] = ()
+    dialogue: tuple[str, ...] = ()
+    lock: str | None = None
 
 
 def _room_lines(viewport: RoomView) -> tuple[str, ...]:
@@ -56,6 +65,8 @@ def project(frame: SemanticFrame) -> PlainProjection:
     combatants: tuple[str, ...] = ()
     room: tuple[str, ...] = ()
     exits: tuple[str, ...] = ()
+    dialogue: tuple[str, ...] = ()
+    lock: str | None = None
     if isinstance(frame.viewport, MenuView):
         combatants = tuple(
             f"{actor.id} {actor.hp}/{actor.max_hp}" for actor in frame.actors
@@ -63,6 +74,16 @@ def project(frame: SemanticFrame) -> PlainProjection:
     if isinstance(frame.viewport, RoomView):
         room = _room_lines(frame.viewport)
         exits = frame.viewport.exits
+    if isinstance(frame.viewport, DialogueView):
+        dialogue = (
+            f"{frame.viewport.speaker}: {frame.viewport.text}",
+            *(f"{i + 1}. {choice}" for i, choice in enumerate(frame.viewport.choices)),
+        )
+    if isinstance(frame.viewport, LockView):
+        lock = (
+            f"{frame.viewport.target}: "
+            f"{frame.viewport.pins}/{frame.viewport.total} pins"
+        )
     return PlainProjection(
         turn=frame.turn,
         mode=frame.mode,
@@ -73,6 +94,8 @@ def project(frame: SemanticFrame) -> PlainProjection:
         combatants=combatants,
         room=room,
         exits=exits,
+        dialogue=dialogue,
+        lock=lock,
     )
 
 
@@ -88,6 +111,9 @@ def render(frame: SemanticFrame) -> str:
         listed = ", ".join(view.exits) if view.exits else "none"
         lines.append(f"{_EXITS_ANCHOR}{listed}.")
     lines.extend(f"* {combatant}" for combatant in view.combatants)
+    lines.extend(f"| {line}" for line in view.dialogue)
+    if view.lock is not None:
+        lines.append(f"% {view.lock}")
     lines.extend(view.messages)
     if view.hp is not None:
         lines.append(f"[hp {view.hp[0]}/{view.hp[1]}]")
@@ -118,12 +144,8 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
-    combatants = tuple(
-        line.removeprefix("* ") for line in body if line.startswith("* ")
-    )
-    body = [line for line in body if not line.startswith("* ")]
-
-    # A room block runs from the header to its "Exits:" anchor line.
+    # A room block runs from the header to its "Exits:" anchor line; cutting
+    # it first protects room prose from every marker heuristic below.
     room: tuple[str, ...] = ()
     exits: tuple[str, ...] = ()
     anchored = [i for i, line in enumerate(body) if line.startswith(_EXITS_ANCHOR)]
@@ -133,6 +155,17 @@ def parse(text: str) -> PlainProjection:
         listed = body[cut].removeprefix(_EXITS_ANCHOR).removesuffix(".")
         exits = () if listed == "none" else tuple(listed.split(", "))
         body = body[cut + 1 :]
+
+    combatants = tuple(
+        line.removeprefix("* ") for line in body if line.startswith("* ")
+    )
+    body = [line for line in body if not line.startswith("* ")]
+    dialogue = tuple(line.removeprefix("| ") for line in body if line.startswith("| "))
+    body = [line for line in body if not line.startswith("| ")]
+    lock = next(
+        (line.removeprefix("% ") for line in body if line.startswith("% ")), None
+    )
+    body = [line for line in body if not line.startswith("% ")]
 
     # Tiles are the leading run of space-free lines: content-independent, so
     # a pack may use any glyph. Message templates always contain spaces.
@@ -152,6 +185,8 @@ def parse(text: str) -> PlainProjection:
         combatants=combatants,
         room=room,
         exits=exits,
+        dialogue=dialogue,
+        lock=lock,
     )
 
 
@@ -162,6 +197,9 @@ _PLACEHOLDERS = {
     "use": "<item>",
     "equip": "<item>",
     "attack": "<target>",
+    "talk": "<npc>",
+    "open": "<container>",
+    "choose": "<n>",
 }
 
 

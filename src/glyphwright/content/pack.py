@@ -20,9 +20,13 @@ from glyphwright.world.entities import (
     AiBehavior,
     Blocker,
     Consumable,
+    Dialogue,
+    DialogueChoice,
+    DialogueNode,
     Entity,
     Equippable,
     Item,
+    Openable,
     Portal,
     Position,
     Renderable,
@@ -87,6 +91,23 @@ class ContentPack:
         spaces = {space.area: space for space in self.areas}
         if len(spaces) != len(self.areas):
             raise ValueError("area ids must be unique")
+        ids = {entity.id for entity in self.entities}
+        for entity in self.entities:
+            openable = entity.openable
+            if openable is not None:
+                # A chest that references nothing crashes the fold mid-open;
+                # a mistyped key silently forces the minigame. Both are
+                # load-time diagnostics.
+                if openable.contains not in ids:
+                    raise ValueError(
+                        f"openable {entity.id!r} contains unknown entity "
+                        f"{openable.contains!r}"
+                    )
+                if openable.key is not None and openable.key not in ids:
+                    raise ValueError(
+                        f"openable {entity.id!r} answers to unknown key "
+                        f"{openable.key!r}"
+                    )
         claimed: set[tuple[str, str]] = set()
         for entity in self.entities:
             portal = entity.portal
@@ -224,8 +245,83 @@ def reference_pack() -> ContentPack:
         position=Position(at=inn.pos("cellar")),
         item=Item(name="Rusty Key"),
     )
+    innkeeper = Entity(
+        id="innkeeper",
+        position=Position(at=inn.pos("common-room")),
+        actor=Actor(
+            name="Osric",
+            hp=10,
+            max_hp=10,
+            base_stats=(("atk", 2), ("def", 2), ("spd", 3)),
+        ),
+        dialogue=Dialogue(
+            root="greeting",
+            nodes=(
+                DialogueNode(
+                    id="greeting",
+                    line=("Wind's teeth, a traveller! Warm yourself — what'll it be?"),
+                    choices=(
+                        DialogueChoice(
+                            text="Ask about the cellar",
+                            next="cellar",
+                            sets_flag="heard-cellar-rumor",
+                        ),
+                        DialogueChoice(text="Ask about the road", next="road"),
+                        DialogueChoice(text="Take your leave", next=None),
+                    ),
+                ),
+                DialogueNode(
+                    id="cellar",
+                    line=(
+                        "The old strongbox? Lost the key years back. If you "
+                        "can charm it open, keep what you find."
+                    ),
+                    choices=(
+                        DialogueChoice(text="Ask about the road", next="road"),
+                        DialogueChoice(text="Take your leave", next=None),
+                    ),
+                ),
+                DialogueNode(
+                    id="road",
+                    line=(
+                        "A goblin skulks by the south wall, and that bandit "
+                        "by the door is no friend of yours either."
+                    ),
+                    choices=(
+                        DialogueChoice(
+                            text="Ask about the cellar",
+                            next="cellar",
+                            sets_flag="heard-cellar-rumor",
+                        ),
+                        DialogueChoice(text="Take your leave", next=None),
+                    ),
+                ),
+            ),
+        ),
+    )
+    strongbox = Entity(
+        id="strongbox",
+        position=Position(at=inn.pos("cellar")),
+        openable=Openable(contains="silver-locket", key="rusty-key"),
+    )
+    locket = Entity(
+        id="silver-locket",
+        item=Item(name="Silver Locket"),
+    )
     return ContentPack(
         name="reference-vale",
         areas=(space, inn),
-        entities=(player, potion, sword, goblin, bandit, inn_door, inn_exit, key),
+        entities=(
+            player,
+            potion,
+            sword,
+            goblin,
+            bandit,
+            inn_door,
+            inn_exit,
+            key,
+            innkeeper,
+            strongbox,
+            locket,
+        ),
     )
