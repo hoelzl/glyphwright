@@ -36,7 +36,9 @@ from glyphwright.world.grid import GridSpace
 
 NAME = "exploration"
 
-_LEGEND: tuple[tuple[str, str], ...] = (
+# The single source of glyph knowledge: frames carry it, and the plain
+# frontend's parser derives its tile character set from it.
+LEGEND: tuple[tuple[str, str], ...] = (
     ("@", "player"),
     ("#", "wall"),
     (".", "floor"),
@@ -55,10 +57,20 @@ def _takeable(state: WorldState) -> tuple[str, ...]:
 
 
 def _usable(state: WorldState) -> tuple[str, ...]:
+    """Carried consumables that would currently do something.
+
+    Unlike the map's exits — topology, enumerable even when blocked — item
+    domains are validity filters, and a use that can have no effect is not
+    offered: accepting it would destroy the item for nothing.
+    """
+    player = state.entity(PLAYER)
+    if player.actor is None or player.actor.hp >= player.actor.max_hp:
+        return ()
     return tuple(
         item_id
-        for item_id in sorted(state.entity(PLAYER).carries())
-        if state.entity(item_id).consumable is not None
+        for item_id in sorted(player.carries())
+        if (consumable := state.entity(item_id).consumable) is not None
+        and consumable.heal > 0
     )
 
 
@@ -84,11 +96,10 @@ def available_commands(state: WorldState) -> CommandGrammar:
     at = state.entity(PLAYER).at()
     assert at is not None  # space_of would have raised
     exits = tuple(sorted(space.exits(at)))
-    verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = [
-        ("move", (exits,)),
-        ("look", ()),
-        ("wait", ()),
-    ]
+    verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = []
+    if exits:
+        verbs.append(("move", (exits,)))
+    verbs.extend((("look", ()), ("wait", ())))
     for verb, domain in (
         ("take", _takeable(state)),
         ("use", _usable(state)),
@@ -206,7 +217,12 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
 
 def _viewport(state: WorldState, space: GridSpace) -> GridView:
     glyphs = [list(row) for row in space.rows]
-    for entity in sorted(state.entities.values(), key=lambda e: e.id):
+    # Items first, actors last: an actor standing on an item wins the tile,
+    # whatever the ids happen to sort like. Ties within a layer stay id-sorted.
+    draw_order = sorted(
+        state.entities.values(), key=lambda e: (e.actor is not None, e.id)
+    )
+    for entity in draw_order:
         at = entity.at()
         if entity.renderable is None or at is None or at.area != space.area:
             continue
@@ -218,7 +234,7 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
         area=space.area,
         origin=(0, 0),
         tiles=tuple("".join(row) for row in glyphs),
-        legend=_LEGEND,
+        legend=LEGEND,
     )
 
 

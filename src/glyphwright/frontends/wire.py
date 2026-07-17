@@ -34,7 +34,10 @@ from glyphwright.kernel.events import (
 )
 
 FRAME_SCHEMA = "glyphwright.frame/1"
-EVENT_SCHEMA = "glyphwright.event/1"
+# Slice 2 widened the event vocabulary; a closed-enum contract cannot widen in
+# place, so the tag bumped (ADR-006). v1 was retired rather than kept in a
+# compatibility matrix because no external consumer existed before this bump.
+EVENT_SCHEMA = "glyphwright.event/2"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 

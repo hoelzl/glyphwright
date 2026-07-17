@@ -44,7 +44,7 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
   behind `--harness` in both frontends, and `Engine.query` in the public API
   (`0003` §13–§14). `:events --since` and `:save`/`:load` are deferred until a consumer
   needs them.
-- `glyphwright.query/1` wire schema; `glyphwright.event/1` widened additively.
+- `glyphwright.query/1` wire schema; event vocabulary changes bumped the tag to `glyphwright.event/2` (v1 retired before any consumer existed).
 
 ## Open questions
 

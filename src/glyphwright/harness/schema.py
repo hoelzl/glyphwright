@@ -188,7 +188,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     return {
         "glyphwright.session.v1.json": session_schema(),
         "glyphwright.frame.v1.json": frame_schema(),
-        "glyphwright.event.v1.json": event_schema(),
+        "glyphwright.event.v2.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

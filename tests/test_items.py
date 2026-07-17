@@ -74,10 +74,13 @@ def test_taking_spends_the_turn() -> None:
 
 
 def test_a_taken_item_disappears_from_the_map() -> None:
+    engine = _engine()
+    assert any("!" in row for row in engine.frame().viewport.tiles)
     engine = _at_potion()
-    tiles_before = engine.frame().viewport.tiles
-    assert any("!" in row for row in tiles_before)
-    frame = engine.step(Take("potion-minor")).frame
+    engine.step(Take("potion-minor"))
+    # Step off the tile: the glyph must be gone because the item is carried,
+    # not merely because the player is standing on top of it.
+    frame = engine.step(Move("west")).frame
     assert not any("!" in row for row in frame.viewport.tiles)
 
 
@@ -187,3 +190,25 @@ def test_item_messages_are_rendered_from_events() -> None:
     engine = _at_potion()
     frame = engine.step(Take("potion-minor")).frame
     assert "You take potion-minor." in frame.messages
+
+
+def test_the_player_is_drawn_above_an_item_on_the_same_tile() -> None:
+    # "potion-minor" sorts after "player"; the actor must still win the tile.
+    engine = _at_potion()
+    tiles = engine.frame().viewport.tiles
+    assert any("@" in row for row in tiles), "the player may never vanish"
+    assert not any("!" in row for row in tiles), "the potion is underfoot"
+
+
+def test_use_is_not_advertised_when_it_would_do_nothing() -> None:
+    import dataclasses
+
+    engine = _with_potion()
+    player = engine._state.entity("player")
+    assert player.actor is not None
+    healed = dataclasses.replace(player, actor=dataclasses.replace(player.actor, hp=20))
+    engine._state = engine._state.with_entity(healed)
+    assert "use" not in engine.frame().commands.verb_names()
+    result = engine.step(Use("potion-minor"))
+    assert result.rejection is not None, "a no-effect use must not waste the item"
+    assert "potion-minor" in engine._state.entities

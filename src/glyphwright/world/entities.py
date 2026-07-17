@@ -60,6 +60,12 @@ class StatModifier:
     op: str
     value: int
 
+    def __post_init__(self) -> None:
+        # A typo'd op must be unrepresentable: silently contributing nothing
+        # would make the provenance pipeline lie about what it considered.
+        if self.op not in ("add", "mul"):
+            raise ValueError(f"unknown modifier op: {self.op!r} (use 'add' or 'mul')")
+
 
 @dataclass(frozen=True, slots=True)
 class Item:

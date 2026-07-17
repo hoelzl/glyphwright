@@ -42,15 +42,31 @@ Decisions taken by the implementing agent (owner delegated open choices):
    replaced); no separate unequip verb yet.
 3. **Consumables are destroyed on use:** `ItemUsed(consumed=True)` removes the item
    entity in the fold.
-4. **New event types extend `glyphwright.event/1` additively** (enum of `type` widened,
-   new optional fields). Pre-1.0 additive widening does not bump the tag; the committed
-   schema files change deliberately in the same PR.
+4. **Event vocabulary changes bump the schema tag** (revised after adversarial review):
+   the event schema is a closed enum with `additionalProperties: false`, so widening it
+   is not additive for a pinned validator. Slice 2 ships `glyphwright.event/2`; v1 was
+   retired rather than kept in a compatibility matrix because no external consumer
+   existed before the bump. Future widenings follow the same rule (ADR-006).
 5. **Meta-channel in slice 2 ships `:query <path> [--explain]`, `:seed`, `:frame --json`**;
    `:events --since`, `:save`/`:load` are deferred until a consumer needs them
    (snapshots already exist via the API).
 6. **Stat pipeline lives in `effects/stats.py`**: base → additive → multiplicative →
    clamps; every modifier carries provenance (source id + kind). Equipment is the only
-   modifier source in slice 2; statuses/perks arrive with battle.
+   modifier source in slice 2; statuses/perks arrive with battle. Unknown modifier ops
+   are unrepresentable (`StatModifier` validates at construction).
+7. **Item verb domains are validity filters, unlike the map's exits** (post-review):
+   `use` is not advertised when it would have no effect, because accepting it would
+   destroy the item for nothing. The grammar-as-topology rule (0003 A.5) applies to
+   the map; item domains were always permission-shaped (only carried items appear).
+   Revisit if a consumable with a non-heal effect arrives.
+8. **Pack-id derivation is pinned by a golden test** (post-review): hashing walks every
+   component field via `asdict` (new components cannot silently escape identity), and
+   `test_the_pack_identity_derivation_is_pinned` turns any change to the derivation —
+   field rename, serialization shape — into a visible, deliberate diff. The derivation
+   changed in slice 2 while no external fingerprints existed.
+9. **The oracle never fabricates**: `stats` queries error (`no_such_stat`) for stats the
+   entity does not declare (base stats ∪ equipped modifier stats) and for non-actors,
+   while kernel-level `derive` stays total (missing stat = 0) for future battle math.
 
 ## Next steps
 
@@ -60,5 +76,26 @@ Decisions taken by the implementing agent (owner delegated open choices):
 3. Slice 4 — rooms and portals: `RoomGraphSpace`, mixed-world reference pack.
    `C:\Users\tc\Programming\TypeScript\Projects\Riches` may be browsed for room-mode
    inspiration/assets (owner note: not authoritative, no 1-1 replication).
+
+### Riches survey notes (2026-07-17, for slice 4)
+
+Surveyed `Riches` (TypeScript, YAML-authored room games). Distilled ideas worth adapting —
+adapt to 0003's `Space`/portal/event model, do not copy the architecture:
+
+- Rooms: id/slug + display name + prose description + exits map + contents + tags.
+  Exits authored per-room and one-way in data (reverse links authored explicitly);
+  built in two passes (rooms, then exit wiring) so destinations resolve.
+- Exit shape: shorthand (`north: room-id`) or expanded (`{destination, active, description}`).
+  `active: false` = state-blocked exit → in GlyphWright terms `blocked_reason "closed"`,
+  toggled by effect primitives and gated by flags. Clean lock/key primitive.
+- Conditional room descriptions: base prose + `{condition, append}` modifiers — fits
+  GlyphWright as flag-gated description fragments rendered in `RoomView`.
+- Item `discovered`/`visible` flags and `on_player_enter`/`on_item_taken`/`one_shot`
+  hooks — GlyphWright equivalents belong in status/hook machinery (§9.3), not ad-hoc.
+- Scale template: 8–9 rooms per hand-authored world. Two themes there: "Classic Dungeon"
+  (light-vs-shadow fantasy crawl: Vestibule, Enchanted Study, Library of Echoes, Silent
+  Chamber, Treasure Chamber…) and a theater murder mystery. For the reference pack's
+  room area, an 8-room interior (e.g. an inn or study wing) portal-linked to the village
+  grid would satisfy §7.4's acid test at similar scale.
 4. Slice 5 — TUI (decide Textual vs hand-rolled with a spike, §20.1).
 5. Slice 6 — dialogue + one minigame.

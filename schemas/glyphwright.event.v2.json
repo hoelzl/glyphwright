@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/1",
+  "$id": "glyphwright.event/2",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -34,7 +34,7 @@
       ]
     },
     "schema": {
-      "const": "glyphwright.event/1"
+      "const": "glyphwright.event/2"
     },
     "slot": {
       "type": "string"

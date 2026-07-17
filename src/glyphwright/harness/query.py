@@ -32,6 +32,19 @@ def _error(path: str, reason: str) -> QueryResult:
     return QueryResult(path=path, error=reason)
 
 
+def _known_stats(state: WorldState, entity_id: str) -> set[str]:
+    """The stats an entity actually declares: base stats plus anything an
+    equipped item modifies."""
+    entity = state.entity(entity_id)
+    known = {name for name, _ in entity.actor.base_stats} if entity.actor else set()
+    if entity.equipment is not None:
+        for _, item_id in entity.equipment.slots:
+            equippable = state.entity(item_id).equippable
+            if equippable is not None:
+                known.update(modifier.stat for modifier in equippable.modifiers)
+    return known
+
+
 def _entity_query(state: WorldState, path: str, parts: list[str]) -> QueryResult:
     entity_id = parts[0]
     if entity_id not in state.entities:
@@ -50,6 +63,12 @@ def _entity_query(state: WorldState, path: str, parts: list[str]) -> QueryResult
             worn = entity.equipment or Equipment()
             return QueryResult(path=path, value=dict(worn.slots))
         case ["stats", stat]:
+            if entity.actor is None:
+                return _error(path, "no_such_path")
+            if stat not in _known_stats(state, entity_id):
+                # Deriving an undeclared stat would fabricate a confident 0;
+                # the oracle answers what is true or says why it cannot.
+                return _error(path, "no_such_stat")
             derivation = derive(state, entity_id, stat)
             return QueryResult(
                 path=path, value=derivation.value, explanation=derivation.explain()

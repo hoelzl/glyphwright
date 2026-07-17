@@ -87,3 +87,36 @@ def test_the_mode_stack_never_empties(state: WorldState) -> None:
     assert state.mode == "exploration"
     with pytest.raises(ValueError):
         dataclasses.replace(state, mode_stack=())
+
+
+def test_move_is_not_advertised_where_there_are_no_exits() -> None:
+    from glyphwright.kernel.rng import Rng
+    from glyphwright.modes import exploration
+    from glyphwright.world.entities import Actor, Entity, Position, Renderable
+    from glyphwright.world.grid import GridSpace
+
+    space = GridSpace.from_text("void", ".")
+    lone = Entity(
+        id="player",
+        position=Position(at=space.pos(0, 0)),
+        actor=Actor(name="Lone", hp=1, max_hp=1),
+        renderable=Renderable(glyph="@"),
+    )
+    state = WorldState(
+        entities={"player": lone},
+        areas={"void": space},
+        mode_stack=("exploration",),
+        turn=0,
+        rng=Rng.from_seed(0),
+        flags={},
+    )
+    # A grammar entry is a promise a command can be formed from it; with no
+    # exits there is no formable move, the same rule as the item verbs.
+    assert "move" not in exploration.available_commands(state).verb_names()
+
+
+def test_a_healed_event_for_a_non_actor_is_a_hard_error(state: WorldState) -> None:
+    from glyphwright.kernel.events import Healed
+
+    with pytest.raises(ValueError, match="actor"):
+        fold(state, (Healed(target="potion-minor", amount=1, source="potion-minor"),))

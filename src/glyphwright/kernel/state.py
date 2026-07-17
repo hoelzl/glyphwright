@@ -135,7 +135,8 @@ def apply(state: WorldState, event: Event) -> WorldState:
             )
         case Healed():
             target = state.entity(event.target)
-            assert target.actor is not None, "only actors can heal"
+            if target.actor is None:
+                raise ValueError(f"Healed target {event.target} is not an actor")
             healed = replace(
                 target.actor,
                 hp=min(target.actor.hp + event.amount, target.actor.max_hp),

@@ -76,6 +76,18 @@ def test_an_unknown_entity_is_an_error_value() -> None:
     assert engine.query("balrog.hp").error is not None
 
 
+def test_a_misspelled_stat_is_an_error_not_a_fabricated_zero() -> None:
+    engine = _armed_engine()
+    result = engine.query("player.stats.attack")
+    assert result.error == "no_such_stat"
+    assert result.value is None
+
+
+def test_stats_of_a_non_actor_are_an_error() -> None:
+    engine = _engine()
+    assert engine.query("potion-minor.stats.atk").error is not None
+
+
 # -- the meta-channel in the plain frontend -----------------------------------
 
 

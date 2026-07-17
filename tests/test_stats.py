@@ -106,6 +106,13 @@ def test_unequipped_items_do_not_contribute() -> None:
     assert derive(state, "hero", "atk").value == 5
 
 
+def test_a_modifier_with_an_unknown_op_is_unrepresentable() -> None:
+    import pytest
+
+    with pytest.raises(ValueError, match="op"):
+        StatModifier(stat="atk", op="multiply", value=150)
+
+
 def test_equipping_the_reference_sword_raises_atk() -> None:
     from glyphwright.kernel.commands import Equip, Move, Take
 

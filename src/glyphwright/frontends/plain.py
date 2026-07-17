@@ -19,8 +19,12 @@ from glyphwright.api import Engine
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
+from glyphwright.modes import exploration
 
 _DELIMITER = "=="
+
+# The tile character set is the legend's: one source of glyph knowledge.
+_TILE_GLYPHS = frozenset(glyph for glyph, _ in exploration.LEGEND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,7 +91,7 @@ def parse(text: str) -> PlainProjection:
         hp = (int(current), int(maximum))
         body = body[:-1]
 
-    tiles = tuple(line for line in body if line and set(line) <= set("#.@~!/"))
+    tiles = tuple(line for line in body if line and set(line) <= _TILE_GLYPHS)
     messages = tuple(body[len(tiles) :])
     return PlainProjection(
         turn=turn,
