@@ -11,7 +11,7 @@ The authoritative strategy is `docs/agent/design/0003-glyphwright-design.md` §1
 3. Determinism tests assert identical `(pack, seed, commands)` yields identical frame and event sequences, and that replay-from-log equals snapshot/restore.
 4. Purity tests assert `step` does not mutate its input state.
 5. Schema goldens assert generated JSON Schemas equal the committed files.
-6. Renderer round-trip asserts plain-text render → parse → equals frame.
+6. Renderer round-trip asserts `parse(render(frame)) == project(frame)` — the declared transcript projection, not the whole frame; lossless frame transport is the JSONL frontend's job.
 7. Terminal e2e tests drive the installed line-oriented CLI through subprocess pipes; PTY tests prove interactive behavior.
 8. Graphical renderers, when introduced, consume frames and do not become correctness oracles.
 

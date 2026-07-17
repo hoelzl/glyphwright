@@ -25,7 +25,7 @@ Data flows downward as commands and upward as events and frames. Only the topmos
 ## The central contract
 
 ```python
-def step(state: WorldState, command: Command, rng: Rng) -> tuple[WorldState, list[Event]]
+def step(state: WorldState, command: Command, rng: Rng) -> tuple[WorldState, tuple[Event, ...]]
 ```
 
 `step` is pure: no I/O, no wall clock, no ambient globals. All engine behavior, including NPC turns triggered by a player command, happens inside it.

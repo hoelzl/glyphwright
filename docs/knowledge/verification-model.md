@@ -18,7 +18,7 @@ GlyphWright separates semantic correctness from interface operability. Structure
 - **Determinism tests** assert that identical `(pack, seed, commands)` yields identical frame and event sequences, and that replay-from-log equals snapshot/restore.
 - **Purity tests** assert `step` does not mutate its input state.
 - **Schema goldens** assert generated JSON Schemas equal the committed files, so the wire contract cannot drift silently.
-- **Renderer round-trip** asserts plain-text render → parse → equals frame.
+- **Renderer round-trip** asserts `parse(render(frame)) == project(frame)`, where `project` declares the subset of a frame the plain transcript commits to paper. The round trip is against the projection, not the whole frame: a reviewable transcript cannot carry the command grammar, and lossless transport is the JSONL frontend's job.
 - **Reviewed golden transcripts**, a handful per frontend, updated only by humans.
 
 The core suite is plain pytest and must run standalone, without TermVerify installed.

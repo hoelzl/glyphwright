@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Status** | Accepted — authoritative |
-| **Date** | 2026-07-17 |
+| **Date** | 2026-07-17 (revised 2026-07-17, see Revisions) |
 | **Scope** | Terminal-first turn-based RPG engine; reference application under test for TermVerify |
 | **License intent** | Apache-2.0 (matching TermVerify) |
 | **Authoritative over** | every other document and all existing code in this repository |
@@ -19,6 +19,22 @@
 > Individual sections here may still need elaboration, and §20 records the questions that
 > remain genuinely open — but the purpose, goals, non-goals, architecture, and ADRs below
 > are settled.
+
+### Revisions
+
+Corrections made 2026-07-17 while implementing slice 1, when the code disagreed with the
+document and the document turned out to be wrong. Each was a self-contradiction or an
+unimplementable signature, not a change of intent; the design's substance is unchanged.
+
+| § | Was | Now | Why |
+|---|---|---|---|
+| 5.1 | `step -> tuple[WorldState, list[Event]]` | `tuple[Event, ...]` | Mutable evidence contradicts §5.2's immutability. |
+| 7.1 | `passable(pos, mover)`, `occupants(pos)`, `observe(observer)` | each takes `state` | A space is topology and holds no entities; occupancy lives in the entity table, so these could not answer. |
+| 7.1 | — | added `blocked_reason` | Without it, modes reach for grid-specific terrain to say *why* a move failed, and the geometry abstraction leaks. |
+| 10 | `handle -> list[Event]`; `view(state)` | `handle -> (events, Rng)`; `view(state, events)` | A handler's draw must land in state or replay diverges. A frame's `messages` render from events, and state holds only the log cursor. |
+| 12, 17 | round trip "equals frame" | equals `project(frame)` | A reviewable transcript cannot carry the command grammar; lossless transport is JSONL's job. |
+| A.2 | `"move":["north",…]` | `"move":[["north",…]]` | Verb shape varied by arity, forcing every consumer — including the fuzzer this feeds — to branch. |
+| A.4 | wall collision shown as a rejection | rejection is `no_such_exit`; new A.5 shows `MoveBlocked` | Contradicted §5.3 and A.2, and made `MoveBlocked` unreachable. |
 
 ---
 
@@ -116,10 +132,14 @@ glyphwright/
 The entire simulation is a pure function:
 
 ```python
-def step(state: WorldState, command: Command, rng: Rng) -> tuple[WorldState, list[Event]]
+def step(state: WorldState, command: Command, rng: Rng) -> tuple[WorldState, tuple[Event, ...]]
 ```
 
 No I/O, no wall clock, no ambient globals. All engine behavior — including NPC turns triggered by a player command — happens inside `step`.
+
+Returned event collections are immutable, like state (§5.2): a caller holding a step's events is holding evidence, and evidence that a consumer can append to is not evidence. `step` takes the RNG cursor explicitly even though state carries one (§5.4), so a test can drive a step from an arbitrary point in the stream; the successor state carries the advanced cursor either way.
+
+The command reaching `step` is already valid for the active mode. Validity is answered against the frame's grammar before a step happens, and an invalid command is a typed rejection rather than a step (§6, appendix A.4) — so `step` never needs a "this made no sense" return path.
 
 ### 5.2 State
 
@@ -178,12 +198,21 @@ Grid worlds and room worlds implement one protocol rather than emulating each ot
 
 ```python
 class Space(Protocol):
+    @property
+    def area(self) -> str: ...
     def positions(self) -> Iterable[PosId]: ...
     def exits(self, pos: PosId) -> Mapping[ExitToken, PosId]: ...
-    def passable(self, pos: PosId, mover: EntityId) -> bool: ...
-    def occupants(self, pos: PosId) -> Iterable[EntityId]: ...
-    def observe(self, observer: EntityId) -> SpatialObservation: ...
+    def passable(self, state: WorldState, pos: PosId, mover: EntityId) -> bool: ...
+    def blocked_reason(
+        self, state: WorldState, pos: PosId, mover: EntityId
+    ) -> str | None: ...
+    def occupants(self, state: WorldState, pos: PosId) -> tuple[EntityId, ...]: ...
+    def observe(self, state: WorldState, observer: EntityId) -> SpatialObservation: ...
 ```
+
+A space is an **immutable description of terrain and connectivity**; it holds no entities. Occupancy lives in the entity table, so every method whose answer depends on who is currently standing where takes the world state. `positions` and `exits` do not: they are pure topology.
+
+`blocked_reason` returns `None` when the mover may enter, and otherwise names the obstruction in the vocabulary of that geometry — a grid says `wall`, a room graph says `closed`, either says `occupied`. This is what lets a mode report *why* a move failed without knowing which kind of space it is standing in; `passable` is simply `blocked_reason(...) is None`. Without it, modes reach for grid-specific terrain and the abstraction leaks (§7.2).
 
 `move <exit-token>` is the only movement command, everywhere.
 
@@ -244,9 +273,15 @@ Engine control flow is a pushdown automaton of **modes**. `Exploration` sits at 
 ```python
 class Mode(Protocol):
     def available_commands(self, state: WorldState) -> CommandGrammar: ...
-    def handle(self, state: WorldState, command: Command, rng: Rng) -> list[Event]: ...
-    def view(self, state: WorldState) -> SemanticFrame: ...
+    def handle(
+        self, state: WorldState, command: Command, rng: Rng
+    ) -> tuple[tuple[Event, ...], Rng]: ...
+    def view(self, state: WorldState, events: tuple[Event, ...]) -> SemanticFrame: ...
 ```
+
+`handle` returns the successor RNG cursor alongside its events. A handler that draws (a damage roll, an AI choice) must have its draw land back in world state, or replay would diverge from the original run; returning the cursor is what makes that automatic rather than a rule handlers must remember. Handlers that draw nothing return the cursor unchanged.
+
+`view` takes the turn's events because a frame's `messages` are that turn's log delta, rendered from event data (§11). State carries only the log *cursor*, not the log — the text is derivable from events and nowhere else — so `view(state)` alone could not produce it. A frame requested outside a step (`Engine.frame()`) passes no events and therefore carries no messages, which is correct: nothing just happened.
 
 Mode transitions are themselves events (`ModePushed("battle-3")`, `ModePopped`), hence replayable and assertable.
 
@@ -293,7 +328,7 @@ Frames and events are what TermVerify compares as primary evidence. Raw glyph/AN
 
 **JSONL.** Emits the `SemanticFrame` itself, one JSON object per line over stdio, and accepts commands one per line. Lowest-friction transport for agents and for out-of-process verification (§16.3).
 
-**TUI.** Full-screen terminal app (Textual, or hand-rolled ANSI if fewer moving parts under a PTY are preferred — decided at implementation time, see Open Questions) painting stable regions from the same frame: map viewport, status bar, scrolling log, command line. Keybindings translate to kernel commands; nothing else differs. Because plain-text rendering is a pure function of the frame, the differential test "render → parse → equals frame" is available to verify the plain renderer itself.
+**TUI.** Full-screen terminal app (Textual, or hand-rolled ANSI if fewer moving parts under a PTY are preferred — decided at implementation time, see Open Questions) painting stable regions from the same frame: map viewport, status bar, scrolling log, command line. Keybindings translate to kernel commands; nothing else differs. Because plain-text rendering is a pure function of the frame, the differential test "render → parse → equals the rendered projection" is available to verify the plain renderer itself (§17).
 
 ## 13. Introspection meta-channel
 
@@ -379,7 +414,9 @@ The adapter and engine now drift independently — by design. Schema tags plus a
 - **Determinism tests:** identical `(pack, seed, commands)` ⇒ identical frame and event sequences; replay-from-log equals snapshot/restore.
 - **Purity tests:** `step` does not mutate its input state.
 - **Schema goldens:** generated JSON Schemas equal committed files.
-- **Renderer round-trip:** plain-text render → parse → equals frame.
+- **Renderer round-trip:** `parse(render(frame)) == project(frame)`, where `project` names the subset of a frame the plain transcript commits to paper — turn, mode, area, tiles, messages, and the player's HP.
+
+  The round trip is against the *projection*, not the whole frame, and deliberately so. The plain frontend is the human review format for baselines; padding transcripts with the command grammar and every actor's status vector to make them losslessly invertible would wreck the thing that makes them reviewable. Lossless frame transport is the JSONL frontend's job (§12), and its schema goldens cover it. `project` is a declared type rather than an implicit convention, so what a transcript is evidence *of* is itself reviewable, and widening the transcript means widening `project` — a visible change, not an accident.
 - **A handful of reviewed golden transcripts** per frontend for layout, updated only by humans.
 
 All engine-side tests are plain pytest, runnable standalone (§16.1).
@@ -448,9 +485,17 @@ Toolchain matches TermVerify to keep the reference consumer honest: Python 3.12+
            {"id":"goblin-1","name":"Goblin","hp":[6,6],"statuses":[],"at":"village:6,2"}],
  "messages":["A goblin eyes you warily."],
  "prompt":{"kind":"command"},
- "commands":{"verbs":{"move":["north","east","south","west"],"attack":[["goblin-1"]],
+ "commands":{"verbs":{"move":[["east","north","south","west"]],"attack":[["goblin-1"]],
              "look":[],"talk":[],"wait":[]}}}
 ```
+
+Every verb maps to a **list of per-argument-position domains**, whatever its arity: `move`
+takes one argument drawn from one domain (`[[...]]`), `look` takes none (`[]`). A consumer
+walks the same shape for every verb and never special-cases arity — which matters because
+this grammar is a fuzzer's generator, and a shape that varies by verb is a shape every
+consumer must branch on. Domains are enumerated in sorted order, the same determinism rule
+as entity iteration (§5.4), so identical states encode to identical bytes. `south` is a
+wall here and is still enumerated: the grammar is topology, not permission (§7.1, A.5).
 
 ### A.3 Event (JSONL)
 
@@ -461,10 +506,38 @@ Toolchain matches TermVerify to keep the reference consumer honest: Python 3.12+
 
 ### A.4 Rejection
 
+A rejection means *the engine never ran the command*. The turn does not advance and no
+events are emitted.
+
 ```json
-{"schema":"glyphwright.rejection/1","turn":43,"command":"move north",
- "reason":"blocked","hint":"A wall blocks the way north."}
+{"schema":"glyphwright.rejection/1","turn":43,"command":"move up",
+ "reason":"no_such_exit","hint":"exits here: east, north, south, west"}
 ```
+
+### A.5 Refusal by the world (not a rejection)
+
+Walking into a wall is a **valid command the world refused**: it is enumerated in the
+grammar, it costs the turn, and it produces an event — not a rejection. Compare with A.4.
+
+```json
+{"schema":"glyphwright.event/1","turn":43,"type":"MoveBlocked",
+ "actor":"player","origin":"village:2,1","exit":"north","reason":"wall"}
+```
+
+The distinction is load-bearing:
+
+| | Rejection (A.4) | `MoveBlocked` (A.5) |
+|---|---|---|
+| Means | the command was never valid here | the command was valid; the world said no |
+| In the grammar? | no | yes |
+| Turn | not spent | spent |
+| Evidence | `StepResult.rejection` | an event in the log |
+| Fuzzing reads it as | generator error | engine behaviour |
+
+A grammar advertises the map's *topology*, not today's permissions (§7.1), so `move north`
+into a wall is enumerable, attemptable, and answerable with a reason — which is exactly
+what makes "attacking a wall tells you it is a wall" assertable. Collapsing the two would
+make `MoveBlocked` unreachable and hide real behaviour behind a generator complaint.
 
 ## Appendix B — Plain-frontend transcript excerpt
 
