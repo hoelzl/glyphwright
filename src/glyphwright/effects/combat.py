@@ -45,8 +45,12 @@ def hostile_actors(state: WorldState) -> tuple[Entity, ...]:
 
 
 def melee_adjacent(space: Space, a: PosId, b: PosId) -> bool:
-    """Melee range is one exit: the same reach for player and AI."""
-    return b in space.exits(a).values()
+    """Whether two same-area positions are within striking distance.
+
+    The geometry answers: a grid says one exit away, a room graph says the
+    same room — a neighbouring room is behind a wall.
+    """
+    return space.melee_range(a, b)
 
 
 def provoke(state: WorldState, target: EntityId) -> tuple[Event, ...]:

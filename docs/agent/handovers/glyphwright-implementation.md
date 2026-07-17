@@ -12,7 +12,7 @@ information is recorded in design docs, knowledge bundle, or code.
 | 1 — Walking skeleton | **Done** (kernel, GridSpace, move/look/wait, plain + JSONL frontends, `glyphwright.api`, committed schemas, fingerprint; 82 tests green) |
 | 2 — Items and stats | **Done** (inventory + take/use/equip, stat pipeline with provenance, meta-channel `:query/:seed/:frame`, `Engine.query`, `glyphwright.query/1` schema; PR pending review) |
 | 3 — Battle | **Done** (3A exploration combat + 3B menu battle: mode stack, rolled initiative, MenuView, flee, victory/defeat outcomes; tactics arena deferred to a later slice with FOV) |
-| 4 — Rooms and portals | Not started |
+| 4 — Rooms and portals | **Done** (RoomGraphSpace, Portal component as extra exit tokens, RoomView + plain prose round-trip, inn interior in the reference pack; frame schema v3; PR pending review) |
 | 5 — TUI | Not started |
 | 6 — Dialogue and one minigame | Not started |
 
@@ -146,6 +146,36 @@ Decisions taken by the implementing agent (owner delegated open choices):
     are checked in the scheduler's battle configuration (one shared loop, ADR-004) —
     §10.1's "checked in the event fold" is read as "checked during the fold inside
     step", since a fold that emits events is not implementable in this design.
+
+## Slice 4 decisions (rooms and portals)
+
+1. **Portals are entities** (`Portal(token, to)`, 0003 §7.4): a portal standing at a
+   position contributes one extra exit token there; twins are authored explicitly,
+   like room exits (one-way in data, mirroring the Riches convention). `move
+   <exit-token>` remains the only movement command; the *destination's* space
+   answers passability, so a portal may land in a different area.
+2. **Rooms never block on occupancy**: bodies do not fill a room. `blocked_reason`
+   is reserved for `closed`/locked exits when flag-gated doors arrive (the
+   rusty-key exists for that day).
+3. **RoomView** carries room id, name, description, contents (items and actors,
+   not portals), and the merged exit list. The plain transcript renders prose with
+   an `Exits: …` anchor line; `PlainProjection` gained `room` and `exits` fields.
+4. **One movement graph for everyone** (post-review): `WorldState.exits_from` (space
+   exits + portals) feeds the player's grammar *and* AI pursuit — a door the player
+   can use is a door a pursuer follows through. Chase/escape BFS runs over that
+   cross-area graph, so foes in other areas neither freeze pursuit nor crash flee.
+5. **Pack identity hashes areas via `asdict`** (with `kind` and a public `area` key);
+   the pin was deliberately re-pinned.
+6. **Melee is answered by the geometry** (post-review): `Space.melee_range` — grid
+   says one exit away, room graph says the same room (a neighbouring room is behind
+   a wall). Same-room combat works; through-the-wall combat cannot happen.
+7. **Content is validated at construction** (post-review): `ContentPack` rejects
+   portals that stand nowhere/off-map, lead nowhere, shadow a geometric exit, or
+   collide on a token; `RoomGraphSpace` rejects duplicate exit tokens and
+   transcript-unsafe prose (newlines, lines imitating `Exits: `/`* `/`== ` markup).
+   `_move` still guards unknown areas defensively with a `MoveBlocked("edge")`.
+8. **Every room block closes with an `Exits:` anchor**, `Exits: none.` for dead
+   ends, so the plain parse round-trip holds for any authored room.
 
 ## Next steps
 

@@ -111,6 +111,9 @@ class GridSpace:
                 found[token] = neighbour
         return found
 
+    def melee_range(self, a: PosId, b: PosId) -> bool:
+        return a == b or b in self.exits(a).values()
+
     def passable(self, state: WorldState, pos: PosId, mover: EntityId) -> bool:
         return self.blocked_reason(state, pos, mover) is None
 

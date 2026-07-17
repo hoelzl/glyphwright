@@ -111,10 +111,11 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     space = GridSpace.from_text("pin", "..")
     entity = Entity(id="e", position=Position(at=space.pos(0, 0)))
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
-    # Re-pinned deliberately in slice 3A: the AiBehavior component widened
-    # entity identity, which is a content-schema change and must show here.
+    # Re-pinned deliberately per slice when entity or area identity widens
+    # (3A: AiBehavior; 4: Portal component and full-area hashing for mixed
+    # geometries) — a content-schema change must show here.
     assert pack.pack_id == (
-        "pin@sha256:3ce7afa774f9d970d5dd68fd5719e653d81ef850ee31e5102a67c3f7d163cd1c"
+        "pin@sha256:498816e5ab9c4ce53ed9d9da6808db14e2f29ea6f8bc288dfd453b9be9990f80"
     )
 
 
@@ -122,9 +123,12 @@ def test_content_changes_change_the_pack_id() -> None:
     from glyphwright.world.grid import GridSpace
 
     pack = reference_pack()
+    # One tile turned to wall; everything else — including portal wiring —
+    # stays valid, so this isolates the identity change to the content change.
+    altered_map = "#########\n#.......#\n#..##..##\n#.......#\n#########"
     altered = type(pack)(
         name=pack.name,
-        areas=(GridSpace.from_text("village", "###\n#.#\n###"),),
+        areas=(GridSpace.from_text("village", altered_map), *pack.areas[1:]),
         entities=pack.entities,
     )
     assert altered.pack_id != pack.pack_id, "a content change must invalidate baselines"

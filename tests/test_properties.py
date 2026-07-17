@@ -77,21 +77,22 @@ def test_the_player_never_stands_in_a_wall(choices: list[int]) -> None:
     at = state.entity(PLAYER).at()
     assert at is not None
     space = state.areas[at.area]
-    assert isinstance(space, GridSpace)
-    assert space.terrain(at) != WALL
+    if isinstance(space, GridSpace):
+        assert space.terrain(at) != WALL
 
 
 @settings(max_examples=40, deadline=None)
 @given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=30))
-def test_the_player_never_leaves_the_area(choices: list[int]) -> None:
+def test_the_player_never_leaves_known_space(choices: list[int]) -> None:
+    """Wherever the walk wandered — grid tiles or rooms through portals — the
+    player stands on a position its area actually contains."""
     engine = Engine.new(reference_pack(), seed=6)
     _walk(engine, choices, len(choices))
     state = engine._state
     at = state.entity(PLAYER).at()
     assert at is not None
-    space = state.areas[at.area]
-    assert isinstance(space, GridSpace)
-    assert space.contains(at)
+    assert at.area in state.areas
+    assert state.areas[at.area].contains(at)
 
 
 @settings(max_examples=40, deadline=None)

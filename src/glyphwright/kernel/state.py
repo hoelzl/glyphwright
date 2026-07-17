@@ -82,6 +82,19 @@ class WorldState:
             raise ValueError(f"{entity_id} has no position")
         return self.areas[at.area]
 
+    def exits_from(self, pos: PosId) -> dict[str, PosId]:
+        """The position's space exits plus any portal standing there.
+
+        This is the one movement graph — the player's grammar and the AI's
+        pursuit both read it, so a door the player can use is a door a
+        pursuer can follow through (0003 §7.4).
+        """
+        merged = dict(self.areas[pos.area].exits(pos))
+        for entity in self.entities_at(pos):
+            if entity.portal is not None:
+                merged[entity.portal.token] = entity.portal.to
+        return merged
+
     def with_entity(self, entity: Entity) -> WorldState:
         entities = dict(self.entities)
         entities[entity.id] = entity

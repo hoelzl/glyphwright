@@ -14,7 +14,14 @@ from glyphwright.effects.combat import (
     provoke,
     strike,
 )
-from glyphwright.frames.frame import ActorSummary, GridView, PromptSpec, SemanticFrame
+from glyphwright.frames.frame import (
+    ActorSummary,
+    GridView,
+    PromptSpec,
+    RoomView,
+    SemanticFrame,
+    Viewport,
+)
 from glyphwright.kernel.commands import (
     Attack,
     Command,
@@ -40,6 +47,8 @@ from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
 from glyphwright.modes import common, messages
 from glyphwright.world.entities import Equipment
 from glyphwright.world.grid import GridSpace
+from glyphwright.world.roomgraph import RoomGraphSpace
+from glyphwright.world.space import PosId
 
 NAME = MODE_EXPLORATION
 
@@ -58,6 +67,12 @@ def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
             continue
         entries[entity.renderable.glyph] = entity.renderable.label
     return tuple(sorted(entries.items()))
+
+
+def _all_exits(state: WorldState, pos: PosId) -> dict[str, PosId]:
+    """``move <exit-token>`` is the only movement command, everywhere — a door
+    to another area is simply one more token (0003 §7.4)."""
+    return state.exits_from(pos)
 
 
 def _takeable(state: WorldState) -> tuple[str, ...]:
@@ -109,10 +124,9 @@ def available_commands(state: WorldState) -> CommandGrammar:
     if state.flags.get(PLAYER_DEFEATED):
         # A defeated protagonist can only survey the wreckage.
         return CommandGrammar(verbs=(("look", ()),))
-    space = state.space_of(PLAYER)
     at = state.entity(PLAYER).at()
-    assert at is not None  # space_of would have raised
-    exits = tuple(sorted(space.exits(at)))
+    assert at is not None
+    exits = tuple(sorted(_all_exits(state, at)))
     verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = []
     if exits:
         verbs.append(("move", (exits,)))
@@ -157,19 +171,22 @@ def handle(
 
 
 def _move(state: WorldState, token: str) -> tuple[Event, ...]:
-    space = state.space_of(PLAYER)
     origin = state.entity(PLAYER).at()
     assert origin is not None
-    destination = space.exits(origin).get(token)
+    destination = _all_exits(state, origin).get(token)
     turn = TurnAdvanced(turn=state.turn + 1)
 
     # An exit token outside the area's topology never reaches the kernel: it is
     # absent from the grammar, so the API rejects it before a turn is spent.
-    reason = (
-        "edge"
-        if destination is None
-        else space.blocked_reason(state, destination, PLAYER)
-    )
+    # The destination's own space answers passability — a portal may land in
+    # a different area than it stands in. A destination whose area is unknown
+    # (only possible with content that escaped pack validation) is off the map.
+    if destination is None or destination.area not in state.areas:
+        reason: str | None = "edge"
+    else:
+        reason = state.areas[destination.area].blocked_reason(
+            state, destination, PLAYER
+        )
     if destination is None or reason is not None:
         return (
             MoveBlocked(
@@ -224,19 +241,42 @@ def _equip(state: WorldState, item_id: str) -> tuple[Event, ...]:
 def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
     """Project state and this turn's events into the canonical observation."""
     space = state.space_of(PLAYER)
-    if not isinstance(space, GridSpace):
-        # RoomView arrives with RoomGraphSpace in slice 4 (0003 sections 7.3, 18).
+    viewport: Viewport
+    if isinstance(space, GridSpace):
+        viewport = _viewport(state, space)
+    elif isinstance(space, RoomGraphSpace):
+        viewport = _room_viewport(state, space)
+    else:
         raise NotImplementedError(f"no viewport for space kind: {type(space).__name__}")
     return SemanticFrame(
         turn=state.turn,
         mode=NAME,
-        viewport=_viewport(state, space),
+        viewport=viewport,
         actors=_actors(state),
         messages=tuple(
             message for event in events if (message := messages.describe(event))
         ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
+    )
+
+
+def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
+    at = state.entity(PLAYER).at()
+    assert at is not None
+    room = space.room(at)
+    contents = tuple(
+        entity.id
+        for entity in state.entities_at(at)
+        if entity.id != PLAYER and (entity.item is not None or entity.actor is not None)
+    )
+    return RoomView(
+        area=space.area,
+        room=room.id,
+        name=room.name,
+        description=room.description,
+        contents=contents,
+        exits=tuple(sorted(_all_exits(state, at))),
     )
 
 

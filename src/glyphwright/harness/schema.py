@@ -73,6 +73,17 @@ def frame_schema() -> dict[str, Any]:
             "legend": {"type": "object", "additionalProperties": _STRING},
         }
     )
+    room_viewport = _object(
+        {
+            "kind": {"const": "room"},
+            "area": _STRING,
+            "room": _STRING,
+            "name": _STRING,
+            "description": _STRING,
+            "contents": _array(_STRING),
+            "exits": _array(_STRING),
+        }
+    )
     menu_viewport = _object(
         {
             "kind": {"const": "menu"},
@@ -80,7 +91,7 @@ def frame_schema() -> dict[str, Any]:
             "combatants": _array(_STRING),
         }
     )
-    viewport = {"oneOf": [grid_viewport, menu_viewport]}
+    viewport = {"oneOf": [grid_viewport, room_viewport, menu_viewport]}
     actor = _object(
         {
             "id": _STRING,
@@ -210,7 +221,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
         "glyphwright.session.v1.json": session_schema(),
-        "glyphwright.frame.v2.json": frame_schema(),
+        "glyphwright.frame.v3.json": frame_schema(),
         "glyphwright.event.v4.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),

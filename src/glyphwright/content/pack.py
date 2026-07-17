@@ -23,11 +23,13 @@ from glyphwright.world.entities import (
     Entity,
     Equippable,
     Item,
+    Portal,
     Position,
     Renderable,
     StatModifier,
 )
 from glyphwright.world.grid import GridSpace
+from glyphwright.world.roomgraph import Room, RoomGraphSpace
 from glyphwright.world.space import EntityId
 
 _REFERENCE_AREA = "village"
@@ -42,31 +44,94 @@ _REFERENCE_POTION_AT = (3, 1)
 _REFERENCE_SWORD_AT = (6, 3)
 _REFERENCE_GOBLIN_AT = (2, 3)
 _REFERENCE_BANDIT_AT = (1, 3)
+_REFERENCE_DOOR_AT = (7, 1)
+
+_INN_AREA = "inn"
+_INN_ROOMS = (
+    Room(
+        id="common-room",
+        name="The Gilded Tankard",
+        description=(
+            "Lamplight pools on scarred oak tables, and the air is thick "
+            "with woodsmoke and spilled ale."
+        ),
+        exits=(("down", "cellar"),),
+    ),
+    Room(
+        id="cellar",
+        name="Inn Cellar",
+        description=(
+            "Casks line the walls of this low vault, and something small "
+            "glints between the flagstones."
+        ),
+        exits=(("up", "common-room"),),
+    ),
+)
 
 
 @dataclass(frozen=True, slots=True)
 class ContentPack:
-    """Validated content plus the hash that identifies it."""
+    """Validated content plus the hash that identifies it.
+
+    Construction validates the cross-area wiring — a portal must stand on a
+    real position, lead to a real position, and neither shadow a geometric
+    exit nor collide with another portal — because a load-time diagnostic
+    beats a mid-session crash (0003 §8.2).
+    """
 
     name: str
-    areas: tuple[GridSpace, ...]
+    areas: tuple[GridSpace | RoomGraphSpace, ...]
     entities: tuple[Entity, ...]
+
+    def __post_init__(self) -> None:
+        spaces = {space.area: space for space in self.areas}
+        if len(spaces) != len(self.areas):
+            raise ValueError("area ids must be unique")
+        claimed: set[tuple[str, str]] = set()
+        for entity in self.entities:
+            portal = entity.portal
+            if portal is None:
+                continue
+            at = entity.at()
+            if at is None:
+                raise ValueError(f"portal {entity.id!r} stands nowhere")
+            if at.area not in spaces or not spaces[at.area].contains(at):
+                raise ValueError(f"portal {entity.id!r} stands off the map: {at}")
+            if portal.to.area not in spaces or not spaces[portal.to.area].contains(
+                portal.to
+            ):
+                raise ValueError(f"portal {entity.id!r} leads nowhere: {portal.to}")
+            if portal.token in spaces[at.area].exits(at):
+                raise ValueError(
+                    f"portal {entity.id!r} token {portal.token!r} shadows a "
+                    f"geometric exit at {at}"
+                )
+            key = (str(at), portal.token)
+            if key in claimed:
+                raise ValueError(
+                    f"two portals at {at} claim the token {portal.token!r}"
+                )
+            claimed.add(key)
 
     @property
     def pack_id(self) -> str:
         """A stable ``name@sha256:…`` identifier over canonical content.
 
-        Hashing walks every component field via ``asdict``, so adding a
-        component automatically widens the identity — a pack cannot change
+        Hashing walks every field via ``asdict``, so adding a component or an
+        area kind automatically widens the identity — a pack cannot change
         content without changing its id.
         """
+
+        def canonical_area(space: GridSpace | RoomGraphSpace) -> dict[str, object]:
+            fields = asdict(space)
+            fields["area"] = fields.pop("_area")
+            fields["kind"] = type(space).__name__
+            return fields
+
         payload = json.dumps(
             {
                 "name": self.name,
-                "areas": [
-                    {"area": space.area, "rows": list(space.rows)}
-                    for space in self.areas
-                ],
+                "areas": [canonical_area(space) for space in self.areas],
                 "entities": [
                     asdict(entity)
                     for entity in sorted(self.entities, key=lambda e: e.id)
@@ -142,8 +207,25 @@ def reference_pack() -> ContentPack:
         renderable=Renderable(glyph="b", label="bandit"),
         ai=AiBehavior(hostile=True, engages=True),
     )
+    inn = RoomGraphSpace(_area=_INN_AREA, rooms=_INN_ROOMS)
+    inn_door = Entity(
+        id="inn-door",
+        position=Position(at=space.pos(*_REFERENCE_DOOR_AT)),
+        portal=Portal(token="enter", to=inn.pos("common-room")),
+        renderable=Renderable(glyph="+", label="door"),
+    )
+    inn_exit = Entity(
+        id="inn-exit",
+        position=Position(at=inn.pos("common-room")),
+        portal=Portal(token="out", to=space.pos(*_REFERENCE_DOOR_AT)),
+    )
+    key = Entity(
+        id="rusty-key",
+        position=Position(at=inn.pos("cellar")),
+        item=Item(name="Rusty Key"),
+    )
     return ContentPack(
         name="reference-vale",
-        areas=(space,),
-        entities=(player, potion, sword, goblin, bandit),
+        areas=(space, inn),
+        entities=(player, potion, sword, goblin, bandit, inn_door, inn_exit, key),
     )

@@ -150,6 +150,6 @@ def test_the_jsonl_meta_channel_reports_errors_as_data() -> None:
 
 def test_the_jsonl_frame_meta_command_emits_a_frame() -> None:
     lines = _jsonl_session(":frame\nquit\n")
-    frames = [line for line in lines if line["schema"] == "glyphwright.frame/2"]
+    frames = [line for line in lines if line["schema"] == "glyphwright.frame/3"]
     # One frame on session open, one from the meta command.
     assert len(frames) == 2
