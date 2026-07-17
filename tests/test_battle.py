@@ -86,11 +86,71 @@ def test_battle_grammar_is_attack_use_flee_look() -> None:
     assert grammar.domains("attack") == (("bandit-1",),)
 
 
-def test_exploration_commands_are_rejected_in_battle() -> None:
+def test_mode_absent_verbs_are_rejected_as_wrong_mode() -> None:
+    """A rejection must name the true cause: 'move' in battle is forbidden by
+    the mode, and saying 'there are no exits here' would misdescribe a room
+    whose exits are intact."""
     engine = _engaged()
-    result = engine.step(Move("north"))
-    assert result.rejection is not None
+    for command in (Move("north"), Wait()):
+        result = engine.step(command)
+        assert result.rejection is not None
+        assert result.rejection.reason == "wrong_mode"
+        assert "battle" in result.rejection.hint
     assert engine._state.mode == "battle"
+
+
+def test_nearby_fighting_hostiles_join_the_battle() -> None:
+    """An aggroed skirmisher does not freeze mid-fight when a formal battle
+    starts next to it: it joins the initiative list and stays targetable."""
+    engine = _engine()
+    engine.step(Move("east"))
+    engine.step(Move("south"))  # (2,2): goblin aggros and fights
+    assert engine._state.flags.get("aggro:goblin-1") is True
+    result = engine.step(Move("west"))  # (1,2): bandit engages
+    pushes = [e for e in result.events if isinstance(e, ModePushed)]
+    assert pushes and "goblin-1" in pushes[0].initiative
+    assert engine._state.mode == "battle"
+    assert "goblin-1" in engine.frame().commands.domains("attack")[0]
+
+
+def test_initiative_grants_preemptive_strikes_at_engagement() -> None:
+    """Foes that outrolled the player act in the engagement round; foes rolled
+    behind the player wait. That is what makes the advertised order real."""
+    engine = _engine()
+    result = engine.step(Move("south"))
+    pushes = [e for e in result.events if isinstance(e, ModePushed)]
+    assert len(pushes) == 1
+    order = pushes[0].initiative
+    ahead = set(order[: order.index("player")])
+    behind = set(order[order.index("player") + 1 :])
+    strikers = {
+        e.source for e in result.events if isinstance(e, (DamageDealt, AttackMissed))
+    }
+    assert ahead <= strikers, "every foe ahead of the player must act"
+    assert not (behind & strikers), "foes behind the player wait their turn"
+
+
+def test_nested_mode_pushes_do_not_wipe_battle_initiative() -> None:
+    from glyphwright.kernel.events import ModePushed as Push
+
+    engine = _engaged()
+    before = engine._state.initiative
+    assert before
+    state = fold(
+        engine._state,
+        (
+            Push(mode="dialogue"),
+            ModePopped(mode="dialogue", outcome="done"),
+        ),
+    )
+    assert state.initiative == before, (
+        "a dialogue atop a battle must not destroy the battle's queue"
+    )
+
+
+def test_battle_help_names_flee() -> None:
+    engine = _engaged()
+    assert "flee" in plain.help_line(engine.frame())
 
 
 # -- fighting -----------------------------------------------------------------
@@ -171,6 +231,20 @@ def test_fleeing_pops_battle_and_escapes() -> None:
     assert engine._state.mode == "exploration"
     at = engine._state.entity(PLAYER).at()
     assert at is not None and at.local != "1,2", "fleeing must gain ground"
+
+
+def test_a_successful_flee_breaks_melee_contact() -> None:
+    """'You break away and flee!' must be true: the same step may neither
+    re-push battle nor leave the player in a battle foe's melee reach."""
+    engine = _engaged()
+    result = engine.step(Flee())
+    fled = any(isinstance(e, ModePopped) and e.outcome == "fled" for e in result.events)
+    if not fled:
+        assert engine._state.mode == "battle", "a failed flee keeps the battle"
+        return
+    assert not any(isinstance(e, ModePushed) for e in result.events), (
+        "an escape must not re-engage in the very step that fled"
+    )
 
 
 def test_a_fled_battle_can_reignite_on_recontact() -> None:

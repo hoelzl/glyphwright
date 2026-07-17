@@ -21,9 +21,15 @@ if TYPE_CHECKING:
 
 
 class Mode(Protocol):
-    """What every mode module provides (0003 §10)."""
+    """What every mode module provides (0003 §10).
+
+    ``VERBS`` is the mode's full verb vocabulary — a superset of any one
+    frame's grammar — so a rejection can distinguish "not a thing you do in
+    this mode" from "nothing to do it to right now".
+    """
 
     NAME: str
+    VERBS: frozenset[str]
     available_commands: Callable[[WorldState], CommandGrammar]
     handle: Callable[[WorldState, Command, Rng], tuple[tuple[Event, ...], Rng]]
     view: Callable[[WorldState, tuple[Event, ...]], SemanticFrame]

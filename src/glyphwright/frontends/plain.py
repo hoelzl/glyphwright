@@ -19,12 +19,8 @@ from glyphwright.api import Engine
 from glyphwright.frames.frame import GridView, MenuView, SemanticFrame
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
-from glyphwright.modes import exploration
 
 _DELIMITER = "=="
-
-# The tile character set is the legend's: one source of glyph knowledge.
-_TILE_GLYPHS = frozenset(glyph for glyph, _ in exploration.LEGEND)
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,7 +99,13 @@ def parse(text: str) -> PlainProjection:
         line.removeprefix("* ") for line in body if line.startswith("* ")
     )
     body = [line for line in body if not line.startswith("* ")]
-    tiles = tuple(line for line in body if line and set(line) <= _TILE_GLYPHS)
+    # Tiles are the leading run of space-free lines: content-independent, so
+    # a pack may use any glyph. Message templates always contain spaces.
+    tiles: tuple[str, ...] = ()
+    for line in body:
+        if not line or " " in line:
+            break
+        tiles = (*tiles, line)
     messages = tuple(body[len(tiles) :])
     return PlainProjection(
         turn=turn,
@@ -117,17 +119,33 @@ def parse(text: str) -> PlainProjection:
 
 
 _PROMPT = "> "
-_HELP = (
-    "commands: move <north|east|south|west> | look | wait"
-    " | take <item> | use <item> | equip <item> | attack <target> | quit\n"
-)
+_PLACEHOLDERS = {
+    "move": "<exit>",
+    "take": "<item>",
+    "use": "<item>",
+    "equip": "<item>",
+    "attack": "<target>",
+}
+
+
+def help_line(frame: SemanticFrame) -> str:
+    """Commands the frame's grammar advertises right now.
+
+    Derived from the grammar rather than hand-written, so the help can never
+    drift from what the engine actually accepts.
+    """
+    verbs = [
+        f"{verb} {_PLACEHOLDERS[verb]}" if verb in _PLACEHOLDERS else verb
+        for verb in frame.commands.verb_names()
+    ]
+    return "commands: " + " | ".join((*verbs, "quit")) + "\n"
 
 
 def run_session(
     engine: Engine, input_stream: TextIO, output: TextIO, *, harness: bool = False
 ) -> int:
     """Drive a run as a human-readable transcript."""
-    output.write(_HELP)
+    output.write(help_line(engine.frame()))
     output.write(render(engine.frame()) + "\n")
 
     while True:
@@ -138,7 +156,7 @@ def run_session(
             output.write("session ended\n")
             return 0
         if line.strip() == "help":
-            output.write(_HELP)
+            output.write(help_line(engine.frame()))
             continue
         if line.strip().startswith(":"):
             if not harness:
@@ -153,7 +171,7 @@ def run_session(
 
         command = decode_command(line)
         if command is None:
-            output.write(f"? {line.strip()!r} — {_HELP}")
+            output.write(f"? {line.strip()!r} — {help_line(engine.frame())}")
             continue
 
         result = engine.step(command)

@@ -182,17 +182,23 @@ def apply(state: WorldState, event: Event) -> WorldState:
                 return replace(survivors, flags=flags)
             return survivors
         case ModePushed():
+            # A push without an initiative payload (a future dialogue or menu
+            # atop a battle) must not wipe the battle's queue beneath it.
+            initiative = event.initiative if event.initiative else state.initiative
             return replace(
                 state,
                 mode_stack=(*state.mode_stack, event.mode),
-                initiative=event.initiative,
+                initiative=initiative,
             )
         case ModePopped():
             if state.mode != event.mode:
                 raise ValueError(
                     f"cannot pop {event.mode!r}: the active mode is {state.mode!r}"
                 )
-            return replace(state, mode_stack=state.mode_stack[:-1], initiative=())
+            initiative = () if event.mode == MODE_BATTLE else state.initiative
+            return replace(
+                state, mode_stack=state.mode_stack[:-1], initiative=initiative
+            )
         case FleeFailed():
             return state
         case FlagSet():

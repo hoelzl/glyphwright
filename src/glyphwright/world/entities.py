@@ -42,9 +42,14 @@ class Blocker:
 
 @dataclass(frozen=True, slots=True)
 class Renderable:
-    """The glyph a presentation may use for this entity."""
+    """The glyph a presentation may use for this entity, and what it means.
+
+    The label feeds the frame's legend, so glyph vocabulary is content, not
+    engine code.
+    """
 
     glyph: str
+    label: str
 
 
 @dataclass(frozen=True, slots=True)

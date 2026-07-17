@@ -11,24 +11,9 @@ from dataclasses import replace
 from glyphwright import modes
 from glyphwright.kernel import scheduler
 from glyphwright.kernel.commands import Command
-from glyphwright.kernel.events import PLAYER_DEFEATED, Event, ModePopped, TurnAdvanced
+from glyphwright.kernel.events import Event, TurnAdvanced
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import MODE_BATTLE, PLAYER, WorldState, apply, fold
-
-
-def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
-    """Victory or defeat pops the battle with its outcome (0003 §10.1)."""
-    if state.mode != MODE_BATTLE:
-        return ()
-    foes_alive = any(
-        combatant != PLAYER and combatant in state.entities
-        for combatant in state.initiative
-    )
-    if not foes_alive:
-        return (ModePopped(mode=MODE_BATTLE, outcome="victory"),)
-    if state.flags.get(PLAYER_DEFEATED):
-        return (ModePopped(mode=MODE_BATTLE, outcome="defeat"),)
-    return ()
+from glyphwright.kernel.state import WorldState, apply, fold
 
 
 def step(
@@ -54,10 +39,8 @@ def step(
 
     if events and isinstance(events[-1], TurnAdvanced):
         ai_events, next_state, next_rng = scheduler.run(next_state, next_rng)
-        outcome = _battle_outcome(next_state)
-        next_state = fold(next_state, outcome)
         closing = replace(events[-1], rng=next_rng.encode())
-        events = (*events[:-1], *ai_events, *outcome, closing)
+        events = (*events[:-1], *ai_events, closing)
         return apply(next_state, closing), events
 
     if next_rng != state.rng:

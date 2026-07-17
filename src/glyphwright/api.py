@@ -161,7 +161,19 @@ class Engine:
                 reason="defeated",
                 hint="you have fallen; only 'look' remains",
             )
-        grammar = modes.active(self._state).available_commands(self._state)
+        mode = modes.active(self._state)
+        grammar = mode.available_commands(self._state)
+        if command.verb not in mode.VERBS:
+            # Not a thing you do in this mode — never "there are no exits":
+            # a mode-absent verb must not misdescribe the world.
+            return Rejected(
+                command=_render(command),
+                reason="wrong_mode",
+                hint=(
+                    f"not available during {mode.NAME}; "
+                    f"try: {', '.join(grammar.verb_names())}"
+                ),
+            )
         vocabulary = _REJECTIONS.get(command.verb)
         if command.verb not in grammar.verb_names():
             if vocabulary is not None and command.args():

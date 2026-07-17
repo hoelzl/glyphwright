@@ -100,8 +100,9 @@ def test_the_mode_stack_never_underflows(choices: list[int]) -> None:
     engine = Engine.new(reference_pack(), seed=7)
     _walk(engine, choices, len(choices))
     stack = engine._state.mode_stack
-    assert stack and stack[0] == "exploration", (
-        "exploration must always sit at the bottom of the stack"
+    assert stack in (("exploration",), ("exploration", "battle")), (
+        "the stack must hold exactly the modes that can currently exist — "
+        "anything else is a leak or a duplicate"
     )
 
 

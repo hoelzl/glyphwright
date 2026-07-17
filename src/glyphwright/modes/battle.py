@@ -10,7 +10,7 @@ later.
 
 from __future__ import annotations
 
-from glyphwright.effects.combat import strike
+from glyphwright.effects.combat import hostile_actors, melee_adjacent, strike
 from glyphwright.frames.frame import ActorSummary, MenuView, PromptSpec, SemanticFrame
 from glyphwright.kernel.commands import (
     Attack,
@@ -32,6 +32,8 @@ from glyphwright.kernel.state import MODE_BATTLE, PLAYER, WorldState
 from glyphwright.modes import common, messages
 
 NAME = MODE_BATTLE
+
+VERBS = frozenset({"attack", "use", "flee", "look"})
 
 
 def _foes(state: WorldState) -> tuple[str, ...]:
@@ -76,10 +78,25 @@ def handle(
 
 
 def _flee(state: WorldState) -> tuple[Event, ...]:
-    """Break away: pop the battle and gain ground, or fail and pay the turn."""
+    """Break away: pop the battle and gain ground, or fail and pay the turn.
+
+    The escape is scored against every hostile in the area, not only the
+    battle's foes, and it only counts as an escape if it actually breaks
+    melee contact with the foes — otherwise the same step would re-engage
+    and "You break away and flee!" would be a lie.
+    """
     turn = TurnAdvanced(turn=state.turn + 1)
-    moved = escape_step(state, PLAYER, _foes(state))
+    threats = tuple(actor.id for actor in hostile_actors(state))
+    moved = escape_step(state, PLAYER, threats)
     if moved is None:
+        return (FleeFailed(actor=PLAYER), turn)
+    space = state.areas[moved.destination.area]
+    still_in_reach = any(
+        (foe_at := state.entity(foe).at()) is not None
+        and melee_adjacent(space, moved.destination, foe_at)
+        for foe in _foes(state)
+    )
+    if still_in_reach:
         return (FleeFailed(actor=PLAYER), turn)
     return (ModePopped(mode=NAME, outcome="fled"), moved, turn)
 

@@ -118,13 +118,34 @@ Decisions taken by the implementing agent (owner delegated open choices):
 4. **Outcomes are checked in `step` after AI turns**: no living foes on the initiative
    list → `ModePopped(outcome="victory")`; `player-defeated` → `outcome="defeat"`.
    The `ActorDied` fold prunes the initiative queue.
-5. **The world outside the battle is suspended** while battle is on top of the stack
-   (only initiative members act). Revisit if simultaneous off-battle simulation is
-   ever wanted.
+5. **Nearby fighting hostiles join the battle** (post-review): engagement enrolls the
+   engager plus every hostile in the area that is aggroed or in melee range, so
+   nobody freezes mid-fight and battle cannot be used as a shield. Hostiles that are
+   neither aggroed nor adjacent stay out (and stay suspended while battle is on top;
+   revisit if off-battle simulation is ever wanted).
 6. **Wire**: frame schema v1 → v2 (`viewport` is now `oneOf` grid/menu), event schema
    v3 → v4 (`ModePushed`/`ModePopped`/`FleeFailed`); same retire-and-replace policy.
    The plain transcript renders combatants as `* <id> <hp>/<max>` lines, and
    `PlainProjection` gained a `combatants` field.
+7. **Initiative is behaviorally real** (post-review): foes that outroll the player
+   strike pre-emptively in the engagement round; in later rounds the player's command
+   resolves first by the command-driven convention and initiative orders the foes.
+8. **Flee must actually escape** (post-review): scored against every hostile in the
+   area, and it succeeds only if the destination breaks melee contact with the
+   battle's foes — otherwise `FleeFailed`. A fled foe still chases and re-engages on
+   its own later turns.
+9. **Honest rejections across modes** (post-review): each mode declares its verb set
+   (`Mode.VERBS`); a mode-absent verb rejects as `wrong_mode` with the mode's actual
+   options, never "there are no exits here".
+10. **Glyph vocabulary is content** (post-review): `Renderable` carries a `label`,
+    legends are built from the pack per area, and the plain parser identifies tile
+    rows structurally (leading space-free lines) instead of via a hardcoded charset.
+    Plain help is derived from the frame's grammar, so it cannot drift.
+11. **Initiative survives nested pushes** (post-review): a push without an initiative
+    payload preserves the queue; only popping the battle clears it. Battle outcomes
+    are checked in the scheduler's battle configuration (one shared loop, ADR-004) —
+    §10.1's "checked in the event fold" is read as "checked during the fold inside
+    step", since a fold that emits events is not implementable in this design.
 
 ## Next steps
 

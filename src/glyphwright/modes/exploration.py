@@ -43,17 +43,21 @@ from glyphwright.world.grid import GridSpace
 
 NAME = MODE_EXPLORATION
 
-# The single source of glyph knowledge: frames carry it, and the plain
-# frontend's parser derives its tile character set from it.
-LEGEND: tuple[tuple[str, str], ...] = (
-    ("@", "player"),
-    ("#", "wall"),
-    (".", "floor"),
-    ("!", "potion"),
-    ("/", "weapon"),
-    ("g", "goblin"),
-    ("b", "bandit"),
-)
+VERBS = frozenset({"move", "look", "wait", "take", "use", "equip", "attack"})
+
+_TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
+
+
+def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
+    """Terrain plus every renderable in the area: glyph vocabulary is content,
+    not engine code."""
+    entries = dict(_TERRAIN_LEGEND)
+    for entity in state.entities.values():
+        at = entity.at()
+        if entity.renderable is None or at is None or at.area != area:
+            continue
+        entries[entity.renderable.glyph] = entity.renderable.label
+    return tuple(sorted(entries.items()))
 
 
 def _takeable(state: WorldState) -> tuple[str, ...]:
@@ -255,7 +259,7 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
         area=space.area,
         origin=(0, 0),
         tiles=tuple("".join(row) for row in glyphs),
-        legend=LEGEND,
+        legend=_legend(state, space.area),
     )
 
 

@@ -100,7 +100,7 @@ def test_move_is_not_advertised_where_there_are_no_exits() -> None:
         id="player",
         position=Position(at=space.pos(0, 0)),
         actor=Actor(name="Lone", hp=1, max_hp=1),
-        renderable=Renderable(glyph="@"),
+        renderable=Renderable(glyph="@", label="player"),
     )
     state = WorldState(
         entities={"player": lone},
