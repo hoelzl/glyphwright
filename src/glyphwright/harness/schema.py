@@ -151,6 +151,7 @@ def event_schema() -> dict[str, Any]:
             "damage_type": _STRING,
             "flag": _STRING,
             "value": {"type": "boolean"},
+            "rng": _STRING,
         },
         "additionalProperties": False,
     }

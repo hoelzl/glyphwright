@@ -172,12 +172,65 @@ def test_combat_replays_identically() -> None:
 
 
 def test_combat_events_fold_to_the_successor_state() -> None:
+    """The whole successor — including the RNG cursor — is the fold of the
+    events (0003 §5.3): a consumer replaying the log from a snapshot must land
+    on the exact state, or its next step diverges from the live run."""
     engine = _next_to_goblin()
     before = engine._state
     result = engine.step(Attack("goblin-1"))
     folded = fold(before, result.events)
-    assert folded.entities == engine._state.entities
-    assert folded.turn == engine._state.turn
+    assert folded == engine._state
+
+
+def test_a_kill_leaves_no_snarl_and_no_dangling_aggro_flag() -> None:
+    engine = _next_to_goblin()
+    player = engine._state.entity(PLAYER)
+    assert player.actor is not None
+    juggernaut = dataclasses.replace(
+        player, actor=dataclasses.replace(player.actor, base_stats=(("atk", 30),))
+    )
+    engine._state = engine._state.with_entity(juggernaut)
+    result = engine.step(Attack("goblin-1"))
+    assert any(isinstance(e, ActorDied) for e in result.events), (
+        "atk 30 must one-shot a 6 hp goblin"
+    )
+    assert not any(isinstance(e, FlagSet) for e in result.events), (
+        "a corpse does not snarl: no aggro flag for a target killed outright"
+    )
+    assert "aggro:goblin-1" not in engine._state.flags
+
+
+def test_death_clears_the_aggro_flag() -> None:
+    engine = _next_to_goblin()
+    assert engine._state.flags.get("aggro:goblin-1") is True
+    for _ in range(20):
+        if "goblin-1" not in engine._state.entities:
+            break
+        engine.step(Attack("goblin-1"))
+    assert "aggro:goblin-1" not in engine._state.flags, (
+        "a removed entity must not leave a dangling aggro flag"
+    )
+
+
+def test_defeated_rejections_name_defeat_as_the_reason() -> None:
+    engine = _next_to_goblin()
+    player = engine._state.entity(PLAYER)
+    assert player.actor is not None
+    doomed = dataclasses.replace(
+        player, actor=dataclasses.replace(player.actor, hp=1, base_stats=(("atk", 0),))
+    )
+    engine._state = engine._state.with_entity(doomed)
+    for _ in range(50):
+        if engine._state.flags.get("player-defeated"):
+            break
+        engine.step(Wait())
+    assert engine._state.flags.get("player-defeated") is True
+    for command in (Wait(), Move("north"), Attack("goblin-1")):
+        result = engine.step(command)
+        assert result.rejection is not None
+        assert result.rejection.reason == "defeated", (
+            "a rejection must name the true cause, not misdescribe the world"
+        )
 
 
 def test_combat_advances_the_rng_cursor() -> None:

@@ -42,6 +42,9 @@
         "null"
       ]
     },
+    "rng": {
+      "type": "string"
+    },
     "schema": {
       "const": "glyphwright.event/3"
     },

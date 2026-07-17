@@ -113,18 +113,20 @@ def test_the_turn_counter_only_ever_rises(choices: list[int]) -> None:
 @settings(max_examples=40, deadline=None)
 @given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=30))
 def test_every_move_lands_where_its_event_says(choices: list[int]) -> None:
+    """Checked against the fold itself, event by event, so movers that later
+    leave the world are verified too."""
+    from glyphwright.kernel.state import apply
+
     engine = Engine.new(reference_pack(), seed=9)
     for index in range(len(choices)):
         options = _options(engine)
+        before = engine._state
         result = engine.step(options[choices[index] % len(options)])
-        # The last Moved event per actor names where that actor now stands.
-        landed: dict[str, object] = {}
+        state = before
         for event in result.events:
+            state = apply(state, event)
             if isinstance(event, Moved):
-                landed[event.actor] = event.destination
-        for actor, destination in landed.items():
-            if actor in engine._state.entities:
-                assert engine._state.entity(actor).at() == destination
+                assert state.entity(event.actor).at() == event.destination
 
 
 def _held_anywhere(state: WorldState) -> list[str]:

@@ -8,7 +8,12 @@ inherit determinism, replay, and enumeration-driven fuzzing for free (design
 
 from __future__ import annotations
 
-from glyphwright.effects.combat import PLAYER_DEFEATED, strike
+from glyphwright.effects.combat import (
+    hostile_actors,
+    melee_adjacent,
+    provoke,
+    strike,
+)
 from glyphwright.frames.frame import ActorSummary, GridView, PromptSpec, SemanticFrame
 from glyphwright.kernel.commands import (
     Attack,
@@ -22,6 +27,7 @@ from glyphwright.kernel.commands import (
     Wait,
 )
 from glyphwright.kernel.events import (
+    PLAYER_DEFEATED,
     ActorDied,
     AttackMissed,
     DamageDealt,
@@ -34,9 +40,10 @@ from glyphwright.kernel.events import (
     MoveBlocked,
     Moved,
     TurnAdvanced,
+    aggro_subject,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.state import PLAYER, WorldState
+from glyphwright.kernel.state import PLAYER, WorldState, fold
 from glyphwright.world.entities import Equipment
 from glyphwright.world.grid import GridSpace
 
@@ -89,16 +96,10 @@ def _attackable(state: WorldState) -> tuple[str, ...]:
     if player_at is None:
         return ()
     space = state.areas[player_at.area]
-    adjacent = set(space.exits(player_at).values())
     return tuple(
-        sorted(
-            entity.id
-            for entity in state.entities.values()
-            if entity.ai is not None
-            and entity.ai.hostile
-            and entity.actor is not None
-            and entity.at() in adjacent
-        )
+        entity.id
+        for entity in hostile_actors(state)
+        if (at := entity.at()) is not None and melee_adjacent(space, player_at, at)
     )
 
 
@@ -220,13 +221,14 @@ def _use(state: WorldState, item_id: str) -> tuple[Event, ...]:
 def _attack(
     state: WorldState, target_id: str, rng: Rng
 ) -> tuple[tuple[Event, ...], Rng]:
-    events: list[Event] = []
-    if not state.flags.get(f"aggro:{target_id}"):
-        # Being struck is provocation; recorded as a flag so it replays.
-        events.append(FlagSet(flag=f"aggro:{target_id}", value=True))
     struck, rng = strike(state, PLAYER, target_id, rng)
-    events.extend(struck)
-    events.append(TurnAdvanced(turn=state.turn + 1))
+    # Being struck is provocation, recorded as a flag so it replays — but only
+    # a survivor can be provoked; a corpse does not snarl.
+    events: list[Event] = [
+        *struck,
+        *provoke(fold(state, struck), target_id),
+        TurnAdvanced(turn=state.turn + 1),
+    ]
     return tuple(events), rng
 
 
@@ -338,9 +340,9 @@ def describe(event: Event) -> str:
             return f"{event.source} lunges and misses."
         case ActorDied():
             return f"{event.actor} dies."
-        case FlagSet(flag=flag) if flag.startswith("aggro:"):
-            return f"{flag.removeprefix('aggro:')} snarls and turns on you!"
-        case FlagSet(flag="player-defeated"):
+        case FlagSet(flag=flag) if aggro_subject(flag) is not None:
+            return f"{aggro_subject(flag)} snarls and turns on you!"
+        case FlagSet(flag=flag) if flag == PLAYER_DEFEATED:
             return "You are defeated."
         case FlagSet():
             return ""

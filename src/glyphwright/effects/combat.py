@@ -11,22 +11,49 @@ from typing import TYPE_CHECKING
 
 from glyphwright.effects.stats import derive
 from glyphwright.kernel.events import (
+    PLAYER_DEFEATED,
     ActorDied,
     AttackMissed,
     DamageDealt,
     Event,
     FlagSet,
+    aggro_flag,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.world.space import EntityId
+from glyphwright.world.entities import Entity
+from glyphwright.world.space import EntityId, PosId, Space
 
 if TYPE_CHECKING:
     from glyphwright.kernel.state import WorldState
 
-PLAYER_DEFEATED = "player-defeated"
-
 _ABILITY = "strike"
 _DAMAGE_TYPE = "physical"
+
+
+def hostile_actors(state: WorldState) -> tuple[Entity, ...]:
+    """Every living hostile, in sorted-id order.
+
+    The one predicate behind both the grammar's attack domain and the
+    scheduler's activity list, so the frame can never advertise a target the
+    scheduler would treat differently.
+    """
+    return tuple(
+        entity
+        for _, entity in sorted(state.entities.items())
+        if entity.ai is not None and entity.ai.hostile and entity.actor is not None
+    )
+
+
+def melee_adjacent(space: Space, a: PosId, b: PosId) -> bool:
+    """Melee range is one exit: the same reach for player and AI."""
+    return b in space.exits(a).values()
+
+
+def provoke(state: WorldState, target: EntityId) -> tuple[Event, ...]:
+    """Wake a hostile, if there is a living hostile left to wake."""
+    if target not in state.entities or state.flags.get(aggro_flag(target)):
+        return ()
+    return (FlagSet(flag=aggro_flag(target), value=True),)
 
 
 def strike(

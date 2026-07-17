@@ -24,6 +24,7 @@ from glyphwright.kernel.events import (
     MoveBlocked,
     Moved,
     TurnAdvanced,
+    aggro_flag,
 )
 from glyphwright.kernel.rng import Rng
 from glyphwright.world.entities import Entity, Equipment, Inventory, Position
@@ -98,6 +99,8 @@ def apply(state: WorldState, event: Event) -> WorldState:
         case MoveBlocked():
             return state
         case TurnAdvanced():
+            if event.rng is not None:
+                return replace(state, turn=event.turn, rng=Rng.decode(event.rng))
             return replace(state, turn=event.turn)
         case ItemAcquired():
             item = replace(state.entity(event.item), position=None)
@@ -155,7 +158,13 @@ def apply(state: WorldState, event: Event) -> WorldState:
         case AttackMissed():
             return state
         case ActorDied():
-            return state.without_entity(event.actor)
+            # The dead leave no dangling aggression behind them.
+            survivors = state.without_entity(event.actor)
+            if aggro_flag(event.actor) in survivors.flags:
+                flags = dict(survivors.flags)
+                del flags[aggro_flag(event.actor)]
+                return replace(survivors, flags=flags)
+            return survivors
         case FlagSet():
             flags = dict(state.flags)
             flags[event.flag] = event.value

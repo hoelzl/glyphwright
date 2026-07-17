@@ -113,6 +113,8 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             }
         case TurnAdvanced():
             payload |= {"turn_now": event.turn}
+            if event.rng is not None:
+                payload |= {"rng": event.rng}
         case ItemAcquired():
             payload |= {
                 "actor": event.actor,

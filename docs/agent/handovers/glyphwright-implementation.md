@@ -89,6 +89,18 @@ Decisions taken by the implementing agent (owner delegated open choices):
    `1..atk` minus `def // 2`, min 1; one `strike` function serves player and AI.
 7. **Event schema bumped v2 → v3** (DamageDealt, AttackMissed, ActorDied, FlagSet);
    same retire-and-replace policy as v1 → v2 while no consumer exists.
+8. **The closing `TurnAdvanced` carries the round's RNG cursor** (post-review): RNG
+   draws are state changes, so they must be evidenced or the fold cannot reproduce the
+   successor (§5.3). `step` stamps the cursor into the round's final `TurnAdvanced`
+   (wire field `rng`, opaque token); the fold applies it; `fold(prior, events) ==
+   successor` now holds *exactly*, cursor included, and is tested as full equality.
+   Corollary rule, enforced in `step`: a handler must not draw without spending the
+   turn.
+9. **Provocation and death bookkeeping** (post-review): only survivors are provoked
+   (a corpse does not snarl), and the `ActorDied` fold clears the actor's aggro flag.
+   Flag vocabulary (`aggro:<id>`, `player-defeated`) lives in `kernel/events.py`
+   beside `FlagSet`. Post-defeat rejections use reason `defeated` instead of
+   misdescribing the world.
 
 ## Next steps
 
