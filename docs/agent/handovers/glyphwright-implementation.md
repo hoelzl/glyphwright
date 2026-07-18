@@ -318,19 +318,26 @@ Decisions taken by the implementing agent (owner delegated open choices):
    vocabulary `damage_taken`/`turn_end`, optional `hp_below` percent gate,
    self-directed effect chains reusing the primitives. Hooks fire in the
    scheduler epilogue over the whole round's events (`run` now takes `prior`,
-   the player's half), fold as they go, and never trigger each other within a
-   step (one generation — recursion closed by construction). Evidence labels
-   reuse the reserved `ability` param, set to the status id.
+   the player's half, and `opening`, the step's starting state); triggers and
+   gates are judged against the state *as of the triggering event* (no
+   retroactive firing), effects execute against the round's final state, and
+   hooks never trigger each other within a step (one generation — recursion
+   closed by construction). Evidence labels reuse the reserved `ability`
+   param, set to the status id. One chain runner (`run_effect_chain`) serves
+   casts and hooks; its reserved `pending_turn` param makes durations mean
+   the same thing for every caster.
 2. A perk is a permanent status: `Actor.perks` names status definitions;
    `PerkGained` (event v8) appends idempotently; the `grant_perk` primitive
    emits it. Stat pipeline order within a kind: perks, then statuses, then
    equipment, each sorted by id. Frames do not list perks; provenance shows
    `"{id} (perk)"`.
-3. AI ability use: one rule in `_pursue` — strike when adjacent, else cast the
-   first castable foe-targeting ability (sorted id) at the player, else chase.
-   Menu foes keep striking (distance abstraction erases the ranged advantage).
-   AI casts use `cast_events(..., spend_turn=False)`; the pairing is chosen
-   valid, so AI never fizzles.
+3. AI ability use: one rule in `_pursue` — strike when adjacent, else (player
+   in the foe's own area) cast the first castable foe-targeting ability
+   (sorted id) at the player, else chase. The area gate keeps casters from
+   bombarding across boundaries: ears, not artillery. Menu foes keep striking
+   (distance abstraction erases the ranged advantage). AI casts use
+   `cast_events(..., spend_turn=False)`; the pairing is chosen valid, so AI
+   never fizzles.
 4. Reference pack: status `venom` (turn_end poison tick), ability `rockshard`
    (damage + venom), `hexer-1` in the warren (non-engaging caster), perk `grit`
    (+2 def) on the marauder. Pack-id pin re-pinned (Actor/Status identity

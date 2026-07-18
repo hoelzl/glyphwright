@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from glyphwright.effects.stats import derive
 from glyphwright.kernel.events import CastFizzled, Event, TurnAdvanced
 from glyphwright.kernel.rng import Rng
-from glyphwright.world.entities import StatModifier
+from glyphwright.world.entities import Entity, StatModifier
 from glyphwright.world.space import EntityId
 
 if TYPE_CHECKING:
@@ -77,6 +77,55 @@ class Status:
     hooks: tuple[Hook, ...] = field(default=())
 
 
+def bearing_ids(entity: Entity, kind: str) -> tuple[str, ...]:
+    """Sorted ids of the statuses or perks an entity bears.
+
+    The one enumeration the stat pipeline and the hook pass share, so they
+    can never disagree about what an entity carries.
+    """
+    if kind == "statuses":
+        if entity.statuses is None:
+            return ()
+        return tuple(status_id for status_id, _ in sorted(entity.statuses.active))
+    assert kind == "perks"
+    if entity.actor is None:
+        return ()
+    return tuple(sorted(entity.actor.perks))
+
+
+def run_effect_chain(
+    state: WorldState,
+    source: EntityId,
+    target: EntityId,
+    label: str,
+    effects: tuple[tuple[str, Mapping[str, object]], ...],
+    rng: Rng,
+    *,
+    pending_turn: bool,
+) -> tuple[tuple[Event, ...], WorldState, Rng]:
+    """Execute one effect chain in order, folding between steps.
+
+    The one chain runner casts and hooks share (design 0007 §5). ``label``
+    fills the reserved ``ability`` evidence param; ``pending_turn`` tells
+    duration-granting primitives whether the step's turn advance is still to
+    come (a player cast) or already folded (an AI cast or a hook), so a
+    duration means the same thing for every caster. The chain stops when its
+    subject leaves the world.
+    """
+    from glyphwright.effects.primitives import PRIMITIVES
+    from glyphwright.kernel.state import fold
+
+    events: list[Event] = []
+    for name, params in effects:
+        if target not in state.entities:
+            break  # the subject died mid-chain; later effects have no subject
+        merged = {**params, "ability": label, "pending_turn": pending_turn}
+        produced, rng = PRIMITIVES[name](state, source, target, merged, rng)
+        events.extend(produced)
+        state = fold(state, produced)
+    return tuple(events), state, rng
+
+
 def castable(state: WorldState, caster: EntityId) -> tuple[Ability, ...]:
     """The caster's abilities whose requirements are currently met."""
     actor = state.entity(caster).actor
@@ -110,9 +159,6 @@ def cast_events(
     ``spend_turn=False``: only the player's command closes a turn, and the
     AI's pairing is chosen valid so it can never fizzle.
     """
-    from glyphwright.effects.primitives import PRIMITIVES
-    from glyphwright.kernel.state import fold
-
     ability = state.ability_defs[ability_id]
     turn = TurnAdvanced(turn=state.turn + 1)
 
@@ -129,15 +175,15 @@ def cast_events(
             turn,
         ), rng
 
-    events: list[Event] = []
-    for name, params in ability.effects:
-        primitive = PRIMITIVES[name]
-        merged = {**params, "ability": ability_id}
-        produced, rng = primitive(state, caster, target, merged, rng)
-        events.extend(produced)
-        state = fold(state, produced)
-        if target != caster and target not in state.entities:
-            break  # the target died mid-chain; later effects have no subject
+    events, _, rng = run_effect_chain(
+        state,
+        caster,
+        target,
+        ability_id,
+        ability.effects,
+        rng,
+        pending_turn=spend_turn,
+    )
     if spend_turn:
-        events.append(turn)
-    return tuple(events), rng
+        return (*events, turn), rng
+    return events, rng

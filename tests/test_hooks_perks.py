@@ -323,11 +323,23 @@ def test_a_cast_at_range_lands_its_status_too() -> None:
         isinstance(e, StatusApplied) and e.target == PLAYER and e.status == "venom"
         for e in result.events
     ), "the AI's cast runs its whole effect chain"
-    ticked = engine.step(Wait())
-    assert any(
-        isinstance(e, DamageDealt) and e.ability == "venom" and e.target == PLAYER
-        for e in ticked.events
-    )
+    assert not any(
+        isinstance(e, DamageDealt) and e.ability == "venom" for e in result.events
+    ), "a status applied mid-round does not tick retroactively in the same step"
+    # Silence the warlock so it cannot refresh the clock, then count ticks:
+    # the AI-applied duration-2 venom covers exactly two of the player's
+    # turns, the same coverage a player cast would set.
+    from glyphwright.kernel.events import ActorDied
+
+    engine._state = fold(engine._state, (ActorDied(actor="warlock"),))
+    tick_steps = 0
+    for _ in range(5):
+        later = engine.step(Wait())
+        if any(
+            isinstance(e, DamageDealt) and e.ability == "venom" for e in later.events
+        ):
+            tick_steps += 1
+    assert tick_steps == 2, "durations mean the same thing for every caster"
 
 
 # -- validation ---------------------------------------------------------------
@@ -399,3 +411,54 @@ def test_granting_an_unknown_perk_is_a_load_error() -> None:
                 ),
             }
         )
+
+
+def test_a_caster_chases_across_areas_instead_of_bombarding() -> None:
+    """The area gate on AI casting: a caster has ears but not artillery."""
+    pack = _pack(
+        {
+            "areas.toml": (
+                '[[grid]]\narea = "field"\nrows = """\n.....\n"""\n'
+                '[[grid]]\narea = "refuge"\nrows = """\n...\n"""\n'
+            ),
+            "entities.toml": (
+                '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+                "[entity.actor]\nname = 'P'\nhp = 20\nmax_hp = 20\n"
+                "stats = { atk = 3 }\n"
+                '[[entity]]\nid = "warlock"\nposition = "field:2,0"\n'
+                "[entity.actor]\nname = 'W'\nhp = 30\nmax_hp = 30\n"
+                "stats = { atk = 2 }\nabilities = ['bolt']\n"
+                "[entity.ai]\nhostile = true\n"
+                '[[entity]]\nid = "hatch"\nposition = "field:0,0"\n'
+                '[entity.portal]\ntoken = "down"\nto = "refuge:0,0"\n'
+            ),
+            "abilities.toml": (
+                '[[ability]]\nid = "bolt"\nname = "Bolt"\ntargeting = "foe"\n'
+                "effects = [{ primitive = 'deal_damage', amount = 2 }]\n"
+            ),
+        }
+    )
+    engine = Engine.new(pack, seed=7)
+    engine.step(Move("east"))  # adjacent: struck and provoked
+    result = engine.step(Move("west"))  # back onto the hatch: casts (same area)
+    assert any(
+        isinstance(e, DamageDealt) and e.source == "warlock" for e in result.events
+    )
+    fled = engine.step(Move("down"))  # another area entirely
+    assert not any(
+        isinstance(e, DamageDealt) and e.source == "warlock" for e in fled.events
+    ), "no artillery across area boundaries"
+    assert engine._state.mode == "exploration"
+
+
+def test_perk_gained_validates_on_the_wire() -> None:
+    from glyphwright.frontends.wire import encode_event
+    from glyphwright.harness.schema import all_schemas
+
+    schema = all_schemas()["glyphwright.event.v8.json"]
+    payload = encode_event(PerkGained(target=PLAYER, perk="grit"), turn=3)
+    assert payload["type"] in schema["properties"]["type"]["enum"], (
+        "the schema's closed type enum must admit the event the bump added"
+    )
+    for key in payload:
+        assert key in schema["properties"]

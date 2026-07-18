@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
 from glyphwright.effects.abilities import Ability, Status
@@ -68,12 +69,13 @@ class ContentPack:
         if len(status_ids) != len(self.statuses):
             raise ValueError("status ids must be unique")
 
-        def check_effects(owner: str, effects: tuple[tuple[str, object], ...]) -> None:
+        def check_effects(
+            owner: str, effects: tuple[tuple[str, Mapping[str, object]], ...]
+        ) -> None:
             """One rule for every effect chain, ability or hook alike."""
             for name, params in effects:
                 if name not in PRIMITIVES:
                     raise ValueError(f"{owner} names unknown primitive {name!r}")
-                assert isinstance(params, dict)
                 try:
                     validate_params(name, params)
                 except ValueError as error:

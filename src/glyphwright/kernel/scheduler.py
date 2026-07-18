@@ -230,22 +230,23 @@ def _pursue(
     """The one pursuit rule, shared by exploration hostiles and arena foes:
     strike when in melee reach of the player, else cast when able, else
     close one step (design 0007 §3: a hostile casts when it cannot strike).
+    Casting is gated to the player's own area — a caster has ears but not
+    artillery, so a player in another area is chased, never bombarded.
     """
     player_at = state.entity(PLAYER).at()
     at = entity.at()
     if player_at is None or at is None:
         return (), rng
-    if at.area == player_at.area and melee_adjacent(
-        state.areas[at.area], at, player_at
-    ):
-        return strike(state, entity.id, PLAYER, rng)
-    ranged = next(
-        (a for a in castable(state, entity.id) if a.targeting == TARGET_FOE), None
-    )
-    if ranged is not None:
-        return cast_events(
-            state, entity.id, ranged.id, PLAYER, (PLAYER,), rng, spend_turn=False
+    if at.area == player_at.area:
+        if melee_adjacent(state.areas[at.area], at, player_at):
+            return strike(state, entity.id, PLAYER, rng)
+        ranged = next(
+            (a for a in castable(state, entity.id) if a.targeting == TARGET_FOE), None
         )
+        if ranged is not None:
+            return cast_events(
+                state, entity.id, ranged.id, PLAYER, (PLAYER,), rng, spend_turn=False
+            )
     moved = _chase_step(state, entity, player_at)
     return ((moved,) if moved is not None else ()), rng
 
@@ -360,7 +361,11 @@ def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
 
 
 def run(
-    state: WorldState, rng: Rng, prior: tuple[Event, ...] = ()
+    state: WorldState,
+    rng: Rng,
+    *,
+    prior: tuple[Event, ...],
+    opening: WorldState,
 ) -> tuple[tuple[Event, ...], WorldState, Rng]:
     """Grant every due AI actor its turn, folding as it goes.
 
@@ -369,10 +374,11 @@ def run(
     ones, and the round stops the moment the player is defeated or the mode
     changes (an engagement hands the rest of the round to the battle). The
     epilogue then fires status/perk hooks over the whole round's events —
-    ``prior`` is the player's half, already folded by the caller — sweeps
-    expired statuses, and pops a finished battle with its outcome. Returns the
-    folded state alongside the events so the caller does not fold them a
-    second time.
+    ``prior`` is the player's half, already folded into ``state`` by the
+    caller, and ``opening`` is the step's starting state so each trigger is
+    judged at its own moment — sweeps expired statuses, and pops a finished
+    battle with its outcome. Returns the folded state alongside the events so
+    the caller does not fold them a second time.
     """
     opening_mode = state.mode
     events: list[Event] = []
@@ -385,7 +391,7 @@ def run(
         events.extend(acted)
         state = fold(state, acted)
 
-    hooked, state, rng = hook_events(state, (*prior, *events), rng)
+    hooked, state, rng = hook_events(opening, state, (*prior, *events), rng)
     events.extend(hooked)
 
     expiries = _expired_statuses(state)

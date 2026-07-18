@@ -146,6 +146,7 @@
         "MinigameResolved",
         "StatusApplied",
         "StatusExpired",
+        "PerkGained",
         "CastFizzled"
       ]
     },

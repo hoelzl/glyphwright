@@ -23,14 +23,17 @@ if TYPE_CHECKING:
 
 # What each primitive accepts, used by pack validation so malformed params are
 # load-time diagnostics, never mid-session crashes. "ability" is reserved: the
-# engine injects the casting ability's id for evidence labelling.
+# engine injects the casting ability's (or hooking status's) id for evidence
+# labelling. "pending_turn" is reserved: the chain runner injects whether the
+# step's turn advance is still to come, so durations mean the same thing for
+# every caster.
 PARAM_SPECS: dict[str, dict[str, type]] = {
     "deal_damage": {"amount": int, "spread": int},
     "heal": {"amount": int},
     "apply_status": {"status": str, "duration": int},
     "grant_perk": {"perk": str},
 }
-RESERVED_PARAMS = frozenset({"ability"})
+RESERVED_PARAMS = frozenset({"ability", "pending_turn"})
 
 
 def validate_params(primitive: str, params: Mapping[str, object]) -> None:
@@ -109,10 +112,15 @@ def _apply_status(
 ) -> tuple[tuple[Event, ...], Rng]:
     status = str(params["status"])
     duration = _int_param(params, "duration", 1)
-    # The cast's own step advances the turn once, so a duration-1 status must
-    # survive that advance and cover the caster's next action (design 0004 §3).
+    # A duration covers the holder's next `duration` turns. A player cast's
+    # own turn advance is still pending, so it needs one extra tick of clock;
+    # an AI cast or a hook runs after the advance already folded (design
+    # 0004 §3, evened out across casters in 0007).
+    pending = 1 if params.get("pending_turn") else 0
     return (
-        StatusApplied(target=target, status=status, expires=state.turn + 1 + duration),
+        StatusApplied(
+            target=target, status=status, expires=state.turn + pending + duration
+        ),
     ), rng
 
 

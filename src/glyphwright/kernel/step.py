@@ -39,7 +39,7 @@ def step(
 
     if events and isinstance(events[-1], TurnAdvanced):
         ai_events, next_state, next_rng = scheduler.run(
-            next_state, next_rng, prior=events
+            next_state, next_rng, prior=events, opening=state
         )
         closing = replace(events[-1], rng=next_rng.encode())
         events = (*events[:-1], *ai_events, closing)

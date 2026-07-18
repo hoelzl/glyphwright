@@ -28,9 +28,12 @@ Hook(on, effects, hp_below=None)
   on the clock (`turn_end` + `deal_damage` is poison; `turn_end` + `heal`
   is regeneration). The vocabulary is closed and validated at load.
 - **Condition**: `hp_below = <percent>` (integer 1–99, optional) — fires only
-  while `hp * 100 < max_hp * percent`, evaluated when the hook fires, against
-  the post-event state. The one condition `0003`'s example needs; a richer
-  predicate language is content design for another day.
+  while `hp * 100 < max_hp * percent`, evaluated against the state *as of the
+  triggering event*: the pass replays the round's events forward from the
+  step's opening state, so a status applied later in the round never fires
+  retroactively and the gate reads the hp the holder actually had at that
+  moment. The one condition `0003`'s example needs; a richer predicate
+  language is content design for another day.
 - **Effects**: the same ordered `(primitive, params)` chains abilities use,
   validated identically at load. Hook effects are **self-directed**: source
   and target are the holder. (Attacker-directed effects — thorns — need
@@ -80,9 +83,17 @@ Therefore perks reference the same status definitions:
 One rule, no new AI state: **a hostile casts when it cannot strike.**
 
 - In `_pursue` (exploration hostiles and arena foes share it): if the foe
-  is melee-adjacent it strikes, as today; otherwise, if it has a castable
-  foe-targeting ability, it casts the first (sorted by id, `castable`'s
-  existing order and gates) at the player; otherwise it chases.
+  is melee-adjacent it strikes, as today; otherwise, if the player is in
+  the foe's own area and it has a castable foe-targeting ability, it casts
+  the first (sorted by id, `castable`'s existing order and gates) at the
+  player; otherwise it chases. The area gate matters: a caster has ears
+  but not artillery — a player who leaves the area is pursued through the
+  movement graph, never bombarded across it.
+- Durations mean the same thing for every caster: the chain runner tells
+  duration-granting primitives whether the step's turn advance is still
+  pending (a player cast) or already folded (an AI cast or a hook), and
+  `apply_status` compensates, so a duration-3 venom covers three of the
+  holder's turns no matter who applied it.
 - Menu battles abstract distance — a combatant can always strike — so menu
   foes keep striking; "magic outranges steel" is precisely the advantage
   distance-abstraction erases.

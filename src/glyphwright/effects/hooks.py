@@ -1,18 +1,23 @@
 """Status and perk hooks: event-triggered effects (design 0007 §1).
 
-Hooks fire inside ``step``, in the scheduler epilogue: the pass scans the
+Hooks fire inside ``step``, in the scheduler epilogue: the pass walks the
 whole round's events in order and executes each triggered hook's effect chain
-on the holder. Consequent events are ordinary primitive events, appended to
-the log and folded, so triggered effects replay exactly (0003 §9.3). Events
-produced by hooks do not trigger further hooks within the same step — one
-generation, which closes the recursion question by construction.
+on the holder. Triggers and conditions are evaluated against the state *as of
+the triggering event* — replayed forward from the round's opening state — so
+a status applied later in the round never fires retroactively, and an
+``hp_below`` gate reads the hp the holder actually had when the event
+happened. The effects themselves execute against the round's final state and
+are ordinary primitive events, appended to the log and folded, so triggered
+effects replay exactly (0003 §9.3). Events produced by hooks do not trigger
+further hooks within the same step — one generation, which closes the
+recursion question by construction.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from glyphwright.effects.abilities import Hook
+from glyphwright.effects.abilities import Hook, bearing_ids, run_effect_chain
 from glyphwright.kernel.events import DamageDealt, Event, TurnAdvanced
 from glyphwright.kernel.rng import Rng
 from glyphwright.world.space import EntityId
@@ -27,12 +32,10 @@ def _bearings(state: WorldState, holder: EntityId) -> tuple[tuple[str, Hook], ..
     entity = state.entity(holder)
     seen: set[str] = set()
     found: list[tuple[str, Hook]] = []
-    ids: list[str] = []
-    if entity.statuses is not None:
-        ids.extend(status_id for status_id, _ in sorted(entity.statuses.active))
-    if entity.actor is not None:
-        ids.extend(sorted(entity.actor.perks))
-    for status_id in ids:
+    for status_id in (
+        *bearing_ids(entity, "statuses"),
+        *bearing_ids(entity, "perks"),
+    ):
         if status_id in seen:
             continue
         seen.add(status_id)
@@ -43,26 +46,24 @@ def _bearings(state: WorldState, holder: EntityId) -> tuple[tuple[str, Hook], ..
     return tuple(found)
 
 
-def _holders(state: WorldState, event: Event) -> tuple[EntityId, ...]:
-    """Whose hooks an event can trigger: the victim of damage, everyone at
-    the close of a turn."""
+def _triggered(state: WorldState, event: Event) -> tuple[str, tuple[EntityId, ...]]:
+    """The trigger an event raises and whose hooks it can fire, together so
+    the pairing cannot drift: the victim of damage, every bearer at the close
+    of a turn."""
     match event:
         case DamageDealt():
-            return (event.target,)
+            return "damage_taken", (event.target,)
         case TurnAdvanced():
-            return tuple(sorted(state.entities))
+            return "turn_end", tuple(
+                sorted(
+                    entity.id
+                    for entity in state.entities.values()
+                    if (entity.statuses is not None and entity.statuses.active)
+                    or (entity.actor is not None and entity.actor.perks)
+                )
+            )
         case _:
-            return ()
-
-
-def _trigger(event: Event) -> str:
-    match event:
-        case DamageDealt():
-            return "damage_taken"
-        case TurnAdvanced():
-            return "turn_end"
-        case _:
-            return ""
+            return "", ()
 
 
 def _condition_met(state: WorldState, holder: EntityId, hook: Hook) -> bool:
@@ -75,33 +76,42 @@ def _condition_met(state: WorldState, holder: EntityId, hook: Hook) -> bool:
 
 
 def hook_events(
-    state: WorldState, round_events: tuple[Event, ...], rng: Rng
+    opening: WorldState,
+    state: WorldState,
+    round_events: tuple[Event, ...],
+    rng: Rng,
 ) -> tuple[tuple[Event, ...], WorldState, Rng]:
     """Fire every hook the round's events trigger, folding as it goes.
 
-    Effects are self-directed (source and target are the holder) and labelled
-    with the status id through the reserved ``ability`` param. A holder that
-    died earlier in the pass is skipped.
+    ``opening`` is the state before any of ``round_events`` folded; the pass
+    replays them one at a time so each trigger sees its own moment. Effects
+    are self-directed (source and target are the holder), labelled with the
+    status id through the reserved ``ability`` param, and run against the
+    accumulated ``state``. A holder that has since died is skipped.
     """
-    from glyphwright.effects.primitives import PRIMITIVES
-    from glyphwright.kernel.state import fold
+    from glyphwright.kernel.state import apply
 
     produced: list[Event] = []
+    at_event = opening
     for event in round_events:
-        trigger = _trigger(event)
+        at_event = apply(at_event, event)
+        trigger, holders = _triggered(at_event, event)
         if not trigger:
             continue
-        for holder in _holders(state, event):
+        for holder in holders:
             if holder not in state.entities:
                 continue
-            for status_id, hook in _bearings(state, holder):
-                if hook.on != trigger or not _condition_met(state, holder, hook):
+            for status_id, hook in _bearings(at_event, holder):
+                if hook.on != trigger or not _condition_met(at_event, holder, hook):
                     continue
-                for name, params in hook.effects:
-                    if holder not in state.entities:
-                        break  # the holder died mid-chain
-                    merged = {**params, "ability": status_id}
-                    out, rng = PRIMITIVES[name](state, holder, holder, merged, rng)
-                    produced.extend(out)
-                    state = fold(state, out)
+                out, state, rng = run_effect_chain(
+                    state,
+                    holder,
+                    holder,
+                    status_id,
+                    hook.effects,
+                    rng,
+                    pending_turn=False,
+                )
+                produced.extend(out)
     return tuple(produced), state, rng

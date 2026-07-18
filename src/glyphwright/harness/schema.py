@@ -188,6 +188,7 @@ def event_schema() -> dict[str, Any]:
                     "MinigameResolved",
                     "StatusApplied",
                     "StatusExpired",
+                    "PerkGained",
                     "CastFizzled",
                 ]
             },
