@@ -1,0 +1,151 @@
+"""The MCP client to a running Unreal Editor (design 0012 §8, slice 14C).
+
+The editor fronts ~60 toolsets behind three meta-tools (``list_toolsets``,
+``describe_toolset``, ``call_tool``). ``UE5Client`` wraps exactly that surface
+with typed helpers for the calls the importer and preview make. The transport
+is injectable: production connects over streamable-HTTP; tests substitute an
+in-memory transport, so the whole client is verifiable offline. The editor
+round-trip shape — ``call_tool`` takes ``{toolset_name, tool_name,
+arguments}`` with the *bare* tool name and returns ``{"returnValue": ...}`` —
+was confirmed against the owner's UE 5.8 instance (2026-07-19).
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Awaitable, Callable
+
+#: A transport: (tool, arguments) -> the decoded JSON-RPC result payload.
+#: The default connects to a live editor; tests inject a fake.
+Transport = Callable[[str, dict[str, object]], Awaitable[object]]
+
+SCENE = "editor_toolset.toolsets.scene.SceneTools"
+APP = "EditorToolset.EditorAppToolset"
+ANCHOR = "AgentWorldEditor.AgentWorldToolset"
+
+
+class UE5Error(Exception):
+    """An MCP call to the editor failed, with the tool and the report."""
+
+
+def _decode(payload: object, *, tool: str) -> object:
+    """Unwrap the editor's ``{"returnValue": ...}`` envelope.
+
+    ``call_tool`` results arrive as MCP text content carrying a JSON object
+    with a single ``returnValue``; nested tool payloads are themselves JSON
+    strings (e.g. ``ListAnchors`` returns a JSON array as a string), so this
+    unwraps recursively until a non-string value remains.
+    """
+    if isinstance(payload, dict) and set(payload) == {"returnValue"}:
+        return _decode(payload["returnValue"], tool=tool)
+    if isinstance(payload, str):
+        try:
+            return _decode(json.loads(payload), tool=tool)
+        except json.JSONDecodeError:
+            return payload
+    return payload
+
+
+class UE5Client:
+    """A thin, typed client over the editor's three meta-tools."""
+
+    def __init__(self, transport: Transport) -> None:
+        self._transport = transport
+
+    async def call(self, toolset: str, tool: str, **arguments: object) -> object:
+        """Call ``toolset.tool`` and return the decoded payload."""
+        payload = await self._transport(
+            "call_tool",
+            {"toolset_name": toolset, "tool_name": tool, "arguments": arguments},
+        )
+        return _decode(payload, tool=f"{toolset}.{tool}")
+
+    async def current_level(self) -> str:
+        """The loaded level's path (``/Game/Maps/...``)."""
+        value = await self.call(SCENE, "get_current_level")
+        return str(value)
+
+    async def list_anchors(self) -> list[dict[str, object]]:
+        """Semantic anchors on actors in loaded cells (world-state bindings)."""
+        value = await self.call(ANCHOR, "ListAnchors")
+        assert isinstance(value, list)
+        return value
+
+    async def spawn_from_class(
+        self,
+        class_path: str,
+        *,
+        name: str,
+        location: tuple[float, float, float],
+    ) -> object:
+        """Spawn an actor of a native class at a world location."""
+        return await self.call(
+            SCENE,
+            "add_to_scene_from_class",
+            actor_type={"refPath": class_path},
+            name=name,
+            xform={"location": {"x": location[0], "y": location[1], "z": location[2]}},
+        )
+
+    async def remove(self, actor_path: str) -> object:
+        """Remove an actor by its soft path."""
+        return await self.call(SCENE, "remove_from_scene", actor={"refPath": actor_path})
+
+    async def capture_viewport(
+        self, *, location: tuple[float, float, float], yaw: float, pitch: float
+    ) -> object:
+        """A viewport capture from a posed camera (the human-facing evidence)."""
+        return await self.call(
+            APP,
+            "CaptureViewport",
+            captureTransform={
+                "location": {"x": location[0], "y": location[1], "z": location[2]},
+                "rotation": {"pitch": pitch, "yaw": yaw, "roll": 0.0},
+            },
+        )
+
+
+async def connect(url: str) -> "LiveSession":
+    """Open a live session to a running editor at ``url`` (streamable-HTTP).
+
+    Returns a context manager owning the connection; build a client with
+    :meth:`LiveSession.client`. Deferred imports keep ``mcp`` out of the core.
+    """
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+
+    return LiveSession(streamablehttp_client, ClientSession, url)
+
+
+class LiveSession:
+    """Owns one MCP connection; yields a transport-bound :class:`UE5Client`."""
+
+    def __init__(self, http_client: object, session_cls: object, url: str) -> None:
+        self._http_client = http_client
+        self._session_cls = session_cls
+        self._url = url
+        self._stack: object | None = None
+        self._session: object | None = None
+
+    async def __aenter__(self) -> "UE5Client":
+        import contextlib
+
+        stack = contextlib.AsyncExitStack()
+        read, write, _ = await stack.enter_async_context(self._http_client(self._url))
+        session = await stack.enter_async_context(self._session_cls(read, write))
+        await session.initialize()
+        self._stack = stack
+        self._session = session
+        return UE5Client(self._transport)
+
+    async def __aexit__(self, *exc: object) -> None:
+        assert self._stack is not None
+        await self._stack.aclose()
+
+    async def _transport(self, tool: str, arguments: dict[str, object]) -> object:
+        assert self._session is not None
+        result = await self._session.call_tool(tool, arguments)
+        texts = [c.text for c in result.content if getattr(c, "type", None) == "text"]
+        if getattr(result, "isError", False):
+            raise UE5Error(f"{tool}: {' '.join(texts)}")
+        return json.loads(texts[0]) if texts else None

@@ -24,6 +24,10 @@ dependencies = []
 
 [project.optional-dependencies]
 gui = ["pygame-ce>=2.5"]
+# The UE5 presentation host (design 0012 §9, slice 14C): an MCP client to a
+# running Unreal Editor. Isolated like `gui` — the core never imports it and
+# the bare CI job runs without it.
+ue5 = ["mcp>=1.10"]
 
 [project.scripts]
 glyphwright = "glyphwright.cli:main"
