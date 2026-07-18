@@ -210,6 +210,103 @@ def test_a_battle_is_played_with_hotkeys() -> None:
     assert engine.frame().turn == 3
 
 
+def test_a_click_on_an_adjacent_cell_moves_the_player() -> None:
+    engine = _engine()
+    composed = scene.compose(engine.frame(), ())
+    target = next(
+        t for t in composed.targets if t.kind == "cell" and t.command == Move("east")
+    )
+    pygame.display.init()
+    try:
+        pygame.event.post(
+            pygame.event.Event(
+                pygame.MOUSEBUTTONDOWN,
+                button=1,
+                pos=(target.x + target.w // 2, target.y + target.h // 2),
+            )
+        )
+        _post_keys((pygame.K_q, "q"))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 1
+
+
+def test_a_click_on_empty_space_does_nothing() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        pygame.event.post(
+            pygame.event.Event(pygame.MOUSEBUTTONDOWN, button=1, pos=(2, 2))
+        )
+        _post_keys((pygame.K_q, "q"))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 0
+
+
+def _reference_root() -> object:
+    from importlib.resources import files
+
+    return files("glyphwright.content") / "packs" / "reference-vale"
+
+
+def test_the_reference_tileset_loads_and_covers_the_legend() -> None:
+    from glyphwright.frontends.gui import tiles
+
+    loaded = tiles.load_tileset(_reference_root())  # type: ignore[arg-type]
+    assert loaded is not None
+    frame = _engine().frame()
+    for glyph in {cell.glyph for cell in scene.compose(frame, ()).cells}:
+        assert glyph in loaded, f"reference tileset misses {glyph!r}"
+    for surface in loaded.values():
+        assert surface.get_size() == (scene.CELL_W, scene.CELL_H)
+
+
+def test_tiles_change_the_pixels_but_never_the_scene(
+    surface: pygame.Surface,
+) -> None:
+    from glyphwright.frontends.gui import tiles
+
+    loaded = tiles.load_tileset(_reference_root())  # type: ignore[arg-type]
+    composed = scene.compose(_engine().frame(), ())
+    paint.paint(composed, surface)
+    glyphs = _hash(surface)
+    paint.paint(composed, surface, loaded)
+    assert _hash(surface) != glyphs, "the skin must actually change the paint"
+
+
+def test_a_pack_without_a_tileset_yields_none(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from glyphwright.frontends.gui import tiles
+
+    assert isinstance(tmp_path, Path)
+    assert tiles.load_tileset(tmp_path) is None
+
+
+def test_a_tileset_naming_a_missing_image_is_an_error(tmp_path: object) -> None:
+    from pathlib import Path
+
+    from glyphwright.frontends.gui import tiles
+
+    assert isinstance(tmp_path, Path)
+    (tmp_path / "tileset.toml").write_text(
+        '[glyphs]\n"@" = "missing.png"\n', encoding="utf-8"
+    )
+    with pytest.raises(tiles.TilesetError, match="missing.png"):
+        tiles.load_tileset(tmp_path)
+
+
+def test_the_tiles_flag_is_gui_only() -> None:
+    from glyphwright import cli
+
+    with pytest.raises(SystemExit) as excinfo:
+        cli.main(["--frontend", "plain", "--tiles"])
+    assert excinfo.value.code == 2
+
+
 def test_a_dialogue_is_started_and_answered() -> None:
     engine = Engine.new(reference_pack(), seed=23)
     for _ in range(6):

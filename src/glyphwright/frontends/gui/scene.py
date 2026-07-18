@@ -20,6 +20,7 @@ from glyphwright.frames.frame import (
     RoomView,
     SemanticFrame,
 )
+from glyphwright.kernel.commands import Attack, Choose, Command, Move, Pick
 
 Color = tuple[int, int, int]
 
@@ -27,6 +28,29 @@ Color = tuple[int, int, int]
 #: the Scene, not the painter, decides every line break deterministically.
 TEXT_COLS = 60
 LOG_LINES = 6
+
+# Window geometry lives here, not in paint: click targets are minted at
+# compose time as pure data (0011 §4), so the layout every region — and every
+# click zone — uses must be importable without pygame. paint consumes these.
+MARGIN = 12
+LINE_H = 22
+CELL_W = 16
+CELL_H = 24
+WINDOW_SIZE = (960, 600)
+VIEWPORT_TOP = MARGIN + LINE_H + 8
+#: The lower regions sit at fixed rows, like the TUI's region budgets: a tall
+#: viewport can never push the player's options off the window.
+EXITS_TOP = VIEWPORT_TOP + 9 * CELL_H + 8
+STATUS_TOP = EXITS_TOP + LINE_H
+LOG_TOP = STATUS_TOP + LINE_H + 8
+HINTS_TOP = LOG_TOP + 6 * LINE_H + 8
+BAR_TOP = HINTS_TOP + 2 * LINE_H + 8
+#: Exit tokens sit in fixed-width slots so their click zones are exact
+#: geometry, independent of any font metric.
+EXIT_SLOT_X = MARGIN + 64
+EXIT_SLOT_W = 120
+#: Clickable text rows (menu combatants, dialogue choices) span this width.
+ROW_W = 360
 
 _DEFAULT_FG: Color = (200, 200, 200)
 _PALETTE: dict[str, Color] = {
@@ -53,6 +77,25 @@ class Cell:
 
 
 @dataclass(frozen=True, slots=True)
+class ClickTarget:
+    """One clickable zone and the semantic command it advertises.
+
+    Minted from the frame's grammar at compose time, so the mouse — like the
+    keyboard — can never say something the grammar cannot (ADR-003, 0011 §4).
+    ``kind`` tells the painter whether it also draws the label ("exit" slots)
+    or the zone overlays content that is already drawn ("cell", "row").
+    """
+
+    x: int
+    y: int
+    w: int
+    h: int
+    command: Command
+    label: str = ""
+    kind: str = "row"
+
+
+@dataclass(frozen=True, slots=True)
 class Scene:
     """Everything the window shows, as data. Frozen: equal frames and logs
     compose equal Scenes, which is what the determinism tests assert."""
@@ -69,6 +112,9 @@ class Scene:
     #: The typed bar's echo while the player types; transient input state,
     #: shown in the window but excluded from golden evidence (0011 §4).
     bar: str | None = None
+    #: Clickable zones; derived from the grammar and the layout constants,
+    #: excluded from golden evidence like every other input affordance.
+    targets: tuple[ClickTarget, ...] = ()
 
 
 def _grid_cells(viewport: GridView) -> tuple[Cell, ...]:
@@ -133,6 +179,99 @@ def _status(frame: SemanticFrame) -> str:
     return line
 
 
+_CARDINALS = {"north": (0, -1), "south": (0, 1), "west": (-1, 0), "east": (1, 0)}
+
+
+def _row_target(row: int, command: Command) -> ClickTarget:
+    return ClickTarget(
+        x=MARGIN, y=VIEWPORT_TOP + row * LINE_H, w=ROW_W, h=LINE_H, command=command
+    )
+
+
+def _cell_targets(frame: SemanticFrame, viewport: GridView) -> list[ClickTarget]:
+    """Clicking a cell next to the player moves there, when the grammar
+    allows the direction."""
+    player = next((actor for actor in frame.actors if actor.id == "player"), None)
+    if player is None or player.at.area != viewport.area:
+        return []
+    if "move" not in frame.commands.verb_names():
+        return []
+    x_text, _, y_text = player.at.local.partition(",")
+    col = int(x_text) - viewport.origin[0]
+    row = int(y_text) - viewport.origin[1]
+    domain = frame.commands.domains("move")[0]
+    targets = []
+    for token, (dx, dy) in _CARDINALS.items():
+        if token not in domain:
+            continue
+        cx, cy = col + dx, row + dy
+        if 0 <= cy < len(viewport.tiles) and 0 <= cx < len(viewport.tiles[cy]):
+            targets.append(
+                ClickTarget(
+                    x=MARGIN + cx * CELL_W,
+                    y=VIEWPORT_TOP + cy * CELL_H,
+                    w=CELL_W,
+                    h=CELL_H,
+                    command=Move(token),
+                    kind="cell",
+                )
+            )
+    return targets
+
+
+def _exit_slot_targets(frame: SemanticFrame) -> list[ClickTarget]:
+    """Every advertised exit as a fixed-width slot on the exits row; the
+    painter draws these labels, so zones and pixels cannot disagree."""
+    if "move" not in frame.commands.verb_names():
+        return []
+    return [
+        ClickTarget(
+            x=EXIT_SLOT_X + index * EXIT_SLOT_W,
+            y=EXITS_TOP,
+            w=EXIT_SLOT_W - 8,
+            h=LINE_H,
+            command=Move(token),
+            label=f"{index + 1}) {token}",
+            kind="exit",
+        )
+        for index, token in enumerate(frame.commands.domains("move")[0])
+    ]
+
+
+def _targets(frame: SemanticFrame, text: tuple[str, ...]) -> tuple[ClickTarget, ...]:
+    viewport = frame.viewport
+    names = frame.commands.verb_names()
+    targets: list[ClickTarget] = []
+    if isinstance(viewport, GridView):
+        targets.extend(_cell_targets(frame, viewport))
+    elif isinstance(viewport, MenuView) and "attack" in names:
+        domain = frame.commands.domains("attack")[0]
+        for index, actor in enumerate(frame.actors):
+            if actor.id in domain:
+                targets.append(_row_target(index + 1, Attack(actor.id)))
+    elif isinstance(viewport, DialogueView) and "choose" in names:
+        domain = frame.commands.domains("choose")[0]
+        first_choice_row = len(text) - len(viewport.choices)
+        for index in range(len(viewport.choices)):
+            if str(index + 1) in domain:
+                targets.append(
+                    _row_target(first_choice_row + index, Choose(str(index + 1)))
+                )
+    elif isinstance(viewport, LockView) and "pick" in names:
+        targets.append(_row_target(1, Pick()))
+    targets.extend(_exit_slot_targets(frame))
+    return tuple(targets)
+
+
+def click(scene: Scene, pos: tuple[int, int]) -> Command | None:
+    """The command under a click, or ``None``. Pure geometry over the Scene."""
+    x, y = pos
+    for target in scene.targets:
+        if target.x <= x < target.x + target.w and target.y <= y < target.y + target.h:
+            return target.command
+    return None
+
+
 def compose(
     frame: SemanticFrame, log: tuple[str, ...], *, bar: str | None = None
 ) -> Scene:
@@ -162,6 +301,7 @@ def compose(
         log=tuple(log[-LOG_LINES:]),
         hints=_HINTS,
         bar=bar,
+        targets=_targets(frame, text),
     )
 
 

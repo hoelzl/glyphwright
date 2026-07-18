@@ -11,6 +11,7 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import Any
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
@@ -50,6 +51,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="directory of a TOML content pack (default: the built-in reference pack)",
     )
     parser.add_argument(
+        "--tiles",
+        action="store_true",
+        help="render with the pack's bitmap tileset (gui frontend only)",
+    )
+    parser.add_argument(
         "--record",
         type=Path,
         default=None,
@@ -74,6 +80,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         # input belongs to the plain and JSONL frontends.
         parser.error("--frontend tui needs an interactive terminal")
 
+    if args.tiles and args.frontend != "gui":
+        parser.error("--tiles is a gui-frontend flag")
+
+    tiles = None
     if args.frontend == "gui":
         # Probe before building the run, so a missing extra fails with an
         # install hint instead of a traceback (0011 §6).
@@ -87,6 +97,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "the gui frontend needs the optional extra: "
                 'pip install "glyphwright[gui]"'
             )
+        if args.tiles:
+            from importlib.resources import files
+
+            from glyphwright.frontends.gui.tiles import TilesetError, load_tileset
+
+            root = (
+                args.pack
+                if args.pack is not None
+                else files("glyphwright.content") / "packs" / "reference-vale"
+            )
+            try:
+                tiles = load_tileset(root)
+            except TilesetError as error:
+                parser.error(str(error))
+            if tiles is None:
+                parser.error("--tiles was asked for, but the pack ships no tileset")
 
     if args.pack is not None:
         from glyphwright.content.loader import PackError, load_pack
@@ -131,11 +157,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             engine: Engine = RecordingEngine.recording(
                 pack, seed=seed, sink=sink, harness=args.harness
             )
-            return _play(engine, args.frontend, harness=args.harness)
-    return _play(Engine.new(pack, seed=seed), args.frontend, harness=args.harness)
+            return _play(engine, args.frontend, harness=args.harness, tiles=tiles)
+    return _play(
+        Engine.new(pack, seed=seed), args.frontend, harness=args.harness, tiles=tiles
+    )
 
 
-def _play(engine: Engine, frontend: str, *, harness: bool) -> int:
+def _play(
+    engine: Engine,
+    frontend: str,
+    *,
+    harness: bool,
+    # ``Any`` because the real type (a dict of pygame surfaces) must not be
+    # imported here: the CLI stays importable with the gui extra absent.
+    tiles: Any = None,
+) -> int:
     if frontend == "jsonl":
         return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=harness)
     if frontend == "tui":
@@ -145,7 +181,7 @@ def _play(engine: Engine, frontend: str, *, harness: bool) -> int:
     if frontend == "gui":
         from glyphwright.frontends.gui import session as gui_session
 
-        return gui_session.run_session(engine, harness=harness)
+        return gui_session.run_session(engine, harness=harness, tiles=tiles)
     return plain.run_session(engine, sys.stdin, sys.stdout, harness=harness)
 
 

@@ -201,6 +201,88 @@ def test_the_scene_shows_everything_plain_commits_to() -> None:
             assert pins in rejoined
 
 
+# -- click targets: the mouse can never say what the grammar cannot (13C) -----
+
+
+def _target_commands(composed: scene.Scene) -> list[object]:
+    return [target.command for target in composed.targets]
+
+
+def test_grid_frames_offer_adjacent_cells_as_move_targets() -> None:
+    frame = _engine().frame()  # at (1,1): north is a wall, but advertised?
+    composed = scene.compose(frame, ())
+    commands = _target_commands(composed)
+    domain = frame.commands.domains("move")[0]
+    for token in ("north", "south", "east", "west"):
+        assert (Move(token) in commands) == (token in domain)
+
+
+def test_every_move_token_gets_an_exit_slot_target() -> None:
+    engine = _engine()
+    for _ in range(6):
+        engine.step(Move("east"))  # the inn door: east, enter, south, west
+    frame = engine.frame()
+    composed = scene.compose(frame, ())
+    commands = _target_commands(composed)
+    for token in frame.commands.domains("move")[0]:
+        assert Move(token) in commands
+
+
+def test_dialogue_choices_are_click_targets() -> None:
+    from glyphwright.kernel.commands import Choose, Talk
+
+    engine = Engine.new(reference_pack(), seed=23)
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    frame = engine.step(Talk("innkeeper")).frame
+    composed = scene.compose(frame, ())
+    commands = _target_commands(composed)
+    assert isinstance(frame.viewport, DialogueView)
+    for index in range(len(frame.viewport.choices)):
+        assert Choose(str(index + 1)) in commands
+
+
+def test_battle_rows_are_attack_targets_for_foes_only() -> None:
+    from glyphwright.kernel.commands import Attack
+
+    engine = _engine()
+    frame = engine.step(Move("south")).frame
+    composed = scene.compose(frame, ())
+    commands = _target_commands(composed)
+    assert Attack("bandit-1") in commands
+    assert Attack("player") not in commands
+
+
+def test_lock_frames_offer_the_pins_as_a_pick_target() -> None:
+    from glyphwright.kernel.commands import Open, Pick
+
+    engine = Engine.new(reference_pack(), seed=99)
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    engine.step(Move("down"))
+    frame = engine.step(Open("strongbox")).frame
+    composed = scene.compose(frame, ())
+    assert Pick() in _target_commands(composed)
+
+
+def test_click_dispatch_is_pure_geometry() -> None:
+    frame = _engine().frame()
+    composed = scene.compose(frame, ())
+    target = next(t for t in composed.targets if t.command == Move("east"))
+    inside = (target.x + target.w // 2, target.y + target.h // 2)
+    assert scene.click(composed, inside) == Move("east")
+    assert scene.click(composed, (0, 0)) is None
+
+
+def test_targets_never_leak_into_golden_evidence() -> None:
+    frame = _engine().frame()
+    with_targets = scene.compose(frame, ())
+    assert with_targets.targets
+    assert "Move" not in scene.scene_text(with_targets)
+
+
 # -- the golden serialization -------------------------------------------------
 
 
