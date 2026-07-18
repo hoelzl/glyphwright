@@ -109,33 +109,53 @@ class ContentPack:
                         f"openable {entity.id!r} answers to unknown key "
                         f"{openable.key!r}"
                     )
+        checked_arenas: set[str] = set()
         for entity in self.entities:
             ai = entity.ai
             if ai is None or ai.arena is None:
                 continue
-            # An arena must be a grid with room to fight and no back doors:
-            # flee is the exit (design 0006 §2).
+            # An arena must be a grid with no back doors: flee is the exit
+            # (design 0006 §2).
             arena_space = spaces.get(ai.arena)
             if not isinstance(arena_space, GridSpace):
                 raise ValueError(
                     f"actor {entity.id!r} names arena {ai.arena!r}, which is "
                     "not a grid area"
                 )
+            if ai.arena not in checked_arenas:
+                checked_arenas.add(ai.arena)
+                for other in self.entities:
+                    if (
+                        other.portal is not None
+                        and (at := other.at()) is not None
+                        and at.area == ai.arena
+                    ):
+                        raise ValueError(
+                            f"arena {ai.arena!r} contains portal {other.id!r}; "
+                            "a battlefield has no back doors"
+                        )
+            # ... and must seat the largest battle the authored positions can
+            # open: the player plus every hostile in the engager's home area
+            # (the possible joiners). Battles that outgrow it at runtime fall
+            # back to the menu presentation.
+            home = entity.at()
+            seats = 1 + sum(
+                1
+                for other in self.entities
+                if other.ai is not None
+                and other.ai.hostile
+                and home is not None
+                and (other_at := other.at()) is not None
+                and other_at.area == home.area
+            )
             floors = sum(
                 1 for pos in arena_space.positions() if arena_space.terrain(pos) != "#"
             )
-            if floors < 2:
-                raise ValueError(f"arena {ai.arena!r} has no room to fight")
-            for other in self.entities:
-                if (
-                    other.portal is not None
-                    and (at := other.at()) is not None
-                    and at.area == ai.arena
-                ):
-                    raise ValueError(
-                        f"arena {ai.arena!r} contains portal {other.id!r}; "
-                        "a battlefield has no back doors"
-                    )
+            if floors < seats:
+                raise ValueError(
+                    f"arena {ai.arena!r} has {floors} floor tiles but a battle "
+                    f"opened by {entity.id!r} may draw {seats} combatants"
+                )
         claimed: set[tuple[str, str]] = set()
         for entity in self.entities:
             portal = entity.portal

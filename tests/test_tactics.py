@@ -81,9 +81,29 @@ def test_attack_needs_melee_adjacency_on_the_grid() -> None:
 
 
 def test_cast_reaches_across_the_arena() -> None:
+    """Magic outranges steel: with every foe out of melee reach, attack is
+    gone from the grammar but a foe-targeting cast still resolves."""
+    import dataclasses
+
+    from glyphwright.world.entities import Position
+
     engine = _engaged()
+    state = engine._state
+    space = state.areas["pit"]
+    marauder_at = state.entity("marauder-1").at()
+    assert marauder_at is not None
+    far = next(
+        pos
+        for pos in space.positions()
+        if space.blocked_reason(state, pos, PLAYER) is None
+        and not space.melee_range(pos, marauder_at)
+    )
+    player = state.entity(PLAYER)
+    engine._state = state.with_entity(
+        dataclasses.replace(player, position=Position(at=far))
+    )
     grammar = engine.frame().commands
-    assert "cast" in grammar.verb_names()
+    assert "attack" not in grammar.verb_names(), "steel needs adjacency"
     assert "marauder-1" in grammar.domains("cast")[1], "magic outranges steel"
     result = engine.step(Cast("firebolt", "marauder-1"))
     assert result.accepted
@@ -94,8 +114,7 @@ def test_foes_chase_across_the_arena() -> None:
     state = engine._state
     marauder_before = state.entity("marauder-1").at()
     result = engine.step(Move("east"))
-    if "marauder-1" not in engine._state.entities:
-        return
+    assert "marauder-1" in engine._state.entities, "a move cannot kill"
     moved = [
         e for e in result.events if isinstance(e, Moved) and e.actor == "marauder-1"
     ]
@@ -245,4 +264,119 @@ def test_an_arena_with_a_portal_is_rejected() -> None:
             encoding="utf-8",
         )
         with pytest.raises(PackError, match="portal"):
+            load_pack(root)
+
+
+def test_a_fov_arena_conceals_unseen_foes_everywhere_in_the_frame() -> None:
+    """The one visible set rules the whole battle frame: an unseen foe is
+    neither drawn, nor listed, nor narrated (design 0006 §1 applied to §2)."""
+    import dataclasses
+    import pathlib
+    import tempfile
+
+    from glyphwright.content.loader import load_pack
+    from glyphwright.kernel.events import Moved as MovedEvent
+    from glyphwright.modes import battle
+    from glyphwright.world.entities import Position
+    from glyphwright.world.grid import GridSpace
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = pathlib.Path(raw)
+        (root / "pack.toml").write_text('name = "fogring"\n', encoding="utf-8")
+        (root / "areas.toml").write_text(
+            '[[grid]]\narea = "field"\nrows = """\n....\n"""\n'
+            '[[grid]]\narea = "ring"\nfov = 2\nrows = """\n'
+            ".........\n.........\n.........\n"
+            '"""\n',
+            encoding="utf-8",
+        )
+        (root / "entities.toml").write_text(
+            '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+            "[entity.actor]\nname = 'P'\nhp = 20\nmax_hp = 20\n"
+            "[entity.renderable]\nglyph = '@'\nlabel = 'you'\n"
+            '[[entity]]\nid = "brute"\nposition = "field:2,0"\n'
+            "[entity.actor]\nname = 'B'\nhp = 30\nmax_hp = 30\n"
+            "[entity.renderable]\nglyph = 'B'\nlabel = 'brute'\n"
+            '[entity.ai]\nhostile = true\nengages = true\narena = "ring"\n',
+            encoding="utf-8",
+        )
+        pack = load_pack(root)
+    engine = Engine.new(pack, seed=13)
+    engine.step(Move("east"))
+    state = engine._state
+    assert state.mode == "battle" and state.battle_returns
+    ring = state.areas["ring"]
+    assert isinstance(ring, GridSpace)
+    far = ring.pos(8, 2)
+    brute = state.entity("brute")
+    engine._state = state.with_entity(
+        dataclasses.replace(brute, position=Position(at=far))
+    )
+    frame = engine.frame()
+    assert isinstance(frame.viewport, GridView)
+    assert frame.viewport.tiles[2][8] == "?", "beyond the light"
+    listed = {actor.id for actor in frame.actors}
+    assert PLAYER in listed and "brute" not in listed
+    unseen_move = MovedEvent(
+        actor="brute", origin=ring.pos(7, 2), destination=far, exit="east"
+    )
+    assert battle.view(engine._state, (unseen_move,)).messages == ()
+
+
+def test_a_portal_may_not_claim_a_reserved_battle_token() -> None:
+    import pathlib
+    import tempfile
+
+    import pytest
+
+    from glyphwright.content.loader import PackError, load_pack
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = pathlib.Path(raw)
+        (root / "pack.toml").write_text('name = "bad"\n', encoding="utf-8")
+        (root / "areas.toml").write_text(
+            '[[grid]]\narea = "field"\nrows = """\n...\n"""\n', encoding="utf-8"
+        )
+        (root / "entities.toml").write_text(
+            '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+            "[entity.actor]\nname = 'P'\nhp = 5\nmax_hp = 5\n"
+            '[[entity]]\nid = "trapdoor"\nposition = "field:2,0"\n'
+            '[entity.portal]\ntoken = "return"\nto = "field:0,0"\n',
+            encoding="utf-8",
+        )
+        with pytest.raises(PackError, match="reserved"):
+            load_pack(root)
+
+
+def test_an_arena_must_seat_the_possible_combatants() -> None:
+    """Load-time capacity: the player plus every hostile in the engager's
+    home area must fit, or the authored tactics content could silently
+    degrade to a menu battle (design 0006 §2)."""
+    import pathlib
+    import tempfile
+
+    import pytest
+
+    from glyphwright.content.loader import PackError, load_pack
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = pathlib.Path(raw)
+        (root / "pack.toml").write_text('name = "bad"\n', encoding="utf-8")
+        (root / "areas.toml").write_text(
+            '[[grid]]\narea = "field"\nrows = """\n.....\n"""\n'
+            '[[grid]]\narea = "ring"\nrows = """\n..\n"""\n',
+            encoding="utf-8",
+        )
+        (root / "entities.toml").write_text(
+            '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+            "[entity.actor]\nname = 'P'\nhp = 5\nmax_hp = 5\n"
+            '[[entity]]\nid = "brute"\nposition = "field:2,0"\n'
+            "[entity.actor]\nname = 'B'\nhp = 5\nmax_hp = 5\n"
+            '[entity.ai]\nhostile = true\nengages = true\narena = "ring"\n'
+            '[[entity]]\nid = "thug"\nposition = "field:3,0"\n'
+            "[entity.actor]\nname = 'T'\nhp = 5\nmax_hp = 5\n"
+            "[entity.ai]\nhostile = true\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PackError, match="combatants"):
             load_pack(root)

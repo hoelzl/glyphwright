@@ -41,7 +41,6 @@ from glyphwright.kernel.events import (
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
-    Moved,
     TurnAdvanced,
 )
 from glyphwright.kernel.rng import Rng
@@ -296,25 +295,11 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         messages=tuple(
             message
             for event in events
-            if _witnessed(state, event, sight) and (message := messages.describe(event))
+            if common.witnessed(event, sight) and (message := messages.describe(event))
         ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
     )
-
-
-def _witnessed(state: WorldState, event: Event, sight: frozenset[PosId] | None) -> bool:
-    """Whether the player can honestly narrate this event.
-
-    An unseen hostile's movement must not be announced by the transcript
-    while the viewport and summaries conceal it; everything the player takes
-    part in, and everything in the light, passes through.
-    """
-    if sight is None:
-        return True
-    if isinstance(event, Moved) and event.actor != PLAYER:
-        return event.destination in sight
-    return True
 
 
 def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:

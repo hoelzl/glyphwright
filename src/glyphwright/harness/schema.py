@@ -222,7 +222,15 @@ def event_schema() -> dict[str, Any]:
             "status": _STRING,
             "expires": _INTEGER,
             "caster": _STRING,
-            "returns": _array(_array(_STRING)),
+            "returns": {
+                "type": "array",
+                "items": {
+                    "type": "array",
+                    "items": _STRING,
+                    "minItems": 2,
+                    "maxItems": 2,
+                },
+            },
         },
         "additionalProperties": False,
     }

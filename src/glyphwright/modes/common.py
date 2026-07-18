@@ -18,7 +18,7 @@ from glyphwright.kernel.events import (
     TurnAdvanced,
 )
 from glyphwright.kernel.state import PLAYER, WorldState
-from glyphwright.world.grid import GridSpace
+from glyphwright.world.grid import GridSpace, _coords
 from glyphwright.world.space import PosId
 
 _TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
@@ -71,8 +71,6 @@ def grid_viewport(
             continue
         if sight is not None and at not in sight:
             continue  # beyond the light: not drawn
-        from glyphwright.world.grid import _coords
-
         x, y = _coords(at)
         glyphs[y][x] = entity.renderable.glyph
     return GridView(
@@ -81,6 +79,20 @@ def grid_viewport(
         tiles=tuple("".join(row) for row in glyphs),
         legend=legend(state, space.area),
     )
+
+
+def witnessed(event: Event, sight: frozenset[PosId] | None) -> bool:
+    """Whether the player can honestly narrate this event.
+
+    An unseen actor's movement must not be announced by the transcript while
+    the viewport and summaries conceal it; everything the player takes part
+    in, and everything in the light, passes through.
+    """
+    if sight is None:
+        return True
+    if isinstance(event, Moved) and event.actor != PLAYER:
+        return event.destination in sight
+    return True
 
 
 def move_player(state: WorldState, token: str) -> tuple[Event, ...]:

@@ -301,9 +301,13 @@ Decisions taken by the implementing agent (owner delegated open choices):
 3. Every battle pop is preceded by homecoming `Moved`s (`exit="return"`) for the
    survivors; arena flee obeys the menu flee's break-contact rule (homecoming +
    one escaping step, else `FleeFailed`).
-4. Validation: an arena must be a grid with ≥2 floor tiles and no portals.
-   `wrong_mode` classification is now grammar-first: an advertised verb is always
-   valid regardless of the mode's static `VERBS` set.
+4. Validation: an arena must be a grid with no portals and enough floor for
+   the player plus every hostile in the engager's home area (the possible
+   joiners); the exit tokens `arena`/`return` are reserved — a content portal
+   claiming one is a load error. `wrong_mode` classification is now
+   grammar-first: an advertised verb is always valid regardless of the mode's
+   static `VERBS` set. In a fov-active arena the one visible set filters
+   viewport, actor summaries, and messages alike (review findings, PR #10).
 5. The reference pack grows the warren (fov 3) behind a hole at village:7,3, the
    marauder (engages, arena="pit"), and the pit arena. The village goldens gained
    the hole glyph — deliberate, regenerated, reviewed.

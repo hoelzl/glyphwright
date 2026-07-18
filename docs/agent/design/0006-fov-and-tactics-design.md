@@ -53,8 +53,14 @@ range reuse the spatial model unchanged. Detailed for implementation:
   that names an arena opens its battles *there* (a plain engager without one
   keeps the menu presentation; both stay ordinary battles on the same mode
   and scheduler). Pack validation: the arena must name a grid area and hold
-  enough floor for the combatants; portals inside an arena are rejected
-  (a battlefield has no back doors — `flee` is the exit).
+  enough floor for the largest battle the authored positions can open — the
+  player plus every hostile in the engager's home area (the possible
+  joiners); portals inside an arena are rejected (a battlefield has no back
+  doors — `flee` is the exit). A battle that outgrows its arena at runtime
+  (hostiles having wandered in) falls back to the menu presentation. The
+  exit tokens `arena` and `return` are reserved for the engine's battle
+  transitions: a content portal claiming either is a load error, like the
+  `?` glyph.
 - **Entering**: engagement emits ordinary `Moved` events after the
   `ModePushed`: the player to the first free floor tile in row-major order,
   then the foes in initiative order to the next free tiles. `ModePushed`
@@ -67,7 +73,10 @@ range reuse the spatial model unchanged. Detailed for implementation:
   adjacency on the grid; `cast` foe-targeting reaches any living foe (magic
   outranges steel — the first ranged/melee distinction, deliberately given
   to abilities). Foes chase-or-strike using the same pursuit logic as
-  exploration; the arena's own `fov` applies to the viewport like any grid.
+  exploration; the arena's own `fov` applies to the whole frame like any
+  grid — viewport, actor summaries, and messages filter by the one visible
+  set (§1). Placement makes no promise of opening range: on a small arena
+  the first free tiles adjoin, and the fight opens in reach.
 - **Leaving**: every battle pop (victory, defeat, flee) is preceded by
   `Moved` events returning each *surviving* combatant to its recorded
   origin; the `ModePopped` fold clears `battle_returns`. Arena `flee` obeys

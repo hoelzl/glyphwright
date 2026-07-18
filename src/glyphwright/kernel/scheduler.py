@@ -189,8 +189,9 @@ def _engage(
 
     A menu battle grants pre-emptive strikes to foes that outrolled the
     player. An arena battle (the engager names one) instead moves everyone
-    onto the battlefield — placement is the engagement round; the fighting
-    starts at range next round (design 0006 §2).
+    onto the battlefield: placement is the engagement round and replaces the
+    pre-emptive strikes — the foes act from their placed tiles next round,
+    which on a small arena may already be within reach (design 0006 §2).
     """
     foes = _battle_joiners(state, entity)
     order, rng = roll_initiative(state, (PLAYER, *foes), rng)
@@ -221,6 +222,23 @@ def _engage(
     return tuple(events), rng
 
 
+def _pursue(
+    state: WorldState, entity: Entity, rng: Rng
+) -> tuple[tuple[Event, ...], Rng]:
+    """The one pursuit rule, shared by exploration hostiles and arena foes:
+    strike when in melee reach of the player, else close one step."""
+    player_at = state.entity(PLAYER).at()
+    at = entity.at()
+    if player_at is None or at is None:
+        return (), rng
+    if at.area == player_at.area and melee_adjacent(
+        state.areas[at.area], at, player_at
+    ):
+        return strike(state, entity.id, PLAYER, rng)
+    moved = _chase_step(state, entity, player_at)
+    return ((moved,) if moved is not None else ()), rng
+
+
 def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...], Rng]:
     """One AI actor's turn: wake if provoked, then fight or give chase.
 
@@ -244,18 +262,13 @@ def _act(state: WorldState, entity: Entity, rng: Rng) -> tuple[tuple[Event, ...]
         events.extend(provoke(state, entity.id))
         state = fold(state, tuple(events))
 
-    if adjacent:
-        assert entity.ai is not None
-        if entity.ai.engages:
-            engaged, rng = _engage(state, entity, rng)
-            events.extend(engaged)
-        else:
-            struck, rng = strike(state, entity.id, PLAYER, rng)
-            events.extend(struck)
-    else:
-        moved = _chase_step(state, entity, player_at)
-        if moved is not None:
-            events.append(moved)
+    assert entity.ai is not None
+    if adjacent and entity.ai.engages:
+        engaged, rng = _engage(state, entity, rng)
+        events.extend(engaged)
+        return tuple(events), rng
+    pursued, rng = _pursue(state, entity, rng)
+    events.extend(pursued)
     return tuple(events), rng
 
 
@@ -277,17 +290,8 @@ def _take_turn(
         if not state.battle_returns:
             # Menu battle abstracts distance: a combatant simply strikes.
             return strike(state, actor_id, PLAYER, rng)
-        # Arena battle: the spatial model, unchanged (0003 §10.1) — close
-        # with the player, strike when in reach.
-        player_at = state.entity(PLAYER).at()
-        at = state.entity(actor_id).at()
-        if player_at is None or at is None or at.area != player_at.area:
-            return (), rng
-        space = state.areas[at.area]
-        if melee_adjacent(space, at, player_at):
-            return strike(state, actor_id, PLAYER, rng)
-        moved = _chase_step(state, state.entity(actor_id), player_at)
-        return ((moved,) if moved is not None else ()), rng
+        # Arena battle: the spatial model, unchanged (0003 §10.1).
+        return _pursue(state, state.entity(actor_id), rng)
     return _act(state, state.entity(actor_id), rng)
 
 
