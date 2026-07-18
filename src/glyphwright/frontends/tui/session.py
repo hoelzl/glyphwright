@@ -28,15 +28,16 @@ def _enable_vt() -> None:  # pragma: no cover - real consoles only
     """
     import sys
 
-    if sys.platform != "win32":
-        return
-    import ctypes
+    # Positive-guard block form: mypy skips a non-matching sys.platform block
+    # instead of flagging it unreachable, so this checks on every platform.
+    if sys.platform == "win32":
+        import ctypes
 
-    kernel32 = ctypes.windll.kernel32
-    handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
-    mode = ctypes.c_uint32()
-    if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
-        kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # VT processing
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.GetStdHandle(-11)  # STD_OUTPUT_HANDLE
+        mode = ctypes.c_uint32()
+        if kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            kernel32.SetConsoleMode(handle, mode.value | 0x0004)  # VT processing
 
 
 def _read_line(key_source: Iterator[str], output: TextIO, prompt: str) -> str | None:

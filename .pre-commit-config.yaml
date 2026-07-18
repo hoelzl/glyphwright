@@ -23,9 +23,19 @@ repos:
         pass_filenames: false
         stages: [pre-push]
 
-      - id: type-check
-        name: type check
-        entry: uv --no-config run mypy src tests
+      # mypy narrows sys.platform checks, so its verdict differs per platform.
+      # Pin both CI platforms explicitly so the local gate matches the CI
+      # matrix regardless of the developer's host OS.
+      - id: type-check-win32
+        name: type check (win32)
+        entry: uv --no-config run mypy --platform win32 src tests
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: type-check-linux
+        name: type check (linux)
+        entry: uv --no-config run mypy --platform linux src tests
         language: system
         pass_filenames: false
         stages: [pre-push]

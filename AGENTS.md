@@ -23,7 +23,7 @@ Precedence: `0003` is the specification and overrides every other document here.
 | Full tests | `uv --no-config run pytest --cov --cov-report=term-missing` |
 | Lint | `uv --no-config run ruff check .` |
 | Format check | `uv --no-config run ruff format --check .` |
-| Type check | `uv --no-config run mypy src tests` |
+| Type check | `uv --no-config run mypy --platform win32 src tests`, then again with `--platform linux` — mypy's verdict is platform-dependent (`sys.platform` narrowing), and CI checks both |
 | Full local gate | `uv --no-config run pre-commit run --all-files` then `uv --no-config run pre-commit run --hook-stage pre-push --all-files` |
 | Dependencies and Python support | `pyproject.toml` and `uv.lock` |
 | CLI contract | `glyphwright --help`, `src/glyphwright/cli.py`, and e2e tests |
