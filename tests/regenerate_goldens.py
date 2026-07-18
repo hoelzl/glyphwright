@@ -73,6 +73,29 @@ def _gui_battle() -> str:
     return scene.scene_text(scene.compose(frame, frame.messages))
 
 
+def _gui_dialogue() -> str:
+    from glyphwright.kernel.commands import Talk
+
+    engine = _engine()
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    frame = engine.step(Talk("innkeeper")).frame
+    return scene.scene_text(scene.compose(frame, frame.messages))
+
+
+def _gui_lock() -> str:
+    from glyphwright.kernel.commands import Open
+
+    engine = _engine()
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    engine.step(Move("down"))
+    frame = engine.step(Open("strongbox")).frame
+    return scene.scene_text(scene.compose(frame, frame.messages))
+
+
 GOLDENS: dict[str, Callable[[], str]] = {
     "tui_village": _tui_village,
     "tui_inn": _tui_inn,
@@ -82,6 +105,8 @@ GOLDENS: dict[str, Callable[[], str]] = {
     "gui_village": _gui_village,
     "gui_inn": _gui_inn,
     "gui_battle": _gui_battle,
+    "gui_dialogue": _gui_dialogue,
+    "gui_lock": _gui_lock,
 }
 
 

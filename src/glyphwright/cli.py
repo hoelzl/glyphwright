@@ -145,9 +145,7 @@ def _play(engine: Engine, frontend: str, *, harness: bool) -> int:
     if frontend == "gui":
         from glyphwright.frontends.gui import session as gui_session
 
-        # The meta-channel is a typed channel; the GUI has no bar to type
-        # into until 13B, so `harness` has nothing to gate here.
-        return gui_session.run_session(engine)
+        return gui_session.run_session(engine, harness=harness)
     return plain.run_session(engine, sys.stdin, sys.stdout, harness=harness)
 
 

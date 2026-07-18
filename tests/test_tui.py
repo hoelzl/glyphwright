@@ -66,6 +66,20 @@ def test_flee_key_in_battle() -> None:
     assert keys.translate("u", frame) is None  # nothing usable is carried
 
 
+def test_pick_and_abort_keys_in_the_lockpick_minigame() -> None:
+    from glyphwright.kernel.commands import Abort, Open, Pick
+
+    engine = Engine.new(reference_pack(), seed=99)
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    engine.step(Move("down"))
+    engine.step(Open("strongbox"))
+    frame = engine.frame()
+    assert keys.translate("p", frame) == Pick()
+    assert keys.translate("z", frame) == Abort()
+
+
 def test_unadvertised_hotkeys_translate_to_nothing() -> None:
     frame = _engine().frame()
     assert keys.translate("t", frame) is None

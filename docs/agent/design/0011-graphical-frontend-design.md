@@ -189,8 +189,12 @@ tests and docs, and later slices may be re-scoped by what earlier ones learn.
   render as an honest placeholder naming the mode and directing to the
   terminal frontends — never a crash.
 - **13B — Full parity.** Menu battle, dialogue, and lock views; the GUI plays
-  everything the TUI plays; projection consistency extended to all view
-  types. This is the slice that completes the usability claim.
+  everything the TUI plays — which includes the TUI's `;` command bar and
+  harness-gated `:` meta bar, since `talk`, `cast`, and the meta-channel are
+  typed, not hotkeyed; projection consistency extended to all view types.
+  The bar's echo travels through the Scene (`Scene.bar`) so painting stays a
+  pure function, but it is transient input state, excluded from goldens.
+  This is the slice that completes the usability claim.
 - **13C — Tileset and mouse.** The tileset flag with pack-optional glyph→image
   tables and glyph fallback; click targets in the Scene and mouse dispatch.
   Nice-to-haves beyond this (animation, sound, resizable layouts) are out of

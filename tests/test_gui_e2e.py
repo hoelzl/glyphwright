@@ -53,7 +53,7 @@ def _representative_frames() -> list[SemanticFrame]:
     frames.append(engine.step(Move("east")).frame)  # a grid frame with messages
     engine = _engine()
     engine.step(Move("south"))
-    frames.append(engine.frame())  # a battle placeholder
+    frames.append(engine.frame())  # a battle frame
     engine = _engine()
     for _ in range(6):
         engine.step(Move("east"))
@@ -130,3 +130,98 @@ def test_a_refused_move_keeps_the_session_running() -> None:
     finally:
         pygame.display.quit()
     assert engine.frame().turn == 1
+
+
+def _post_text(text: str) -> None:
+    for char in text:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=char))
+    pygame.event.post(
+        pygame.event.Event(pygame.KEYDOWN, key=pygame.K_RETURN, unicode="\r")
+    )
+
+
+def test_the_command_bar_accepts_typed_commands() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=";"))
+        _post_text("move east")
+        _post_keys((pygame.K_q, "q"))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 1
+
+
+def test_escape_cancels_the_bar_without_stepping() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=";"))
+        pygame.event.post(
+            pygame.event.Event(pygame.KEYDOWN, key=pygame.K_ESCAPE, unicode="")
+        )
+        _post_keys((pygame.K_q, "q"))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 0
+
+
+def test_closing_the_window_while_typing_still_quits() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=";"))
+        pygame.event.post(pygame.event.Event(pygame.QUIT))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 0
+
+
+def test_the_meta_bar_is_gated_and_does_not_advance_the_turn() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=":"))
+        _post_text("seed")
+        _post_keys((pygame.K_q, "q"))
+        assert session.run_session(engine, harness=True) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 0
+
+
+def test_a_battle_is_played_with_hotkeys() -> None:
+    engine = _engine()
+    pygame.display.init()
+    try:
+        # South engages the bandit; 'a' strikes it once; 'f' breaks contact.
+        _post_keys(
+            (pygame.K_DOWN, ""),
+            (pygame.K_a, "a"),
+            (pygame.K_f, "f"),
+            (pygame.K_q, "q"),
+        )
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().turn == 3
+
+
+def test_a_dialogue_is_started_and_answered() -> None:
+    engine = Engine.new(reference_pack(), seed=23)
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    pygame.display.init()
+    try:
+        pygame.event.post(pygame.event.Event(pygame.KEYDOWN, key=0, unicode=";"))
+        _post_text("talk innkeeper")
+        _post_keys((pygame.K_1, "1"), (pygame.K_q, "q"))
+        assert session.run_session(engine) == 0
+    finally:
+        pygame.display.quit()
+    assert engine.frame().mode == "dialogue"
+    assert engine.frame().turn == 9

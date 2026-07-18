@@ -1,0 +1,9 @@
+== turn 8 · dialogue · inn ==
+innkeeper: Wind's teeth, a traveller! Warm yourself —
+what'll it be?
+  1) Ask about the cellar
+  2) Ask about the road
+  3) Take your leave
+hp 17/20  mp 8/8
+hint: [arrows/hjkl] move  [1-9] exit/choice  [a]ttack  [t]ake  [u]se  [e]quip
+hint: [f]lee  [p]ick  [z]abort  [.]wait  [x]look  [;]command  [:]meta  [q]uit

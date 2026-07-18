@@ -37,8 +37,8 @@ _PALETTE: dict[str, Color] = {
 }
 
 _HINTS = (
-    "[arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee",
-    "[.]wait  [x]look  [q]uit",
+    "[arrows/hjkl] move  [1-9] exit/choice  [a]ttack  [t]ake  [u]se  [e]quip",
+    "[f]lee  [p]ick  [z]abort  [.]wait  [x]look  [;]command  [:]meta  [q]uit",
 )
 
 
@@ -66,6 +66,9 @@ class Scene:
     status: str
     log: tuple[str, ...]
     hints: tuple[str, ...]
+    #: The typed bar's echo while the player types; transient input state,
+    #: shown in the window but excluded from golden evidence (0011 §4).
+    bar: str | None = None
 
 
 def _grid_cells(viewport: GridView) -> tuple[Cell, ...]:
@@ -87,13 +90,28 @@ def _room_text(viewport: RoomView) -> tuple[str, ...]:
     return tuple(lines)
 
 
-def _placeholder_text(frame: SemanticFrame) -> tuple[str, ...]:
-    # 13A covers exploration; other modes get an honest signpost, never a
-    # crash (0011 §7). The mode is named so the player knows what happened.
+def _menu_text(frame: SemanticFrame) -> tuple[str, ...]:
+    # Combatant summaries live in the frame's actors (0003 §10.1).
+    lines = ["-- battle --"]
+    lines.extend(
+        f"  {actor.id:<12} {actor.hp:>3}/{actor.max_hp}" for actor in frame.actors
+    )
+    return tuple(lines)
+
+
+def _dialogue_text(viewport: DialogueView) -> tuple[str, ...]:
+    lines = list(textwrap.wrap(f"{viewport.speaker}: {viewport.text}", TEXT_COLS))
+    lines.extend(
+        f"  {index + 1}) {choice}" for index, choice in enumerate(viewport.choices)
+    )
+    return tuple(lines)
+
+
+def _lock_text(viewport: LockView) -> tuple[str, ...]:
+    drawn = "*" * viewport.pins + "." * (viewport.total - viewport.pins)
     return (
-        f"-- {frame.mode} --",
-        "This mode is not yet drawn by the GUI.",
-        "Play it with --frontend tui (or plain).",
+        f"-- lockpicking: {viewport.target} --",
+        f"pins: [{drawn}]  {viewport.pins}/{viewport.total}",
     )
 
 
@@ -115,8 +133,10 @@ def _status(frame: SemanticFrame) -> str:
     return line
 
 
-def compose(frame: SemanticFrame, log: tuple[str, ...]) -> Scene:
-    """The whole window as data. Pure: same frame and log, same Scene."""
+def compose(
+    frame: SemanticFrame, log: tuple[str, ...], *, bar: str | None = None
+) -> Scene:
+    """The whole window as data. Pure: same frame, log, and bar, same Scene."""
     viewport = frame.viewport
     cells: tuple[Cell, ...] = ()
     text: tuple[str, ...] = ()
@@ -124,9 +144,13 @@ def compose(frame: SemanticFrame, log: tuple[str, ...]) -> Scene:
         cells = _grid_cells(viewport)
     elif isinstance(viewport, RoomView):
         text = _room_text(viewport)
+    elif isinstance(viewport, MenuView):
+        text = _menu_text(frame)
+    elif isinstance(viewport, DialogueView):
+        text = _dialogue_text(viewport)
     else:
-        assert isinstance(viewport, MenuView | DialogueView | LockView)
-        text = _placeholder_text(frame)
+        assert isinstance(viewport, LockView)
+        text = _lock_text(viewport)
     return Scene(
         turn=frame.turn,
         mode=frame.mode,
@@ -137,6 +161,7 @@ def compose(frame: SemanticFrame, log: tuple[str, ...]) -> Scene:
         status=_status(frame),
         log=tuple(log[-LOG_LINES:]),
         hints=_HINTS,
+        bar=bar,
     )
 
 

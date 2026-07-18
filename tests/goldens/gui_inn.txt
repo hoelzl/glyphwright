@@ -6,5 +6,5 @@ with woodsmoke and spilled ale.
 exits: 1) down  2) out
 hp 17/20  mp 8/8
 log: You go enter.
-hint: [arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee
-hint: [.]wait  [x]look  [q]uit
+hint: [arrows/hjkl] move  [1-9] exit/choice  [a]ttack  [t]ake  [u]se  [e]quip
+hint: [f]lee  [p]ick  [z]abort  [.]wait  [x]look  [;]command  [:]meta  [q]uit

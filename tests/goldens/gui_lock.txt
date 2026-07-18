@@ -1,10 +1,7 @@
-== turn 1 · battle · village ==
--- battle --
-  player        17/20
-  bandit-1       8/8
+== turn 9 · minigame:lockpick · inn ==
+-- lockpicking: strongbox --
+pins: [...]  0/3
 hp 17/20  mp 8/8
-log: You go south.
-log: bandit-1 snarls and turns on you!
-log: Battle is joined!
+log: You bend to the lock.
 hint: [arrows/hjkl] move  [1-9] exit/choice  [a]ttack  [t]ake  [u]se  [e]quip
 hint: [f]lee  [p]ick  [z]abort  [.]wait  [x]look  [;]command  [:]meta  [q]uit

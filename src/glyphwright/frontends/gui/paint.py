@@ -36,6 +36,7 @@ _EXITS_TOP = _VIEWPORT_TOP + 9 * CELL_H + 8
 _STATUS_TOP = _EXITS_TOP + _LINE_H
 _LOG_TOP = _STATUS_TOP + _LINE_H + 8
 _HINTS_TOP = _LOG_TOP + 6 * _LINE_H + 8
+_BAR_TOP = _HINTS_TOP + 2 * _LINE_H + 8
 
 _font: pygame.font.Font | None = None
 
@@ -79,3 +80,5 @@ def paint(scene: Scene, surface: pygame.Surface) -> None:
         _text(surface, entry, (_MARGIN, _LOG_TOP + index * _LINE_H), _LOG_FG)
     for index, hint in enumerate(scene.hints):
         _text(surface, hint, (_MARGIN, _HINTS_TOP + index * _LINE_H), _HINT_FG)
+    if scene.bar is not None:
+        _text(surface, scene.bar + "_", (_MARGIN, _BAR_TOP), _HEADER_FG)

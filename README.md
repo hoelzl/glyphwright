@@ -47,10 +47,10 @@ A full-screen session (hand-rolled ANSI, arrows/hjkl plus hotkeys, `;` for a typ
 uv --no-config run glyphwright --frontend tui --harness
 ```
 
-A graphical session (a window, same keys as the TUI; needs the optional `gui` extra — `pip install "glyphwright[gui]"`, or `uv --no-config sync --all-groups --all-extras` in a checkout). Exploration renders in the window; battle, dialogue, and lockpicking still direct you to the TUI for now:
+A graphical session (a window, same keys and typed bars as the TUI; needs the optional `gui` extra — `pip install "glyphwright[gui]"`, or `uv --no-config sync --all-groups --all-extras` in a checkout). Every mode plays in the window — exploration, battle, dialogue, and lockpicking:
 
 ```bash
-uv --no-config run glyphwright --frontend gui
+uv --no-config run glyphwright --frontend gui --harness
 ```
 
 Agents and out-of-process verification should prefer the JSONL frontend, which emits one `SemanticFrame` per line and needs no ANSI parsing:
@@ -79,7 +79,7 @@ See [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the [kno
 
 GlyphWright is pre-alpha. Statuses now carry event-triggered hooks (poison ticks, wounded-threshold reactions), perks join the stat pipeline as permanent statuses, and hostiles cast abilities when out of melee reach. Abilities now cost mana from a per-actor pool (affordability gates the grammar and the AI alike). Progression mechanisms and richer hook targeting are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design documents below set the order.
 
-Graphical rendering has begun: a pygame-ce window frontend (optional `gui` extra) plays exploration today and grows toward full parity per design `0011`; the engine itself stays presentation-independent and dependency-free. Animation timing and audio remain deferred, but not ruled out.
+Graphical rendering has arrived: a pygame-ce window frontend (optional `gui` extra) plays everything the TUI plays, per design `0011`; the engine itself stays presentation-independent and dependency-free. Bitmap tilesets and mouse input are next (`0011` 13C); animation timing and audio remain deferred, but not ruled out.
 
 Permanently out of scope, because they contradict what GlyphWright is: real-time gameplay (the engine is turn-based to its foundations — turn count *is* time), a general-purpose scripting language for game logic, multiplayer, and any runtime dependency on TermVerify — the engine must always run with TermVerify absent.
 
