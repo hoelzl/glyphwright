@@ -353,6 +353,9 @@ def _actors(
                 max_hp=entity.actor.max_hp,
                 at=at,
                 statuses=entity.statuses.ids() if entity.statuses else (),
+                mp=(entity.actor.mp, entity.actor.max_mp)
+                if entity.actor.max_mp
+                else None,
             )
         )
     return tuple(summaries)

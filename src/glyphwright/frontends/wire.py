@@ -52,6 +52,8 @@ from glyphwright.kernel.events import (
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ManaRestored,
+    ManaSpent,
     MinigameResolved,
     ModePopped,
     ModePushed,
@@ -70,8 +72,8 @@ from glyphwright.kernel.events import (
 # existed before the bumps (event: items v2, combat v3, battle v4; frame: the
 # menu viewport variant v2, the room viewport variant v3, the
 # dialogue and lock viewport variants v4).
-FRAME_SCHEMA = "glyphwright.frame/4"
-EVENT_SCHEMA = "glyphwright.event/8"
+FRAME_SCHEMA = "glyphwright.frame/5"
+EVENT_SCHEMA = "glyphwright.event/9"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -132,6 +134,7 @@ def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
                 "statuses": list(actor.statuses),
                 "at": str(actor.at),
             }
+            | ({"mp": list(actor.mp)} if actor.mp is not None else {})
             for actor in frame.actors
         ],
         "messages": list(frame.messages),
@@ -261,6 +264,14 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"target": event.target, "status": event.status}
         case PerkGained():
             payload |= {"target": event.target, "perk": event.perk}
+        case ManaSpent():
+            payload |= {"caster": event.caster, "amount": event.amount}
+        case ManaRestored():
+            payload |= {
+                "target": event.target,
+                "amount": event.amount,
+                "source": event.source,
+            }
         case CastFizzled():
             payload |= {
                 "caster": event.caster,

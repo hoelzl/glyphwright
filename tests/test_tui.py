@@ -249,7 +249,7 @@ def test_meta_payload_lines_fit_the_screen_unbroken() -> None:
     payload = meta.handle(engine, ":frame")
     lines = meta.render_text(payload).splitlines()
     assert any('"schema"' in line for line in lines)
-    assert any("glyphwright.frame/4" in line for line in lines)
+    assert any("glyphwright.frame/5" in line for line in lines)
     for line in lines:
         assert len(line) <= render.WIDTH, f"overwide payload line: {line!r}"
 

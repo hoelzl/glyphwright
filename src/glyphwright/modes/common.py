@@ -13,6 +13,7 @@ from glyphwright.kernel.events import (
     Healed,
     ItemAcquired,
     ItemUsed,
+    ManaRestored,
     MoveBlocked,
     Moved,
     TurnAdvanced,
@@ -168,28 +169,42 @@ def usable_items(state: WorldState) -> tuple[str, ...]:
 
     Unlike the map's exits — topology, enumerable even when blocked — item
     domains are validity filters, and a use that can have no effect is not
-    offered: accepting it would destroy the item for nothing.
+    offered: accepting it would destroy the item for nothing. A consumable
+    counts when any of its restorations would land (heal against a wound,
+    mana against a spent pool — design 0009 §3).
     """
     player = state.entity(PLAYER)
-    if player.actor is None or player.actor.hp >= player.actor.max_hp:
+    actor = player.actor
+    if actor is None:
         return ()
+    wounded = actor.hp < actor.max_hp
+    spent = actor.mp < actor.max_mp
     return tuple(
         item_id
         for item_id in sorted(player.carries())
         if (consumable := state.entity(item_id).consumable) is not None
-        and consumable.heal > 0
+        and ((consumable.heal > 0 and wounded) or (consumable.mana > 0 and spent))
     )
 
 
 def use_item(state: WorldState, item_id: str) -> tuple[Event, ...]:
-    """Resolve using a carried consumable on yourself."""
+    """Resolve using a carried consumable on yourself.
+
+    Amounts are post-clamp: events record what landed, not what was
+    attempted.
+    """
     consumable = state.entity(item_id).consumable
     assert consumable is not None, "the grammar only offers carried consumables"
     actor = state.entity(PLAYER).actor
     assert actor is not None
-    healed = min(consumable.heal, actor.max_hp - actor.hp)
-    return (
-        ItemUsed(actor=PLAYER, item=item_id, target=PLAYER, consumed=True),
-        Healed(target=PLAYER, amount=healed, source=item_id),
-        TurnAdvanced(turn=state.turn + 1),
-    )
+    events: list[Event] = [
+        ItemUsed(actor=PLAYER, item=item_id, target=PLAYER, consumed=True)
+    ]
+    if consumable.heal > 0:
+        healed = min(consumable.heal, actor.max_hp - actor.hp)
+        events.append(Healed(target=PLAYER, amount=healed, source=item_id))
+    if consumable.mana > 0:
+        restored = min(consumable.mana, actor.max_mp - actor.mp)
+        events.append(ManaRestored(target=PLAYER, amount=restored, source=item_id))
+    events.append(TurnAdvanced(turn=state.turn + 1))
+    return tuple(events)

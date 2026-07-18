@@ -16,7 +16,12 @@ from glyphwright.world.space import EntityId, PosId
 
 @dataclass(frozen=True, slots=True)
 class ActorSummary:
-    """A visible actor, as a frame reports it."""
+    """A visible actor, as a frame reports it.
+
+    ``mp`` is ``None`` for an actor without a pool (``max_mp == 0``), so a
+    consumer never confuses "no mana system" with "an empty pool"
+    (design 0009 §4).
+    """
 
     id: EntityId
     name: str
@@ -24,6 +29,7 @@ class ActorSummary:
     max_hp: int
     at: PosId
     statuses: tuple[str, ...] = ()
+    mp: tuple[int, int] | None = None
 
 
 @dataclass(frozen=True, slots=True)

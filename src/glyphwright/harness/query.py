@@ -54,6 +54,8 @@ def _entity_query(state: WorldState, path: str, parts: list[str]) -> QueryResult
     match parts[1:]:
         case ["hp"] if entity.actor is not None:
             return QueryResult(path=path, value=[entity.actor.hp, entity.actor.max_hp])
+        case ["mp"] if entity.actor is not None:
+            return QueryResult(path=path, value=[entity.actor.mp, entity.actor.max_mp])
         case ["position"]:
             at = entity.at()
             return QueryResult(path=path, value=None if at is None else str(at))

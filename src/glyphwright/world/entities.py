@@ -31,6 +31,8 @@ class Actor:
     name: str
     hp: int
     max_hp: int
+    mp: int = 0
+    max_mp: int = 0
     base_stats: tuple[tuple[str, int], ...] = ()
     abilities: tuple[str, ...] = ()
     perks: tuple[str, ...] = ()
@@ -195,9 +197,10 @@ class Item:
 
 @dataclass(frozen=True, slots=True)
 class Consumable:
-    """An item destroyed by use. Slice 2's only use effect is healing."""
+    """An item destroyed by use: it restores hp, mp, or both (design 0009)."""
 
-    heal: int
+    heal: int = 0
+    mana: int = 0
 
 
 @dataclass(frozen=True, slots=True)

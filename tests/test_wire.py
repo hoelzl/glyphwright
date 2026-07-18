@@ -71,12 +71,12 @@ def _check(payload: dict[str, Any], schema: dict[str, Any]) -> None:
 
 def test_a_real_frame_validates() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v4.json"])
+    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v5.json"])
 
 
 def test_real_events_validate() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    schema = all_schemas()["glyphwright.event.v8.json"]
+    schema = all_schemas()["glyphwright.event.v9.json"]
     for command in (Move("east"), Move("north"), Wait()):
         result = engine.step(command)
         for event in result.events:

@@ -291,6 +291,8 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
                 "name": (True, str),
                 "hp": (True, int),
                 "max_hp": (True, int),
+                "mp": (False, int),
+                "max_mp": (False, int),
                 "stats": (False, dict),
                 "abilities": (False, list),
                 "perks": (False, list),
@@ -359,7 +361,12 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
     consumable = None
     if "consumable" in fields:
         consumable = Consumable(
-            **_take(file, where, dict(fields["consumable"]), {"heal": (True, int)})
+            **_take(
+                file,
+                where,
+                dict(fields["consumable"]),
+                {"heal": (False, int), "mana": (False, int)},
+            )
         )
     equippable = None
     if "equippable" in fields:
@@ -460,6 +467,7 @@ def _load_abilities(
                 "targeting": (True, str),
                 "effects": (True, list),
                 "requires": (False, list),
+                "cost": (False, int),
             },
         )
         effects = _effects(file, where, fields["effects"])
@@ -482,6 +490,7 @@ def _load_abilities(
                     targeting=fields["targeting"],
                     effects=tuple(effects),
                     requires_stat=requires_stat,
+                    cost=fields.get("cost", 0),
                 )
             )
         except ValueError as error:
