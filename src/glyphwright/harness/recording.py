@@ -19,21 +19,23 @@ from typing import IO
 from glyphwright import __version__
 from glyphwright.api import Engine, StepResult
 from glyphwright.content.pack import ContentPack
-from glyphwright.frontends.wire import decode_command, encode_command, encode_event
+from glyphwright.frontends.wire import (
+    canonical_json,
+    decode_command,
+    encode_command,
+    encode_event,
+)
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
 from glyphwright.kernel.commands import Command
 from glyphwright.kernel.events import Event
+from glyphwright.kernel.state import WorldState
 
 RECORDING_SCHEMA = "glyphwright.recording/1"
 
 
 def events_digest(events: tuple[Event, ...], *, turn: int) -> str:
     """The per-step prefix hash: SHA-256 over the canonically encoded events."""
-    canonical = json.dumps(
-        [encode_event(event, turn=turn) for event in events],
-        sort_keys=True,
-        separators=(",", ":"),
-    )
+    canonical = canonical_json([encode_event(event, turn=turn) for event in events])
     return f"sha256:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
 
 
@@ -53,20 +55,26 @@ class RecordingEngine(Engine):
     The header is written at construction; each accepted step appends one
     line. Rejections and queries advance nothing, so they are not part of
     the run's identity and are not recorded (design 0008 §1). Frontends
-    need no changes: this *is* an :class:`Engine`.
+    need no changes: this *is* an :class:`Engine` — though a snapshot of one
+    restores to a plain :class:`Engine`: the sink is a live-session concern
+    and does not survive serialization.
     """
 
-    _sink: IO[str]
-    _steps: int
+    def __init__(
+        self, state: WorldState, seed: int, pack_id: str, sink: IO[str]
+    ) -> None:
+        super().__init__(state=state, seed=seed, pack_id=pack_id)
+        self._sink = sink
+        self._steps = 0
 
     @classmethod
     def recording(
         cls, pack: ContentPack, *, seed: int, sink: IO[str], harness: bool = False
     ) -> RecordingEngine:
+        # Adopt everything Engine.new derived — state and pack id alike — so
+        # any future logic there cannot silently drift out of recordings.
         base = Engine.new(pack, seed=seed)
-        engine = cls(state=base._state, seed=seed, pack_id=pack.pack_id)
-        engine._sink = sink
-        engine._steps = 0
+        engine = cls(state=base._state, seed=seed, pack_id=base._pack_id, sink=sink)
         engine._write(engine.fingerprint().header(harness=harness))
         return engine
 
@@ -78,7 +86,7 @@ class RecordingEngine(Engine):
         return result
 
     def _write(self, payload: dict[str, object]) -> None:
-        self._sink.write(json.dumps(payload, sort_keys=True) + "\n")
+        self._sink.write(canonical_json(payload) + "\n")
         self._sink.flush()
 
 
@@ -99,6 +107,12 @@ class Replay:
 
 def _fail(steps: int, problem: str) -> Replay:
     return Replay(ok=False, steps=steps, problem=problem)
+
+
+def _is_int(value: object) -> bool:
+    """Strictly an integer: the schema says integer, and ``True == 1`` must
+    not smuggle a boolean past the check."""
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 def _lines(source: Iterable[str]) -> Iterator[str]:
@@ -139,8 +153,9 @@ def replay(pack: ContentPack, source: Iterable[str]) -> Replay:
             f"replaying against {pack.pack_id!r}",
         )
     seed = header.get("seed")
-    if not isinstance(seed, int):
+    if not _is_int(seed):
         return _fail(0, f"the header's seed is not an integer: {seed!r}")
+    assert isinstance(seed, int)
 
     engine = Engine.new(pack, seed=seed)
     steps = 0
@@ -153,8 +168,9 @@ def replay(pack: ContentPack, source: Iterable[str]) -> Replay:
             return _fail(steps, f"{where}: the line is not JSON")
         if not isinstance(line, dict) or line.get("schema") != RECORDING_SCHEMA:
             return _fail(steps, f"{where}: not a {RECORDING_SCHEMA} line")
-        if line.get("step") != expected_step:
-            return _fail(steps, f"{where}: the line is numbered {line.get('step')!r}")
+        numbered = line.get("step")
+        if not _is_int(numbered) or numbered != expected_step:
+            return _fail(steps, f"{where}: the line is numbered {numbered!r}")
         text = line.get("command")
         command = decode_command(text) if isinstance(text, str) else None
         if command is None:

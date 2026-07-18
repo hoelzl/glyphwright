@@ -132,3 +132,30 @@ def test_a_tampered_recording_fails_replay_over_the_cli(tmp_path) -> None:  # ty
     verified = _run(["--replay", str(recording)], "")
     assert verified.returncode == 1
     assert "diverged" in verified.stdout
+
+
+def test_record_refuses_to_overwrite(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    recording = tmp_path / "run.gwr"
+    recording.write_text("precious old run\n", encoding="utf-8")
+    result = _run(["--record", str(recording)], "quit\n")
+    assert result.returncode == 2
+    assert "refusing to overwrite" in result.stderr
+    assert recording.read_text(encoding="utf-8") == "precious old run\n", (
+        "the old recording survives untouched"
+    )
+
+
+def test_record_and_replay_together_are_a_usage_error(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    result = _run(
+        ["--replay", str(tmp_path / "a.gwr"), "--record", str(tmp_path / "b.gwr")],
+        "",
+    )
+    assert result.returncode == 2
+    assert "cannot" in result.stderr
+
+
+def test_replay_of_a_missing_file_is_a_clean_diagnostic(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    result = _run(["--replay", str(tmp_path / "nope.gwr")], "")
+    assert result.returncode == 2
+    assert "cannot read recording" in result.stderr
+    assert "Traceback" not in result.stderr

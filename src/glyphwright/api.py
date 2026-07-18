@@ -161,7 +161,13 @@ class Engine:
 
     @classmethod
     def restore(cls, snap: Snapshot) -> Engine:
-        return cls(state=snap._state, seed=snap._seed, pack_id=snap._pack_id)
+        """A plain engine at the snapshot's state.
+
+        Deliberately not ``cls``: decorations like recording are live-session
+        concerns (an open sink), and a restore must never resurrect one
+        half-initialized.
+        """
+        return Engine(state=snap._state, seed=snap._seed, pack_id=snap._pack_id)
 
     def _validate(self, command: Command) -> Rejected | None:
         """Answer validity against the frame's grammar, as the design requires.

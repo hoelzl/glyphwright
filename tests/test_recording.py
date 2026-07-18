@@ -77,7 +77,7 @@ def test_a_recording_replays_to_the_exact_final_state() -> None:
     outcome = replay(reference_pack(), text.splitlines())
     assert outcome.ok, outcome.problem
     assert outcome.engine is not None
-    assert outcome.engine._state == recorded._state, (
+    assert outcome.engine.snapshot() == recorded.snapshot(), (
         "restore is replay: byte-exact state, RNG cursor included"
     )
 
@@ -179,4 +179,68 @@ def test_a_recording_survives_battles_and_their_rng() -> None:
     outcome = replay(reference_pack(), sink.getvalue().splitlines())
     assert outcome.ok, outcome.problem
     assert outcome.engine is not None
-    assert outcome.engine._state == engine._state
+    assert outcome.engine.snapshot() == engine.snapshot()
+
+
+def test_a_boolean_step_number_is_refused() -> None:
+    """JSON's True == 1 in Python; the schema says integer and means it."""
+    text, _ = _record(seed=99)
+    lines = text.splitlines()
+    doctored = json.loads(lines[1])
+    doctored["step"] = True
+    lines[1] = json.dumps(doctored)
+    outcome = replay(reference_pack(), lines)
+    assert not outcome.ok
+    assert outcome.problem is not None and "numbered" in outcome.problem
+
+
+def test_a_boolean_seed_is_refused_at_the_header() -> None:
+    text, _ = _record(seed=99)
+    lines = text.splitlines()
+    header = json.loads(lines[0])
+    header["seed"] = True
+    lines[0] = json.dumps(header)
+    outcome = replay(reference_pack(), lines)
+    assert not outcome.ok
+    assert outcome.problem is not None and "seed" in outcome.problem
+
+
+def test_a_restored_snapshot_is_a_plain_engine() -> None:
+    """The sink is a live-session concern: a snapshot of a recording engine
+    restores to an engine that records nothing."""
+    sink = io.StringIO()
+    engine = RecordingEngine.recording(reference_pack(), seed=5, sink=sink)
+    engine.step(Move("east"))
+    restored = Engine.restore(engine.snapshot())
+    assert type(restored) is Engine
+    before = sink.getvalue()
+    restored.step(Move("east"))
+    assert sink.getvalue() == before, "the restored engine writes nothing"
+
+
+def test_multi_word_ids_are_refused_at_load() -> None:
+    """The command language splits on whitespace, and recordings replay
+    through it: an id that records fine but can never replay is a load
+    error, not a latent verification failure (design 0008 §1)."""
+    import pathlib
+    import tempfile
+
+    import pytest
+
+    from glyphwright.content.loader import PackError, load_pack
+
+    with tempfile.TemporaryDirectory() as raw:
+        root = pathlib.Path(raw)
+        (root / "pack.toml").write_text('name = "bad"\n', encoding="utf-8")
+        (root / "areas.toml").write_text(
+            '[[grid]]\narea = "field"\nrows = """\n...\n"""\n', encoding="utf-8"
+        )
+        (root / "entities.toml").write_text(
+            '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+            "[entity.actor]\nname = 'P'\nhp = 5\nmax_hp = 5\n"
+            '[[entity]]\nid = "rusty key"\nposition = "field:2,0"\n'
+            "[entity.item]\nname = 'Rusty Key'\n",
+            encoding="utf-8",
+        )
+        with pytest.raises(PackError, match="whitespace"):
+            load_pack(root)

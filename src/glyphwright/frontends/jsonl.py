@@ -7,12 +7,12 @@ workhorse mode (design 0003 sections 12 and 16.3).
 
 from __future__ import annotations
 
-import json
 from typing import TextIO
 
 from glyphwright.api import Engine
 from glyphwright.frontends.wire import (
     REJECTION_SCHEMA,
+    canonical_json,
     decode_command,
     encode_event,
     encode_frame,
@@ -73,5 +73,5 @@ def run_session(
 
 
 def _emit(output: TextIO, payload: dict[str, object]) -> None:
-    output.write(json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n")
+    output.write(canonical_json(payload) + "\n")
     output.flush()
