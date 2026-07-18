@@ -33,7 +33,7 @@ def test_the_reference_pack_loads_from_its_toml() -> None:
     pack = reference_pack()
     assert pack.name == "reference-vale"
     assert {e.id for e in pack.entities} >= {"player", "goblin-1", "strongbox"}
-    assert {a.id for a in pack.abilities} == {"firebolt", "guard"}
+    assert {a.id for a in pack.abilities} == {"firebolt", "guard", "rockshard"}
 
 
 def test_a_minimal_external_pack_loads_and_plays(tmp_path: Path) -> None:

@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from glyphwright.effects.combat import resolve_damage
 from glyphwright.effects.stats import derive
-from glyphwright.kernel.events import Event, Healed, StatusApplied
+from glyphwright.kernel.events import Event, Healed, PerkGained, StatusApplied
 from glyphwright.kernel.rng import Rng
 from glyphwright.world.space import EntityId
 
@@ -28,6 +28,7 @@ PARAM_SPECS: dict[str, dict[str, type]] = {
     "deal_damage": {"amount": int, "spread": int},
     "heal": {"amount": int},
     "apply_status": {"status": str, "duration": int},
+    "grant_perk": {"perk": str},
 }
 RESERVED_PARAMS = frozenset({"ability"})
 
@@ -49,6 +50,8 @@ def validate_params(primitive: str, params: Mapping[str, object]) -> None:
             )
     if primitive == "apply_status" and "status" not in params:
         raise ValueError("apply_status requires a 'status' parameter")
+    if primitive == "grant_perk" and "perk" not in params:
+        raise ValueError("grant_perk requires a 'perk' parameter")
 
 
 def _int_param(params: Mapping[str, object], key: str, default: int = 0) -> int:
@@ -113,8 +116,20 @@ def _apply_status(
     ), rng
 
 
+def _grant_perk(
+    state: WorldState,
+    source: EntityId,
+    target: EntityId,
+    params: Mapping[str, object],
+    rng: Rng,
+) -> tuple[tuple[Event, ...], Rng]:
+    perk = str(params["perk"])
+    return (PerkGained(target=target, perk=perk),), rng
+
+
 PRIMITIVES: dict[str, Primitive] = {
     "deal_damage": _deal_damage,
     "heal": _heal,
     "apply_status": _apply_status,
+    "grant_perk": _grant_perk,
 }

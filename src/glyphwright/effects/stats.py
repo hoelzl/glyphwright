@@ -82,6 +82,27 @@ def _equipped_modifiers(
     return tuple(found)
 
 
+def _perk_modifiers(
+    state: WorldState, entity_id: EntityId, stat: str
+) -> tuple[tuple[str, StatModifier], ...]:
+    """Perks are permanent statuses: same definitions, no expiry clock."""
+    actor = state.entity(entity_id).actor
+    if actor is None:
+        return ()
+    found: list[tuple[str, StatModifier]] = []
+    for perk_id in sorted(actor.perks):
+        definition = state.status_defs.get(perk_id)
+        if definition is None:
+            continue
+        source = f"{perk_id} (perk)"
+        found.extend(
+            (source, modifier)
+            for modifier in definition.modifiers
+            if modifier.stat == stat
+        )
+    return tuple(found)
+
+
 def _status_modifiers(
     state: WorldState, entity_id: EntityId, stat: str
 ) -> tuple[tuple[str, StatModifier], ...]:
@@ -105,16 +126,19 @@ def _status_modifiers(
 def derive(state: WorldState, entity_id: EntityId, stat: str) -> Derivation:
     """Resolve one stat through the ordered pipeline.
 
-    Sources contribute in a fixed order — statuses, then equipment — with all
-    additive contributions before any multiplicative one (0003 §9.1).
+    Sources contribute in a fixed order — perks, then statuses, then
+    equipment (permanent before temporary before worn) — with all additive
+    contributions before any multiplicative one (0003 §9.1).
     """
     actor = state.entity(entity_id).actor
     base = actor.base_stat(stat) if actor is not None else 0
     running = base
     contributions = [Contribution(source="base", op="base", value=base, running=base)]
 
-    modifiers = _status_modifiers(state, entity_id, stat) + _equipped_modifiers(
-        state, entity_id, stat
+    modifiers = (
+        _perk_modifiers(state, entity_id, stat)
+        + _status_modifiers(state, entity_id, stat)
+        + _equipped_modifiers(state, entity_id, stat)
     )
     for source, modifier in modifiers:
         if modifier.op != "add":

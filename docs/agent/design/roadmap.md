@@ -53,6 +53,7 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
 | 7 | **Abilities, statuses, effect primitives** (`0004`, scoping `0003` §9.2–§9.3): primitive registry, `cast <ability> at <target>` at arity two, timed statuses in the stat pipeline with provenance. Hooks and perks deferred. | Done |
 | 8 | **TOML content packs** (`0005`, scoping `0003` §8.2): stdlib-tomllib loader with located diagnostics, the reference pack itself as packaged TOML, `--pack <dir>`. | Done |
 | 9 | **Tactics battle + FOV** (`0006`, scoping `0003` §10.1, §20.3). | Done — 9A FOV, 9B tactics arena (grid battles with placement/homecoming via events, chase-or-strike foes, break-contact flee) |
+| 10 | **Status hooks, perks, AI ability use** (`0007`, scoping `0003` §9.3 and `0004` §5's deferrals). | Done — event-triggered hooks (damage_taken/turn_end, hp_below gate, one generation per step), perks as permanent statuses (`PerkGained`, `grant_perk`), hostiles cast when they cannot strike |
 
 ## Open questions
 

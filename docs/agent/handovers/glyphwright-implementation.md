@@ -312,14 +312,41 @@ Decisions taken by the implementing agent (owner delegated open choices):
    marauder (engages, arena="pit"), and the pit arena. The village goldens gained
    the hole glyph — deliberate, regenerated, reviewed.
 
+## Slice 10 decisions (hooks, perks, AI casting — design 0007)
+
+1. Status definitions gain `hooks` (`Hook(on, effects, hp_below)`): closed trigger
+   vocabulary `damage_taken`/`turn_end`, optional `hp_below` percent gate,
+   self-directed effect chains reusing the primitives. Hooks fire in the
+   scheduler epilogue over the whole round's events (`run` now takes `prior`,
+   the player's half), fold as they go, and never trigger each other within a
+   step (one generation — recursion closed by construction). Evidence labels
+   reuse the reserved `ability` param, set to the status id.
+2. A perk is a permanent status: `Actor.perks` names status definitions;
+   `PerkGained` (event v8) appends idempotently; the `grant_perk` primitive
+   emits it. Stat pipeline order within a kind: perks, then statuses, then
+   equipment, each sorted by id. Frames do not list perks; provenance shows
+   `"{id} (perk)"`.
+3. AI ability use: one rule in `_pursue` — strike when adjacent, else cast the
+   first castable foe-targeting ability (sorted id) at the player, else chase.
+   Menu foes keep striking (distance abstraction erases the ranged advantage).
+   AI casts use `cast_events(..., spend_turn=False)`; the pairing is chosen
+   valid, so AI never fizzles.
+4. Reference pack: status `venom` (turn_end poison tick), ability `rockshard`
+   (damage + venom), `hexer-1` in the warren (non-engaging caster), perk `grit`
+   (+2 def) on the marauder. Pack-id pin re-pinned (Actor/Status identity
+   widened).
+
 ## Next steps
 
-1. Finish slice 2 (see task breakdown in session, or re-derive from §18.2).
-2. Slice 3 — battle: menu battle first, shared scheduler (§5.5, ADR-004), then tactics
-   arena reusing GridSpace. Statuses/perks hook into the event fold (§9.3).
-3. Slice 4 — rooms and portals: `RoomGraphSpace`, mixed-world reference pack.
-   `C:\Users\tc\Programming\TypeScript\Projects\Riches` may be browsed for room-mode
-   inspiration/assets (owner note: not authoritative, no 1-1 replication).
+1. `0003` §20 open questions: snapshot format; the TermVerify-side adapter
+   placement is decided only when that adapter is built (ADR-001 forbids
+   importing termverify here).
+2. Possible future content design (each needs its own doc before code):
+   attacker-directed hook effects (thorns), resource costs for abilities,
+   AI self-casts, progression mechanisms that feed `PerkGained`.
+3. `C:\Users\tc\Programming\TypeScript\Projects\Riches` may be browsed for
+   room-mode inspiration/assets (owner note: not authoritative, no 1-1
+   replication).
 
 ### Riches survey notes (2026-07-17, for slice 4)
 

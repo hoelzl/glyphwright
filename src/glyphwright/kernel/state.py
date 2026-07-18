@@ -32,6 +32,7 @@ from glyphwright.kernel.events import (
     ModePushed,
     MoveBlocked,
     Moved,
+    PerkGained,
     PinSet,
     PinSlipped,
     StatusApplied,
@@ -280,6 +281,19 @@ def apply(state: WorldState, event: Event) -> WorldState:
             bearing = target.statuses or Statuses()
             return state.with_entity(
                 replace(target, statuses=bearing.without_status(event.status))
+            )
+        case PerkGained():
+            target = state.entity(event.target)
+            assert target.actor is not None, "only actors gain perks"
+            if event.perk in target.actor.perks:
+                return state
+            return state.with_entity(
+                replace(
+                    target,
+                    actor=replace(
+                        target.actor, perks=(*target.actor.perks, event.perk)
+                    ),
+                )
             )
         case CastFizzled():
             return state

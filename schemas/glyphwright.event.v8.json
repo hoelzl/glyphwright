@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/7",
+  "$id": "glyphwright.event/8",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -66,6 +66,9 @@
     "outcome": {
       "type": "string"
     },
+    "perk": {
+      "type": "string"
+    },
     "pins": {
       "type": "integer"
     },
@@ -93,7 +96,7 @@
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/7"
+      "const": "glyphwright.event/8"
     },
     "slot": {
       "type": "string"

@@ -42,13 +42,39 @@ class Ability:
             )
 
 
+HOOK_TRIGGERS = frozenset({"damage_taken", "turn_end"})
+
+
+@dataclass(frozen=True, slots=True)
+class Hook:
+    """Content: an event-triggered, self-directed effect chain on a status.
+
+    ``on`` names a trigger from the closed vocabulary; ``hp_below`` (percent
+    of max hp, 1–99) optionally gates the firing (design 0007 §1).
+    """
+
+    on: str
+    effects: tuple[tuple[str, Mapping[str, object]], ...]
+    hp_below: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.on not in HOOK_TRIGGERS:
+            raise ValueError(f"unknown hook trigger {self.on!r}")
+        if self.hp_below is not None and not 1 <= self.hp_below <= 99:
+            raise ValueError(
+                f"hook hp_below must be a percent in 1..99, got {self.hp_below!r}"
+            )
+
+
 @dataclass(frozen=True, slots=True)
 class Status:
-    """Content: a named bundle of modifiers a status contributes while active."""
+    """Content: a named bundle of modifiers a status contributes while active,
+    plus event-triggered hooks (design 0007 §1)."""
 
     id: str
     name: str
     modifiers: tuple[StatModifier, ...] = field(default=())
+    hooks: tuple[Hook, ...] = field(default=())
 
 
 def castable(state: WorldState, caster: EntityId) -> tuple[Ability, ...]:
@@ -74,12 +100,15 @@ def cast_events(
     target: EntityId,
     foes: tuple[EntityId, ...],
     rng: Rng,
+    spend_turn: bool = True,
 ) -> tuple[tuple[Event, ...], Rng]:
     """Resolve one cast: pairing check, then the primitive chain in order.
 
     A mismatched ability/target pairing is a refusal by the world — the
     grammar advertised both halves independently (design 0004 §2) — so it
-    spends the turn and answers with ``CastFizzled``.
+    spends the turn and answers with ``CastFizzled``. An AI cast passes
+    ``spend_turn=False``: only the player's command closes a turn, and the
+    AI's pairing is chosen valid so it can never fizzle.
     """
     from glyphwright.effects.primitives import PRIMITIVES
     from glyphwright.kernel.state import fold
@@ -89,6 +118,7 @@ def cast_events(
 
     valid = target == caster if ability.targeting == TARGET_SELF else target in foes
     if not valid:
+        assert spend_turn, "an AI cast must be constructed with a valid pairing"
         return (
             CastFizzled(
                 caster=caster,
@@ -108,5 +138,6 @@ def cast_events(
         state = fold(state, produced)
         if target != caster and target not in state.entities:
             break  # the target died mid-chain; later effects have no subject
-    events.append(turn)
+    if spend_turn:
+        events.append(turn)
     return tuple(events), rng

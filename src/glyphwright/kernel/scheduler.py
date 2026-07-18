@@ -14,6 +14,7 @@ from __future__ import annotations
 
 from collections import deque
 
+from glyphwright.effects.abilities import TARGET_FOE, cast_events, castable
 from glyphwright.effects.combat import (
     hostile_actors,
     melee_adjacent,
@@ -21,6 +22,7 @@ from glyphwright.effects.combat import (
     roll_initiative,
     strike,
 )
+from glyphwright.effects.hooks import hook_events
 from glyphwright.kernel.events import (
     PLAYER_DEFEATED,
     Event,
@@ -226,7 +228,9 @@ def _pursue(
     state: WorldState, entity: Entity, rng: Rng
 ) -> tuple[tuple[Event, ...], Rng]:
     """The one pursuit rule, shared by exploration hostiles and arena foes:
-    strike when in melee reach of the player, else close one step."""
+    strike when in melee reach of the player, else cast when able, else
+    close one step (design 0007 §3: a hostile casts when it cannot strike).
+    """
     player_at = state.entity(PLAYER).at()
     at = entity.at()
     if player_at is None or at is None:
@@ -235,6 +239,13 @@ def _pursue(
         state.areas[at.area], at, player_at
     ):
         return strike(state, entity.id, PLAYER, rng)
+    ranged = next(
+        (a for a in castable(state, entity.id) if a.targeting == TARGET_FOE), None
+    )
+    if ranged is not None:
+        return cast_events(
+            state, entity.id, ranged.id, PLAYER, (PLAYER,), rng, spend_turn=False
+        )
     moved = _chase_step(state, entity, player_at)
     return ((moved,) if moved is not None else ()), rng
 
@@ -348,15 +359,20 @@ def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
     return ()
 
 
-def run(state: WorldState, rng: Rng) -> tuple[tuple[Event, ...], WorldState, Rng]:
+def run(
+    state: WorldState, rng: Rng, prior: tuple[Event, ...] = ()
+) -> tuple[tuple[Event, ...], WorldState, Rng]:
     """Grant every due AI actor its turn, folding as it goes.
 
     One loop serves both scheduler configurations; the queue and the per-actor
     rules come from the active mode. Later actors see the effects of earlier
     ones, and the round stops the moment the player is defeated or the mode
-    changes (an engagement hands the rest of the round to the battle). After
-    the round, a finished battle pops with its outcome. Returns the folded
-    state alongside the events so the caller does not fold them a second time.
+    changes (an engagement hands the rest of the round to the battle). The
+    epilogue then fires status/perk hooks over the whole round's events —
+    ``prior`` is the player's half, already folded by the caller — sweeps
+    expired statuses, and pops a finished battle with its outcome. Returns the
+    folded state alongside the events so the caller does not fold them a
+    second time.
     """
     opening_mode = state.mode
     events: list[Event] = []
@@ -368,6 +384,9 @@ def run(state: WorldState, rng: Rng) -> tuple[tuple[Event, ...], WorldState, Rng
         acted, rng = _take_turn(state, actor_id, rng)
         events.extend(acted)
         state = fold(state, acted)
+
+    hooked, state, rng = hook_events(state, (*prior, *events), rng)
+    events.extend(hooked)
 
     expiries = _expired_statuses(state)
     events.extend(expiries)

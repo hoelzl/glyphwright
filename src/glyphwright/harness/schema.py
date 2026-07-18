@@ -222,6 +222,7 @@ def event_schema() -> dict[str, Any]:
             "status": _STRING,
             "expires": _INTEGER,
             "caster": _STRING,
+            "perk": _STRING,
             "returns": {
                 "type": "array",
                 "items": {
@@ -276,7 +277,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     return {
         "glyphwright.session.v1.json": session_schema(),
         "glyphwright.frame.v4.json": frame_schema(),
-        "glyphwright.event.v7.json": event_schema(),
+        "glyphwright.event.v8.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
     }

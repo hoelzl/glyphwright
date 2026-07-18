@@ -203,6 +203,7 @@ name = "Marauder"
 hp = 9
 max_hp = 9
 stats = { atk = 4, def = 2, spd = 5 }
+perks = ["grit"]
 
 [entity.renderable]
 glyph = "M"
@@ -212,3 +213,22 @@ label = "marauder"
 hostile = true
 engages = true
 arena = "pit"
+
+[[entity]]
+id = "hexer-1"
+position = "warren:5,2"
+blocker = true
+
+[entity.actor]
+name = "Hexer"
+hp = 7
+max_hp = 7
+stats = { atk = 3, def = 1, spd = 4 }
+abilities = ["rockshard"]
+
+[entity.renderable]
+glyph = "H"
+label = "hexer"
+
+[entity.ai]
+hostile = true

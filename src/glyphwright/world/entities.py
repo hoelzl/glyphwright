@@ -21,13 +21,19 @@ class Position:
 
 @dataclass(frozen=True, slots=True)
 class Actor:
-    """An entity that takes turns and can be summarised in a frame."""
+    """An entity that takes turns and can be summarised in a frame.
+
+    ``perks`` are permanent statuses (design 0003 §9.3): each id names a
+    status definition whose modifiers and hooks apply without an expiry
+    clock.
+    """
 
     name: str
     hp: int
     max_hp: int
     base_stats: tuple[tuple[str, int], ...] = ()
     abilities: tuple[str, ...] = ()
+    perks: tuple[str, ...] = ()
 
     def base_stat(self, stat: str) -> int:
         for name, value in self.base_stats:

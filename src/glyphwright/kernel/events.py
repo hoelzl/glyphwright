@@ -289,6 +289,20 @@ class StatusExpired:
 
 
 @dataclass(frozen=True, slots=True)
+class PerkGained:
+    """An actor gained a permanent status (design 0003 §9.3).
+
+    The fold appends the perk to the actor; re-gaining an owned perk is
+    evidence of the attempt, not a second acquisition.
+    """
+
+    target: EntityId
+    perk: str
+
+    type: str = "PerkGained"
+
+
+@dataclass(frozen=True, slots=True)
 class CastFizzled:
     """A cast whose halves do not pair: a refusal by the world (0003 A.5).
 
@@ -338,5 +352,6 @@ Event = (
     | MinigameResolved
     | StatusApplied
     | StatusExpired
+    | PerkGained
     | CastFizzled
 )

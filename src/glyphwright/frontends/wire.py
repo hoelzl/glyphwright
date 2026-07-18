@@ -57,6 +57,7 @@ from glyphwright.kernel.events import (
     ModePushed,
     MoveBlocked,
     Moved,
+    PerkGained,
     PinSet,
     PinSlipped,
     StatusApplied,
@@ -70,7 +71,7 @@ from glyphwright.kernel.events import (
 # menu viewport variant v2, the room viewport variant v3, the
 # dialogue and lock viewport variants v4).
 FRAME_SCHEMA = "glyphwright.frame/4"
-EVENT_SCHEMA = "glyphwright.event/7"
+EVENT_SCHEMA = "glyphwright.event/8"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -258,6 +259,8 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             }
         case StatusExpired():
             payload |= {"target": event.target, "status": event.status}
+        case PerkGained():
+            payload |= {"target": event.target, "perk": event.perk}
         case CastFizzled():
             payload |= {
                 "caster": event.caster,
