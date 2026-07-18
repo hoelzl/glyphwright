@@ -57,6 +57,13 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
 | 11 | **Session recording and replay** (`0008`, resolving `0003` §20.2). | Done — replay as the durable format: session header + per-step command lines with SHA-256 event digests, `--record`/`--replay` on the CLI, header-gated compatibility |
 | 12 | **Resource pools and ability costs** (`0009`, lifting `0004` §2's deferral). | Done — `Actor.mp`, `Ability.cost` with affordability-as-advertisement, `ManaSpent`/`ManaRestored` (event v9), mana consumables, `mp` in frames (v5) and the oracle |
 
+## Next integration step
+
+`0010-termverify-integration-assessment.md` (2026-07-18) surveys TermVerify's state: the
+direct in-process adapter path is feasible now and is the next integration step; the JSONL
+subprocess and PTY flavors, and all differential testing, are blocked on TermVerify-side
+work listed there as prioritized asks.
+
 ## Open questions
 
-`0003` §20 holds the live list: snapshot format, FOV/visibility timing, and adapter placement. Repository placement (own repository) and the TUI substrate (hand-rolled ANSI) were resolved on 2026-07-17.
+`0003` §20 holds the live list: adapter placement (§20.5) is the only question still open. Repository placement (own repository) and the TUI substrate (hand-rolled ANSI) were resolved on 2026-07-17; the snapshot format (replay as the durable format, slice 11) and FOV/visibility (pack-level option, slice 9A) on 2026-07-18.
