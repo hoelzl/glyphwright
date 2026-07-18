@@ -15,7 +15,7 @@ from importlib.resources.abc import Traversable
 from typing import Any
 
 from glyphwright.content.pack import ContentPack
-from glyphwright.effects.abilities import Ability, Status
+from glyphwright.effects.abilities import Ability, Hook, Status
 from glyphwright.world.entities import (
     Actor,
     AiBehavior,
@@ -293,13 +293,22 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
                 "max_hp": (True, int),
                 "stats": (False, dict),
                 "abilities": (False, list),
+                "perks": (False, list),
             },
         )
         stats = _int_mapping(file, where, "stats", actor_fields.pop("stats", {}))
         abilities = actor_fields.pop("abilities", [])
         for ability in abilities:
             _typed(file, where, "abilities entry", ability, str)
-        actor = Actor(**actor_fields, base_stats=stats, abilities=tuple(abilities))
+        perks = actor_fields.pop("perks", [])
+        for perk in perks:
+            _typed(file, where, "perks entry", perk, str)
+        actor = Actor(
+            **actor_fields,
+            base_stats=stats,
+            abilities=tuple(abilities),
+            perks=tuple(perks),
+        )
     renderable = None
     if "renderable" in fields:
         renderable_fields = _take(
@@ -398,6 +407,41 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
     )
 
 
+def _effects(
+    file: str, where: str, raw: object
+) -> tuple[tuple[str, dict[str, Any]], ...]:
+    """An ordered effect chain — the shape abilities and hooks share."""
+    effects = []
+    for effect_table in _tables(file, where, raw):
+        if "primitive" not in effect_table:
+            raise _fail(file, where, "an effect needs a 'primitive' key")
+        primitive = _typed(file, where, "primitive", effect_table.pop("primitive"), str)
+        effects.append((primitive, effect_table))
+    return tuple(effects)
+
+
+def _hooks(file: str, where: str, raw: object) -> tuple[Hook, ...]:
+    hooks = []
+    for hook_table in _tables(file, where, raw):
+        hook_fields = _take(
+            file,
+            where,
+            hook_table,
+            {"on": (True, str), "hp_below": (False, int), "effects": (True, list)},
+        )
+        try:
+            hooks.append(
+                Hook(
+                    on=hook_fields["on"],
+                    effects=_effects(file, where, hook_fields["effects"]),
+                    hp_below=hook_fields.get("hp_below"),
+                )
+            )
+        except ValueError as error:
+            raise _fail(file, where, str(error)) from error
+    return tuple(hooks)
+
+
 def _load_abilities(
     root: Traversable,
 ) -> tuple[tuple[Ability, ...], tuple[Status, ...]]:
@@ -418,14 +462,7 @@ def _load_abilities(
                 "requires": (False, list),
             },
         )
-        effects = []
-        for effect_table in _tables(file, where, fields["effects"]):
-            if "primitive" not in effect_table:
-                raise _fail(file, where, "an effect needs a 'primitive' key")
-            primitive = _typed(
-                file, where, "primitive", effect_table.pop("primitive"), str
-            )
-            effects.append((primitive, effect_table))
+        effects = _effects(file, where, fields["effects"])
         requires = fields.get("requires")
         requires_stat = None
         if requires is not None:
@@ -456,13 +493,19 @@ def _load_abilities(
             file,
             where,
             table,
-            {"id": (True, str), "name": (True, str), "modifiers": (False, list)},
+            {
+                "id": (True, str),
+                "name": (True, str),
+                "modifiers": (False, list),
+                "hooks": (False, list),
+            },
         )
         statuses.append(
             Status(
                 id=fields["id"],
                 name=fields["name"],
                 modifiers=_modifiers(file, where, fields.get("modifiers", [])),
+                hooks=_hooks(file, where, fields.get("hooks", [])),
             )
         )
     if data:

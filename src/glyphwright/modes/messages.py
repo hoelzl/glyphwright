@@ -27,6 +27,7 @@ from glyphwright.kernel.events import (
     ModePushed,
     MoveBlocked,
     Moved,
+    PerkGained,
     PinSet,
     PinSlipped,
     StatusApplied,
@@ -132,6 +133,10 @@ def describe(event: Event) -> str:
             return f"{event.status} fades from you."
         case StatusExpired():
             return f"{event.status} fades from {event.target}."
+        case PerkGained(target=target) if target == PLAYER:
+            return f"You gain the {event.perk} perk."
+        case PerkGained():
+            return f"{event.target} gains the {event.perk} perk."
         case CastFizzled():
             return f"The {event.ability} fizzles."
         case TurnAdvanced():

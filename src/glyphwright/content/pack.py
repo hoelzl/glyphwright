@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 
 from glyphwright.effects.abilities import Ability, Status
@@ -67,27 +68,45 @@ class ContentPack:
             raise ValueError("ability ids must be unique")
         if len(status_ids) != len(self.statuses):
             raise ValueError("status ids must be unique")
-        for ability in self.abilities:
-            for name, params in ability.effects:
+
+        def check_effects(
+            owner: str, effects: tuple[tuple[str, Mapping[str, object]], ...]
+        ) -> None:
+            """One rule for every effect chain, ability or hook alike."""
+            for name, params in effects:
                 if name not in PRIMITIVES:
-                    raise ValueError(
-                        f"ability {ability.id!r} names unknown primitive {name!r}"
-                    )
+                    raise ValueError(f"{owner} names unknown primitive {name!r}")
                 try:
                     validate_params(name, params)
                 except ValueError as error:
-                    raise ValueError(f"ability {ability.id!r}: {error}") from error
+                    raise ValueError(f"{owner}: {error}") from error
                 if name == "apply_status" and params.get("status") not in status_ids:
                     raise ValueError(
-                        f"ability {ability.id!r} applies unknown status "
-                        f"{params.get('status')!r}"
+                        f"{owner} applies unknown status {params.get('status')!r}"
                     )
+                if name == "grant_perk" and params.get("perk") not in status_ids:
+                    raise ValueError(
+                        f"{owner} grants unknown perk {params.get('perk')!r} "
+                        "(a perk is a status definition)"
+                    )
+
+        for ability in self.abilities:
+            check_effects(f"ability {ability.id!r}", ability.effects)
+        for status in self.statuses:
+            for hook in status.hooks:
+                check_effects(f"status {status.id!r} hook on {hook.on!r}", hook.effects)
         for entity in self.entities:
             if entity.actor is not None:
                 for ability_id in entity.actor.abilities:
                     if ability_id not in ability_ids:
                         raise ValueError(
                             f"actor {entity.id!r} knows unknown ability {ability_id!r}"
+                        )
+                for perk_id in entity.actor.perks:
+                    if perk_id not in status_ids:
+                        raise ValueError(
+                            f"actor {entity.id!r} bears unknown perk {perk_id!r} "
+                            "(a perk is a status definition)"
                         )
         spaces = {space.area: space for space in self.areas}
         if len(spaces) != len(self.areas):

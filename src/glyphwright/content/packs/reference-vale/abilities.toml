@@ -15,3 +15,22 @@ effects = [{ primitive = "apply_status", status = "stoneskin", duration = 3 }]
 id = "stoneskin"
 name = "Stoneskin"
 modifiers = [{ stat = "def", op = "add", value = 3 }]
+
+[[ability]]
+id = "rockshard"
+name = "Rockshard"
+targeting = "foe"
+effects = [
+    { primitive = "deal_damage", amount = 2, spread = 2 },
+    { primitive = "apply_status", status = "venom", duration = 3 },
+]
+
+[[status]]
+id = "venom"
+name = "Venom"
+hooks = [{ on = "turn_end", effects = [{ primitive = "deal_damage", amount = 1 }] }]
+
+[[status]]
+id = "grit"
+name = "Grit"
+modifiers = [{ stat = "def", op = "add", value = 2 }]

@@ -76,7 +76,7 @@ def test_a_real_frame_validates() -> None:
 
 def test_real_events_validate() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    schema = all_schemas()["glyphwright.event.v7.json"]
+    schema = all_schemas()["glyphwright.event.v8.json"]
     for command in (Move("east"), Move("north"), Wait()):
         result = engine.step(command)
         for event in result.events:

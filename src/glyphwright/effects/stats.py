@@ -3,8 +3,8 @@
 Every contribution carries provenance — which source moved the number, by how
 much, and what the running value became — so "why is attack 8?" is an
 assertable, self-documenting fact rather than a debugging session (design 0003
-section 9.1). Equipment is the only modifier source in slice 2; statuses, perks,
-and terrain join the same pipeline later.
+section 9.1). Perks, statuses, and equipment feed the pipeline, in that order
+within each kind; terrain joins the same pipeline later.
 """
 
 from __future__ import annotations
@@ -82,18 +82,20 @@ def _equipped_modifiers(
     return tuple(found)
 
 
-def _status_modifiers(
-    state: WorldState, entity_id: EntityId, stat: str
+def _borne_modifiers(
+    state: WorldState, entity_id: EntityId, stat: str, kind: str, label: str
 ) -> tuple[tuple[str, StatModifier], ...]:
-    statuses = state.entity(entity_id).statuses
-    if statuses is None:
-        return ()
+    """Modifiers from borne status definitions — perks are permanent
+    statuses, so both kinds walk the one shared enumeration."""
+    # Imported here because abilities imports derive from this module.
+    from glyphwright.effects.abilities import bearing_ids
+
     found: list[tuple[str, StatModifier]] = []
-    for status_id, _ in sorted(statuses.active):
+    for status_id in bearing_ids(state.entity(entity_id), kind):
         definition = state.status_defs.get(status_id)
         if definition is None:
             continue
-        source = f"{status_id} (status)"
+        source = f"{status_id} ({label})"
         found.extend(
             (source, modifier)
             for modifier in definition.modifiers
@@ -105,16 +107,19 @@ def _status_modifiers(
 def derive(state: WorldState, entity_id: EntityId, stat: str) -> Derivation:
     """Resolve one stat through the ordered pipeline.
 
-    Sources contribute in a fixed order — statuses, then equipment — with all
-    additive contributions before any multiplicative one (0003 §9.1).
+    Sources contribute in a fixed order — perks, then statuses, then
+    equipment (permanent before temporary before worn) — with all additive
+    contributions before any multiplicative one (0003 §9.1).
     """
     actor = state.entity(entity_id).actor
     base = actor.base_stat(stat) if actor is not None else 0
     running = base
     contributions = [Contribution(source="base", op="base", value=base, running=base)]
 
-    modifiers = _status_modifiers(state, entity_id, stat) + _equipped_modifiers(
-        state, entity_id, stat
+    modifiers = (
+        _borne_modifiers(state, entity_id, stat, "perks", "perk")
+        + _borne_modifiers(state, entity_id, stat, "statuses", "status")
+        + _equipped_modifiers(state, entity_id, stat)
     )
     for source, modifier in modifiers:
         if modifier.op != "add":

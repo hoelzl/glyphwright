@@ -71,7 +71,7 @@ See [`AGENTS.md`](AGENTS.md), [`CONTRIBUTING.md`](CONTRIBUTING.md), and the [kno
 
 ## Status and scope
 
-GlyphWright is pre-alpha. Perks, status hooks, and AI ability use are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design document below sets the order.
+GlyphWright is pre-alpha. Statuses now carry event-triggered hooks (poison ticks, wounded-threshold reactions), perks join the stat pipeline as permanent statuses, and hostiles cast abilities when out of melee reach. Resource costs, progression mechanisms, and richer hook targeting are planned but not built yet, and must grow from the deterministic core rather than bypass it. The design documents below set the order.
 
 Deferred, but not ruled out: graphical rendering, animation timing, and audio. The world model is deliberately presentation-independent, so a graphical frontend consuming the same frames and events could be added later.
 
