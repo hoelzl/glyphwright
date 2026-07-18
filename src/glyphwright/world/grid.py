@@ -43,10 +43,17 @@ def _coords(pos: PosId) -> tuple[int, int]:
 
 @dataclass(frozen=True, slots=True)
 class GridSpace:
-    """A rectangular tile area addressed by ``area:x,y``."""
+    """A rectangular tile area addressed by ``area:x,y``.
+
+    ``fov`` is the sight radius: ``0`` means omniscient (every tile always
+    visible); a positive radius makes visibility a pure function of the
+    observer's position and the terrain (design 0006 §1) — no state, no
+    events, purely a view concern.
+    """
 
     _area: str
     rows: tuple[str, ...]
+    fov: int = 0
 
     def __post_init__(self) -> None:
         if not self.rows or not self.rows[0]:
@@ -56,10 +63,12 @@ class GridSpace:
         unsupported = {c for row in self.rows for c in row} - _TERRAIN
         if unsupported:
             raise ValueError(f"unsupported terrain glyphs: {sorted(unsupported)}")
+        if self.fov < 0:
+            raise ValueError("fov must be zero (omniscient) or positive")
 
     @classmethod
-    def from_text(cls, area: str, text: str) -> GridSpace:
-        return cls(_area=area, rows=tuple(text.splitlines()))
+    def from_text(cls, area: str, text: str, *, fov: int = 0) -> GridSpace:
+        return cls(_area=area, rows=tuple(text.splitlines()), fov=fov)
 
     @property
     def area(self) -> str:
@@ -133,13 +142,59 @@ class GridSpace:
     def occupants(self, state: WorldState, pos: PosId) -> tuple[EntityId, ...]:
         return tuple(entity.id for entity in state.entities_at(pos))
 
+    def visible_from(self, origin: PosId) -> frozenset[PosId]:
+        """Every position the observer can currently see.
+
+        Omniscient (``fov == 0``): everything. Otherwise: within the radius
+        (Chebyshev) and reachable by a Bresenham line that crosses no
+        interior wall — walls themselves are visible, nothing behind them is.
+        Sight is symmetric by construction: a line clear in either direction
+        counts, so two actors always agree on whether they can see each other.
+        """
+        if not self.contains(origin):
+            raise ValueError(f"{origin} is not a position of area {self._area!r}")
+        if self.fov == 0:
+            return frozenset(self.positions())
+        ox, oy = _coords(origin)
+        seen = set()
+        for y in range(max(0, oy - self.fov), min(self.height, oy + self.fov + 1)):
+            for x in range(max(0, ox - self.fov), min(self.width, ox + self.fov + 1)):
+                if self._line_clear(ox, oy, x, y) or self._line_clear(x, y, ox, oy):
+                    seen.add(self.pos(x, y))
+        return frozenset(seen)
+
+    def _line_clear(self, x0: int, y0: int, x1: int, y1: int) -> bool:
+        """Bresenham from observer to target; interior walls block."""
+        dx = abs(x1 - x0)
+        dy = -abs(y1 - y0)
+        step_x = 1 if x0 < x1 else -1
+        step_y = 1 if y0 < y1 else -1
+        error = dx + dy
+        x, y = x0, y0
+        while True:
+            interior = (x, y) != (x0, y0) and (x, y) != (x1, y1)
+            if interior and self.rows[y][x] == WALL:
+                return False
+            if (x, y) == (x1, y1):
+                return True
+            doubled = 2 * error
+            if doubled >= dy:
+                error += dy
+                x += step_x
+            if doubled <= dx:
+                error += dx
+                y += step_y
+
     def observe(self, state: WorldState, observer: EntityId) -> SpatialObservation:
         origin = state.entity(observer).at()
         if origin is None:
             raise ValueError(f"{observer} has no position to observe from")
-        # Slice 1 has no field-of-view filtering; the whole area is visible
-        # (0003 section 20.3 defers visibility to a later slice).
-        visible = tuple(self.positions())
+        if self.fov == 0:
+            seen = None
+            visible = tuple(self.positions())
+        else:
+            seen = self.visible_from(origin)
+            visible = tuple(pos for pos in self.positions() if pos in seen)
         actors = tuple(
             sorted(
                 entity.id
@@ -148,6 +203,7 @@ class GridSpace:
                 and entity.id != observer
                 and (at := entity.at()) is not None
                 and at.area == self._area
+                and (seen is None or at in seen)
             )
         )
         return SpatialObservation(

@@ -263,6 +263,30 @@ Decisions taken by the implementing agent (owner delegated open choices):
 4. `--pack <dir>` on the CLI, failing with a clean argparse error on broken packs.
 5. `tomllib` is stdlib: the zero-dependency stance holds.
 
+## Slice 9A decisions (field of view — design 0006 §1)
+
+1. **FOV is a pure view filter**: `GridSpace.fov` radius (pack option, `fov = N`
+   on grid areas; rooms reject it), Chebyshev range + Bresenham line-of-sight,
+   walls visible but opaque. No state, no events, no explored-tile memory — the
+   fold, replay, and grammars are untouched by construction (tested).
+2. Unseen tiles render `?` (parse-safe under the space-free tile rule; legend
+   `? = unseen`); unseen entities are neither drawn nor summarised, and
+   `observe()` filters the same way. The oracle stays an x-ray. AI keeps its
+   ears (pursuit of an unseen player is deliberate).
+3. The reference pack stays omniscient (golden stability); the tactics arena
+   (9B, sketched in 0006 §2) will ship fov-enabled content.
+4. The `fov` field widened grid-area identity; the pack pin was re-pinned.
+
+## Slice 9A post-review decisions
+
+1. **Frames disclose the here and now**: exploration `ActorSummary` rows list only
+   the player's current area (FOV or not), and in a fov-active area only visible
+   actors; messages are filtered the same way (an unseen actor's movement is not
+   narrated). The oracle stays the x-ray.
+2. **Sight is symmetric by construction**: Bresenham in either direction counts.
+   `visible_from` raises on foreign/off-map origins. `fov = 0` is accepted as
+   explicit omniscience; `?` is a reserved glyph (loader-enforced).
+
 ## Next steps
 
 1. Finish slice 2 (see task breakdown in session, or re-derive from §18.2).

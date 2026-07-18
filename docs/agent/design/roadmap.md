@@ -52,7 +52,7 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
 |---|---|---|
 | 7 | **Abilities, statuses, effect primitives** (`0004`, scoping `0003` §9.2–§9.3): primitive registry, `cast <ability> at <target>` at arity two, timed statuses in the stat pipeline with provenance. Hooks and perks deferred. | Done |
 | 8 | **TOML content packs** (`0005`, scoping `0003` §8.2): stdlib-tomllib loader with located diagnostics, the reference pack itself as packaged TOML, `--pack <dir>`. | Done |
-| 9 | **Tactics battle + FOV** (`0003` §10.1, §20.3). | Not started |
+| 9 | **Tactics battle + FOV** (`0006`, scoping `0003` §10.1, §20.3). | 9A (FOV as a pack-level pure view filter) done; 9B (the tactics arena) sketched in `0006` §2, not started |
 
 ## Open questions
 
