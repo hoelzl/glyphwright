@@ -34,7 +34,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--seed",
         type=int,
-        default=DEFAULT_SEED,
+        default=None,
         help="explicit run seed, recorded in the fingerprint "
         f"(default: {DEFAULT_SEED})",
     )
@@ -49,7 +49,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="directory of a TOML content pack (default: the built-in reference pack)",
     )
+    parser.add_argument(
+        "--record",
+        type=Path,
+        default=None,
+        help="write the session's recording to this file (refuses to overwrite)",
+    )
+    parser.add_argument(
+        "--replay",
+        type=Path,
+        default=None,
+        help="verify a recording against the chosen pack instead of playing",
+    )
     args = parser.parse_args(argv)
+
+    if args.replay is not None and args.record is not None:
+        parser.error("--replay verifies an existing recording; it cannot --record")
+    if args.replay is not None and args.seed is not None:
+        parser.error("--replay takes its seed from the recording's header")
+    seed = args.seed if args.seed is not None else DEFAULT_SEED
+
+    if args.frontend == "tui" and not sys.stdin.isatty():
+        # Fail before touching the terminal — or any recording file: piped
+        # input belongs to the plain and JSONL frontends.
+        parser.error("--frontend tui needs an interactive terminal")
 
     if args.pack is not None:
         from glyphwright.content.loader import PackError, load_pack
@@ -60,18 +83,52 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error(str(error))
     else:
         pack = reference_pack()
-    engine = Engine.new(pack, seed=args.seed)
-    if args.frontend == "jsonl":
-        return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
-    if args.frontend == "tui":
-        if not sys.stdin.isatty():
-            # Fail before touching the terminal: piped input belongs to the
-            # plain and JSONL frontends.
-            parser.error("--frontend tui needs an interactive terminal")
+
+    if args.replay is not None:
+        from glyphwright.harness.recording import replay
+
+        try:
+            with args.replay.open(encoding="utf-8") as source:
+                outcome = replay(pack, source)
+        except OSError as error:
+            parser.error(f"cannot read recording: {error}")
+        if outcome.ok:
+            assert outcome.engine is not None
+            print(
+                f"recording verified: {outcome.steps} steps, "
+                f"turn {outcome.engine.fingerprint().turn}"
+            )
+            return 0
+        print(f"recording diverged after {outcome.steps} steps: {outcome.problem}")
+        return 1
+
+    if args.record is not None:
+        from glyphwright.harness.recording import RecordingEngine
+
+        if args.record.exists():
+            # A recording is a run from turn 0; there is nothing to append
+            # to and silently destroying the old run would be data loss.
+            parser.error(f"refusing to overwrite existing recording {args.record}")
+        try:
+            sink = args.record.open("x", encoding="utf-8", newline="\n")
+        except OSError as error:
+            parser.error(f"cannot write recording: {error}")
+        with sink:
+            engine: Engine = RecordingEngine.recording(
+                pack, seed=seed, sink=sink, harness=args.harness
+            )
+            return _play(engine, args.frontend, harness=args.harness)
+    return _play(Engine.new(pack, seed=seed), args.frontend, harness=args.harness)
+
+
+def _play(engine: Engine, frontend: str, *, harness: bool) -> int:
+    if frontend == "jsonl":
+        return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=harness)
+    if frontend == "tui":
         from glyphwright.frontends.tui import session as tui_session
 
-        return tui_session.run_session(engine, None, sys.stdout, harness=args.harness)
-    return plain.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
+        return tui_session.run_session(engine, None, sys.stdout, harness=harness)
+    return plain.run_session(engine, sys.stdin, sys.stdout, harness=harness)
 
 
 if __name__ == "__main__":

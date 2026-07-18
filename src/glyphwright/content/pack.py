@@ -43,6 +43,32 @@ class ContentPack:
     def __post_init__(self) -> None:
         from glyphwright.effects.primitives import PRIMITIVES, validate_params
 
+        # Every id and token below can travel through the command language
+        # ("take <id>", "move <token>"), whose grammar splits on whitespace —
+        # and recordings replay through that grammar (design 0008 §1). A
+        # multi-word id would record fine and never replay, so it is refused
+        # here, at load.
+        def word(owner: str, label: str, value: str) -> None:
+            if not value or any(ch.isspace() for ch in value):
+                raise ValueError(
+                    f"{owner} {label} {value!r} must be one whitespace-free "
+                    "word: it travels through the command language"
+                )
+
+        for entity in self.entities:
+            word("entity", "id", entity.id)
+            if entity.portal is not None:
+                word(f"portal {entity.id!r}", "token", entity.portal.token)
+        for ability in self.abilities:
+            word("ability", "id", ability.id)
+        for status in self.statuses:
+            word("status", "id", status.id)
+        for space in self.areas:
+            if isinstance(space, RoomGraphSpace):
+                for room in space.rooms:
+                    for token, _ in room.exits:
+                        word(f"room {room.id!r}", "exit token", token)
+
         # The kernel's preconditions, promised at load rather than discovered
         # mid-session: a playable protagonist, and every position on the map.
         spaces_by_area = {space.area: space for space in self.areas}

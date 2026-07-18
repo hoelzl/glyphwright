@@ -281,6 +281,30 @@ def encode_rejection(rejection: Rejected, *, turn: int) -> dict[str, Any]:
     }
 
 
+def canonical_json(payload: object) -> str:
+    """The one canonical JSON spelling: sorted keys, compact separators.
+
+    Every emitted line and every digest input goes through here, so the
+    canonical form cannot drift between the JSONL frontend, recordings, and
+    hashes.
+    """
+    import json
+
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def encode_command(command: Command) -> str:
+    """Write one command in the command language (0003 §6).
+
+    The inverse of :func:`decode_command`: what this writes, that parses —
+    the rejection echo and the recording format both depend on it.
+    """
+    if isinstance(command, Cast):
+        # Cast's surface syntax carries an 'at'.
+        return f"cast {command.ability} at {command.target}"
+    return " ".join((command.verb, *command.args()))
+
+
 def decode_command(text: str) -> Command | None:
     """Parse one line of the command language. ``None`` if it is not one."""
     parts = text.strip().split()

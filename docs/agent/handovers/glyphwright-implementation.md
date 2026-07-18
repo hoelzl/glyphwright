@@ -343,10 +343,29 @@ Decisions taken by the implementing agent (owner delegated open choices):
    (+2 def) on the marauder. Pack-id pin re-pinned (Actor/Status identity
    widened).
 
+## Slice 11 decisions (recording and replay — design 0008, resolves 0003 §20.2)
+
+1. Replay is the durable format, as §20.2 proposed: a recording is the
+   `session/1` header verbatim plus one `recording/1` JSON line per accepted
+   command — the command-language text plus a SHA-256 digest of the step's
+   canonically encoded events. Replay re-executes and verifies every digest
+   (it does not trust determinism, it verifies it); divergences are data
+   (`Replay(ok, steps, problem, engine)`), never exceptions.
+2. The header is the compatibility contract: engine-version or pack-id
+   mismatch refuses loudly at line 1. No migration story, deliberately.
+   The in-memory `Engine.snapshot()`/`restore()` pair is the fast path.
+3. The recording is the accepted command sequence, nothing cleverer:
+   accepted observations (`look`) are recorded, rejections and meta queries
+   are not. `wire.encode_command` is the command language's writing half
+   (moved from the api rejection echo; round-trip tested for every command).
+4. `RecordingEngine` subclasses `Engine` and appends as it goes, so every
+   frontend records without changes; CLI grows `--record PATH` and
+   `--replay PATH` (exit 0 verified / 1 diverged).
+
 ## Next steps
 
-1. `0003` §20 open questions: snapshot format; the TermVerify-side adapter
-   placement is decided only when that adapter is built (ADR-001 forbids
+1. `0003` §20 open questions: only §20.5 remains — the TermVerify-side
+   adapter placement is decided when that adapter is built (ADR-001 forbids
    importing termverify here).
 2. Possible future content design (each needs its own doc before code):
    attacker-directed hook effects (thorns), resource costs for abilities,

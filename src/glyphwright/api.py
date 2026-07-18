@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from glyphwright import modes
 from glyphwright.content.pack import ContentPack, reference_pack
 from glyphwright.frames.frame import SemanticFrame
+from glyphwright.frontends.wire import encode_command
 from glyphwright.harness.fingerprint import RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
@@ -160,7 +161,13 @@ class Engine:
 
     @classmethod
     def restore(cls, snap: Snapshot) -> Engine:
-        return cls(state=snap._state, seed=snap._seed, pack_id=snap._pack_id)
+        """A plain engine at the snapshot's state.
+
+        Deliberately not ``cls``: decorations like recording are live-session
+        concerns (an open sink), and a restore must never resurrect one
+        half-initialized.
+        """
+        return Engine(state=snap._state, seed=snap._seed, pack_id=snap._pack_id)
 
     def _validate(self, command: Command) -> Rejected | None:
         """Answer validity against the frame's grammar, as the design requires.
@@ -171,7 +178,7 @@ class Engine:
         if self._state.flags.get(PLAYER_DEFEATED) and not isinstance(command, Look):
             # The one true reason: anything else would misdescribe the world.
             return Rejected(
-                command=_render(command),
+                command=encode_command(command),
                 reason="defeated",
                 hint="you have fallen; only 'look' remains",
             )
@@ -184,7 +191,7 @@ class Engine:
             # Not a thing you do in this mode — never "there are no exits":
             # a mode-absent verb must not misdescribe the world.
             return Rejected(
-                command=_render(command),
+                command=encode_command(command),
                 reason="wrong_mode",
                 hint=(
                     f"not available during {mode.NAME}; "
@@ -197,12 +204,12 @@ class Engine:
                 # A real verb whose domain is empty right now: reject in its
                 # own vocabulary, not as an unknown word.
                 return Rejected(
-                    command=_render(command),
+                    command=encode_command(command),
                     reason=vocabulary.reason,
                     hint=vocabulary.empty_hint,
                 )
             return Rejected(
-                command=_render(command),
+                command=encode_command(command),
                 reason="unknown_verb",
                 hint=f"try one of: {', '.join(grammar.verb_names())}",
             )
@@ -213,7 +220,7 @@ class Engine:
             if argument not in domain:
                 assert vocabulary is not None, "verbs with arguments have vocabulary"
                 return Rejected(
-                    command=_render(command),
+                    command=encode_command(command),
                     reason=vocabulary.reason,
                     hint=vocabulary.hint(domain, position),
                 )
@@ -268,11 +275,3 @@ _REJECTIONS: dict[str, _RejectionVocabulary] = {
         "you cannot cast anything",
     ),
 }
-
-
-def _render(command: Command) -> str:
-    if isinstance(command, Cast):
-        # The echoed text must be re-parseable command language (0003 §6),
-        # and cast's surface syntax carries an 'at'.
-        return f"cast {command.ability} at {command.target}"
-    return " ".join((command.verb, *command.args()))

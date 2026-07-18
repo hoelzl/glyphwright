@@ -106,3 +106,56 @@ def test_help_is_available_without_playing() -> None:
     assert result.returncode == 0
     assert "--frontend" in result.stdout
     assert "--seed" in result.stdout
+
+
+def test_record_then_replay_verifies_over_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    recording = tmp_path / "run.gwr"
+    played = _run(
+        ["--record", str(recording)], "move east\nmove east\nmove south\nquit\n"
+    )
+    assert played.returncode == 0
+    verified = _run(["--replay", str(recording)], "")
+    assert verified.returncode == 0
+    assert "recording verified: 3 steps" in verified.stdout
+
+
+def test_a_tampered_recording_fails_replay_over_the_cli(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import json
+
+    recording = tmp_path / "run.gwr"
+    _run(["--record", str(recording)], "move east\nmove east\nquit\n")
+    lines = recording.read_text(encoding="utf-8").splitlines()
+    doctored = json.loads(lines[1])
+    doctored["command"] = "move west"
+    lines[1] = json.dumps(doctored)
+    recording.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    verified = _run(["--replay", str(recording)], "")
+    assert verified.returncode == 1
+    assert "diverged" in verified.stdout
+
+
+def test_record_refuses_to_overwrite(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    recording = tmp_path / "run.gwr"
+    recording.write_text("precious old run\n", encoding="utf-8")
+    result = _run(["--record", str(recording)], "quit\n")
+    assert result.returncode == 2
+    assert "refusing to overwrite" in result.stderr
+    assert recording.read_text(encoding="utf-8") == "precious old run\n", (
+        "the old recording survives untouched"
+    )
+
+
+def test_record_and_replay_together_are_a_usage_error(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    result = _run(
+        ["--replay", str(tmp_path / "a.gwr"), "--record", str(tmp_path / "b.gwr")],
+        "",
+    )
+    assert result.returncode == 2
+    assert "cannot" in result.stderr
+
+
+def test_replay_of_a_missing_file_is_a_clean_diagnostic(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    result = _run(["--replay", str(tmp_path / "nope.gwr")], "")
+    assert result.returncode == 2
+    assert "cannot read recording" in result.stderr
+    assert "Traceback" not in result.stderr

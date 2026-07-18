@@ -58,6 +58,24 @@ def session_schema() -> dict[str, Any]:
     }
 
 
+def recording_schema() -> dict[str, Any]:
+    from glyphwright.harness.recording import RECORDING_SCHEMA
+
+    return {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": RECORDING_SCHEMA,
+        "title": "GlyphWright recorded step",
+        **_object(
+            {
+                "schema": {"const": RECORDING_SCHEMA},
+                "step": _INTEGER,
+                "command": _STRING,
+                "events": _STRING,
+            }
+        ),
+    }
+
+
 def frame_schema() -> dict[str, Any]:
     grid_viewport = _object(
         {
@@ -281,6 +299,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
         "glyphwright.event.v8.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
+        "glyphwright.recording.v1.json": recording_schema(),
     }
 
 
