@@ -113,6 +113,18 @@ def test_encoded_frames_are_json_serialisable() -> None:
     json.dumps(encode_frame(engine.frame()))
 
 
+def test_encoded_grid_cells_omit_empty_tiers() -> None:
+    """The wire shape of one cell: ``ground`` always present, ``fixture`` and
+    ``actor`` omitted (not null) when empty — so the object schema and the
+    encoder cannot drift apart (0012 §4)."""
+    engine = Engine.new(reference_pack(), seed=1)
+    viewport = encode_frame(engine.frame())["viewport"]
+    cells = viewport["cells"]
+    assert cells[1][1] == {"ground": ".", "actor": "@"}  # the player on floor
+    assert cells[1][3] == {"ground": ".", "fixture": "!"}  # the potion
+    assert cells[0][0] == {"ground": "#"}  # a bare wall
+
+
 def test_the_grammar_uses_one_shape_for_every_arity() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     verbs = encode_frame(engine.frame())["commands"]["verbs"]

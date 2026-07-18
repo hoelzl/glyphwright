@@ -43,7 +43,7 @@ def test_compose_is_pure_and_deterministic() -> None:
 # -- grid frames --------------------------------------------------------------
 
 
-def test_grid_frames_compose_to_cells_matching_the_tiles() -> None:
+def test_grid_frames_compose_to_cells_matching_the_flattened_view() -> None:
     engine = _engine()
     frame = engine.step(Move("east")).frame
     composed = scene.compose(frame, frame.messages)

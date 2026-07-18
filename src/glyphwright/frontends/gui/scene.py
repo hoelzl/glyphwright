@@ -127,6 +127,11 @@ def _grid_cells(viewport: GridView) -> tuple[Cell, ...]:
         for x, tiered in enumerate(row):
             layers = (tiered.ground, tiered.fixture, tiered.actor)
             for glyph in layers:
+                # Unlike flatten() — which preserves a " " glyph so the text
+                # surfaces keep their rectangular shape — the painter needs no
+                # cell for empty space; skipping it is the one intentional
+                # divergence between the two projections (terrain today has no
+                # space glyphs, so this is a latent guard, not a behavior gap).
                 if glyph is not None and glyph != " ":
                     cells.append(
                         Cell(x=x, y=y, glyph=glyph, fg=_PALETTE.get(glyph, _DEFAULT_FG))
