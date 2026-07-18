@@ -45,6 +45,7 @@ class PlainProjection:
     tiles: tuple[str, ...]
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
+    mp: tuple[int, int] | None = None
     combatants: tuple[str, ...] = ()
     room: tuple[str, ...] = ()
     exits: tuple[str, ...] = ()
@@ -91,6 +92,7 @@ def project(frame: SemanticFrame) -> PlainProjection:
         tiles=frame.viewport.tiles if isinstance(frame.viewport, GridView) else (),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
+        mp=None if player is None else player.mp,
         combatants=combatants,
         room=room,
         exits=exits,
@@ -116,7 +118,10 @@ def render(frame: SemanticFrame) -> str:
         lines.append(f"% {view.lock}")
     lines.extend(view.messages)
     if view.hp is not None:
-        lines.append(f"[hp {view.hp[0]}/{view.hp[1]}]")
+        status = f"[hp {view.hp[0]}/{view.hp[1]}"
+        if view.mp is not None:
+            status += f" mp {view.mp[0]}/{view.mp[1]}"
+        lines.append(status + "]")
     return "\n".join(lines)
 
 
@@ -137,11 +142,15 @@ def parse(text: str) -> PlainProjection:
 
     body = lines[1:]
     hp: tuple[int, int] | None = None
+    mp: tuple[int, int] | None = None
     if body and body[-1].startswith("[hp "):
-        current, _, maximum = (
-            body[-1].removeprefix("[hp ").removesuffix("]").partition("/")
-        )
+        status = body[-1].removeprefix("[hp ").removesuffix("]")
+        hp_part, _, mp_part = status.partition(" mp ")
+        current, _, maximum = hp_part.partition("/")
         hp = (int(current), int(maximum))
+        if mp_part:
+            current, _, maximum = mp_part.partition("/")
+            mp = (int(current), int(maximum))
         body = body[:-1]
 
     # A room block runs from the header to its "Exits:" anchor line; cutting
@@ -182,6 +191,7 @@ def parse(text: str) -> PlainProjection:
         tiles=tiles,
         messages=messages,
         hp=hp,
+        mp=mp,
         combatants=combatants,
         room=room,
         exits=exits,

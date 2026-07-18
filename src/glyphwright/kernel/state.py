@@ -27,6 +27,8 @@ from glyphwright.kernel.events import (
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ManaRestored,
+    ManaSpent,
     MinigameResolved,
     ModePopped,
     ModePushed,
@@ -208,6 +210,21 @@ def apply(state: WorldState, event: Event) -> WorldState:
                 hp=min(target.actor.hp + event.amount, target.actor.max_hp),
             )
             return state.with_entity(replace(target, actor=healed))
+        case ManaSpent():
+            caster = state.entity(event.caster)
+            if caster.actor is None:
+                raise ValueError(f"ManaSpent caster {event.caster} is not an actor")
+            spent = replace(caster.actor, mp=max(caster.actor.mp - event.amount, 0))
+            return state.with_entity(replace(caster, actor=spent))
+        case ManaRestored():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"ManaRestored target {event.target} is not an actor")
+            restored = replace(
+                target.actor,
+                mp=min(target.actor.mp + event.amount, target.actor.max_mp),
+            )
+            return state.with_entity(replace(target, actor=restored))
         case DamageDealt():
             target = state.entity(event.target)
             if target.actor is None:

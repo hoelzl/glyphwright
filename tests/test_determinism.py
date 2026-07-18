@@ -122,7 +122,7 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     # field widened grid-area identity) — a change
     # must show here.
     assert pack.pack_id == (
-        "pin@sha256:cfa317094523302305770e676015fcf864284128d34c3d19bde8aa3ca097f02e"
+        "pin@sha256:ccf7915e64a1d57daadcdf51043782a0211e887e7bd6c105098ee1cf9a19d4bc"
     )
 
 

@@ -289,6 +289,31 @@ class StatusExpired:
 
 
 @dataclass(frozen=True, slots=True)
+class ManaSpent:
+    """A cast's cost left the caster's pool; the fold decrements (design 0009)."""
+
+    caster: EntityId
+    amount: int
+
+    type: str = "ManaSpent"
+
+
+@dataclass(frozen=True, slots=True)
+class ManaRestored:
+    """A target recovered mana.
+
+    ``amount`` is what actually landed after clamping to ``max_mp`` —
+    events are evidence of what happened, not of what was attempted.
+    """
+
+    target: EntityId
+    amount: int
+    source: EntityId
+
+    type: str = "ManaRestored"
+
+
+@dataclass(frozen=True, slots=True)
 class PerkGained:
     """An actor gained a permanent status (design 0003 §9.3).
 
@@ -353,5 +378,7 @@ Event = (
     | StatusApplied
     | StatusExpired
     | PerkGained
+    | ManaSpent
+    | ManaRestored
     | CastFizzled
 )

@@ -4,4 +4,4 @@ Lamplight pools on scarred oak tables, and the air is thick with woodsmoke and s
 You see: innkeeper.
 Exits: down, out.
 You go enter.
-[hp 17/20]
+[hp 17/20 mp 8/8]

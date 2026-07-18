@@ -2,6 +2,7 @@
 id = "firebolt"
 name = "Firebolt"
 targeting = "foe"
+cost = 2
 requires = ["atk", 5]
 effects = [{ primitive = "deal_damage", amount = 3, spread = 3 }]
 
@@ -9,6 +10,7 @@ effects = [{ primitive = "deal_damage", amount = 3, spread = 3 }]
 id = "guard"
 name = "Guard"
 targeting = "self"
+cost = 1
 effects = [{ primitive = "apply_status", status = "stoneskin", duration = 3 }]
 
 [[status]]
@@ -20,6 +22,7 @@ modifiers = [{ stat = "def", op = "add", value = 3 }]
 id = "rockshard"
 name = "Rockshard"
 targeting = "foe"
+cost = 2
 effects = [
     { primitive = "deal_damage", amount = 2, spread = 2 },
     { primitive = "apply_status", status = "venom", duration = 3 },

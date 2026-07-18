@@ -13,8 +13,9 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 from glyphwright.effects.stats import derive
-from glyphwright.kernel.events import CastFizzled, Event, TurnAdvanced
+from glyphwright.kernel.events import CastFizzled, Event, ManaSpent, TurnAdvanced
 from glyphwright.kernel.rng import Rng
+from glyphwright.kernel.state import apply, fold
 from glyphwright.world.entities import Entity, StatModifier
 from glyphwright.world.space import EntityId
 
@@ -34,12 +35,15 @@ class Ability:
     targeting: str
     effects: tuple[tuple[str, Mapping[str, object]], ...]
     requires_stat: tuple[str, int] | None = None
+    cost: int = 0
 
     def __post_init__(self) -> None:
         if self.targeting not in (TARGET_SELF, TARGET_FOE):
             raise ValueError(
                 f"ability {self.id!r} has unknown targeting {self.targeting!r}"
             )
+        if self.cost < 0:
+            raise ValueError(f"ability {self.id!r} has a negative cost")
 
 
 HOOK_TRIGGERS = frozenset({"damage_taken", "turn_end"})
@@ -113,7 +117,6 @@ def run_effect_chain(
     subject leaves the world.
     """
     from glyphwright.effects.primitives import PRIMITIVES
-    from glyphwright.kernel.state import fold
 
     events: list[Event] = []
     for name, params in effects:
@@ -127,13 +130,20 @@ def run_effect_chain(
 
 
 def castable(state: WorldState, caster: EntityId) -> tuple[Ability, ...]:
-    """The caster's abilities whose requirements are currently met."""
+    """The caster's abilities whose requirements are currently met.
+
+    Affordability is advertisement (design 0009 §2): an ability the caster
+    cannot pay for is not offered — to the player's grammar or to the AI's
+    pursuit — exactly like an unmet stat requirement.
+    """
     actor = state.entity(caster).actor
     if actor is None:
         return ()
     found = []
     for ability_id in sorted(actor.abilities):
         ability = state.ability_defs[ability_id]
+        if ability.cost > actor.mp:
+            continue
         if ability.requires_stat is not None:
             stat, minimum = ability.requires_stat
             if derive(state, caster, stat).value < minimum:
@@ -175,7 +185,14 @@ def cast_events(
             turn,
         ), rng
 
-    events, _, rng = run_effect_chain(
+    events: list[Event] = []
+    if ability.cost:
+        # The cost precedes the chain; a fizzle above spent nothing (the
+        # cast never resolved — the turn is the fizzle's whole price).
+        spend = ManaSpent(caster=caster, amount=ability.cost)
+        events.append(spend)
+        state = apply(state, spend)
+    chain, _, rng = run_effect_chain(
         state,
         caster,
         target,
@@ -184,6 +201,7 @@ def cast_events(
         rng,
         pending_turn=spend_turn,
     )
+    events.extend(chain)
     if spend_turn:
         return (*events, turn), rng
-    return events, rng
+    return tuple(events), rng

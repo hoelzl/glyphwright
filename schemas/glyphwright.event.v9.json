@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/8",
+  "$id": "glyphwright.event/9",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -96,7 +96,7 @@
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/8"
+      "const": "glyphwright.event/9"
     },
     "slot": {
       "type": "string"
@@ -147,6 +147,8 @@
         "StatusApplied",
         "StatusExpired",
         "PerkGained",
+        "ManaSpent",
+        "ManaRestored",
         "CastFizzled"
       ]
     },

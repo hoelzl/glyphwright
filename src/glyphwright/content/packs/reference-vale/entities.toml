@@ -7,6 +7,8 @@ blocker = true
 name = "Wren"
 hp = 17
 max_hp = 20
+mp = 8
+max_mp = 8
 stats = { atk = 5, def = 3, spd = 5 }
 abilities = ["firebolt", "guard"]
 
@@ -223,6 +225,8 @@ blocker = true
 name = "Hexer"
 hp = 7
 max_hp = 7
+mp = 6
+max_mp = 6
 stats = { atk = 3, def = 1, spd = 4 }
 abilities = ["rockshard"]
 
@@ -232,3 +236,17 @@ label = "hexer"
 
 [entity.ai]
 hostile = true
+
+[[entity]]
+id = "tonic"
+position = "village:5,3"
+
+[entity.item]
+name = "Clarity Tonic"
+
+[entity.consumable]
+mana = 4
+
+[entity.renderable]
+glyph = "t"
+label = "tonic"

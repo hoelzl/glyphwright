@@ -455,7 +455,7 @@ def test_perk_gained_validates_on_the_wire() -> None:
     from glyphwright.frontends.wire import encode_event
     from glyphwright.harness.schema import all_schemas
 
-    schema = all_schemas()["glyphwright.event.v8.json"]
+    schema = all_schemas()["glyphwright.event.v9.json"]
     payload = encode_event(PerkGained(target=PLAYER, perk="grit"), turn=3)
     assert payload["type"] in schema["properties"]["type"]["enum"], (
         "the schema's closed type enum must admit the event the bump added"

@@ -77,7 +77,10 @@ def _status_line(frame: SemanticFrame) -> str:
     player = next((actor for actor in frame.actors if actor.id == "player"), None)
     if player is None:
         return ""
-    return f"hp {player.hp}/{player.max_hp}"
+    line = f"hp {player.hp}/{player.max_hp}"
+    if player.mp is not None:
+        line += f"  mp {player.mp[0]}/{player.mp[1]}"
+    return line
 
 
 def _fit(lines: list[str], budget: int) -> list[str]:

@@ -143,7 +143,11 @@ def frame_schema() -> dict[str, Any]:
             "hp": {"type": "array", "items": _INTEGER, "minItems": 2, "maxItems": 2},
             "statuses": _array(_STRING),
             "at": _STRING,
-        }
+            # Present only for actors with a pool: absence means "no mana
+            # system", never "an empty pool" (design 0009 §4).
+            "mp": {"type": "array", "items": _INTEGER, "minItems": 2, "maxItems": 2},
+        },
+        required=["id", "name", "hp", "statuses", "at"],
     )
     commands = _object(
         {
@@ -207,6 +211,8 @@ def event_schema() -> dict[str, Any]:
                     "StatusApplied",
                     "StatusExpired",
                     "PerkGained",
+                    "ManaSpent",
+                    "ManaRestored",
                     "CastFizzled",
                 ]
             },
@@ -295,8 +301,8 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
         "glyphwright.session.v1.json": session_schema(),
-        "glyphwright.frame.v4.json": frame_schema(),
-        "glyphwright.event.v8.json": event_schema(),
+        "glyphwright.frame.v5.json": frame_schema(),
+        "glyphwright.event.v9.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),
         "glyphwright.recording.v1.json": recording_schema(),

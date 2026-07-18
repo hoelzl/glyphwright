@@ -362,6 +362,25 @@ Decisions taken by the implementing agent (owner delegated open choices):
    frontend records without changes; CLI grows `--record PATH` and
    `--replay PATH` (exit 0 verified / 1 diverged).
 
+## Slice 12 decisions (resources and costs — design 0009)
+
+1. One pool: `Actor.mp`/`max_mp`, both default 0 (`max_mp = 0` means "no
+   pool" everywhere — frames omit it, mana items are not offered). `Ability.
+   cost` gates through `castable`: affordability is advertisement, for the
+   player's grammar and the AI's pursuit alike — a dry caster falls back to
+   the chase branch with zero new AI machinery.
+2. `ManaSpent` precedes the effect chain (a fizzle spends nothing — the turn
+   is its whole price); `ManaRestored` carries post-clamp amounts.
+   `Consumable` may restore hp, mp, or both, and is offered when any
+   restoration would land; a consumable restoring nothing is a load error,
+   as are negative amounts and `mp > max_mp`. Event v8 → v9, frame v4 → v5
+   (`ActorSummary.mp: (cur, max) | None`), oracle `<entity>.mp`.
+3. Plain status line: `[hp 17/20 mp 6/8]` when a pool exists (parse
+   updated); no passive regen in the engine — a regen status is already a
+   `turn_end` hook (0007). Reference pack: player 8/8 (firebolt 2, guard 1),
+   hexer 6/6 (rockshard 2 — three casts, then it closes in), village tonic.
+   Pack-id re-pinned (Actor/Ability/Consumable identity widened).
+
 ## Next steps
 
 1. `0003` §20 open questions: only §20.5 remains — the TermVerify-side

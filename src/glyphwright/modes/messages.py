@@ -22,6 +22,8 @@ from glyphwright.kernel.events import (
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ManaRestored,
+    ManaSpent,
     MinigameResolved,
     ModePopped,
     ModePushed,
@@ -69,6 +71,14 @@ def describe(event: Event) -> str:
             return f"You equip {event.item}, putting away {event.replaced}."
         case Healed():
             return f"You recover {event.amount} hp."
+        case ManaRestored():
+            # The only emitter targets the player; a non-player phrasing
+            # would be dead code shipped untested.
+            return f"You recover {event.amount} mana."
+        case ManaSpent():
+            # Bookkeeping: the cast's own narration carries the story, and
+            # the status line carries the pool.
+            return ""
         case DamageDealt(source=source) if (
             source == PLAYER and event.ability != "strike"
         ):

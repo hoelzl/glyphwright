@@ -9,14 +9,23 @@ free-written in handlers, which keeps prose deterministic and localizable.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from glyphwright.kernel.commands import CommandGrammar
 from glyphwright.world.space import EntityId, PosId
 
+if TYPE_CHECKING:
+    from glyphwright.world.entities import Entity
+
 
 @dataclass(frozen=True, slots=True)
 class ActorSummary:
-    """A visible actor, as a frame reports it."""
+    """A visible actor, as a frame reports it.
+
+    ``mp`` is ``None`` for an actor without a pool (``max_mp == 0``), so a
+    consumer never confuses "no mana system" with "an empty pool"
+    (design 0009 §4).
+    """
 
     id: EntityId
     name: str
@@ -24,6 +33,23 @@ class ActorSummary:
     max_hp: int
     at: PosId
     statuses: tuple[str, ...] = ()
+    mp: tuple[int, int] | None = None
+
+    @classmethod
+    def of(cls, entity: Entity, at: PosId) -> ActorSummary:
+        """The one construction: every mode summarises actors through here,
+        so a new field cannot be forgotten in one mode's copy."""
+        actor = entity.actor
+        assert actor is not None, "only actors are summarised"
+        return cls(
+            id=entity.id,
+            name=actor.name,
+            hp=actor.hp,
+            max_hp=actor.max_hp,
+            at=at,
+            statuses=entity.statuses.ids() if entity.statuses else (),
+            mp=(actor.mp, actor.max_mp) if actor.max_mp else None,
+        )
 
 
 @dataclass(frozen=True, slots=True)

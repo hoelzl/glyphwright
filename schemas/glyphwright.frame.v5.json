@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.frame/4",
+  "$id": "glyphwright.frame/5",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -20,6 +20,14 @@
           },
           "id": {
             "type": "string"
+          },
+          "mp": {
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 2,
+            "minItems": 2,
+            "type": "array"
           },
           "name": {
             "type": "string"
@@ -85,7 +93,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "glyphwright.frame/4"
+      "const": "glyphwright.frame/5"
     },
     "turn": {
       "type": "integer"

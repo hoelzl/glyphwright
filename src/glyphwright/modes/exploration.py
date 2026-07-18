@@ -345,14 +345,5 @@ def _actors(
             continue
         if sight is not None and entity.id != PLAYER and at not in sight:
             continue  # beyond the light
-        summaries.append(
-            ActorSummary(
-                id=entity.id,
-                name=entity.actor.name,
-                hp=entity.actor.hp,
-                max_hp=entity.actor.max_hp,
-                at=at,
-                statuses=entity.statuses.ids() if entity.statuses else (),
-            )
-        )
+        summaries.append(ActorSummary.of(entity, at))
     return tuple(summaries)
