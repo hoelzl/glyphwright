@@ -1,0 +1,4 @@
+== scenegraph · manifest sha256:33061a93475a… ==
+camera origin=(0, 0) focus=-
+transition move player village:1,1->village:1,2
+affordances: attack, cast, flee, look
