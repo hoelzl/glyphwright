@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from glyphwright.frames.frame import GridView, SemanticFrame
 from glyphwright.frontends.presentation.manifest import PresentationManifest
 from glyphwright.kernel.events import Event, Moved
+from glyphwright.world.space import PosId
 
 #: Compositing tiers (0012 §4): the painterly stacking at one position. A cell
 #: has tiers; tier is decided here at compose time, never re-derived downstream.
@@ -172,7 +173,7 @@ def _transitions(
     return tuple(out)
 
 
-def _glyph_of(entity_id: str, destination: object, placements: list[Placement]) -> str:
+def _glyph_of(entity_id: str, destination: PosId, placements: list[Placement]) -> str:
     """The renderable glyph an actor id maps to, for a cosmetic transition.
 
     The event names the actor by id; the painter needs the glyph to tween.

@@ -51,6 +51,35 @@ def test_a_click_off_the_map_expands_to_nothing() -> None:
     assert expand_click(engine, "village", (99, 99)) is None
 
 
+def test_a_click_on_the_players_own_cell_is_an_empty_path_not_none() -> None:
+    """Already-there is *not* unreachable: ``()`` says 'no moves needed', while
+    ``None`` says 'cannot get there'. A frontend branches on the difference."""
+    from glyphwright.frontends.presentation.clickmove import expand_click
+
+    engine = _engine()
+    assert expand_click(engine, "village", (1, 1)) == ()
+
+
+def test_a_click_in_a_fogged_area_still_expands_via_live_topology() -> None:
+    """The macro types only moves an agent could type, and the kernel validates
+    each step — so a fogged (FOV-obscured) cell expands like any other. This is
+    a conscious, tested choice, not an emergent leak: the oracle an agent reads
+    is equally free to plan through fog."""
+    from glyphwright.frontends.presentation.clickmove import expand_click
+
+    engine = _engine()
+    # Reach the FOV-fogged warren: across the village's open north row to the
+    # hole at village:7,3 (staying clear of the hostiles on row 3's west), then
+    # down. The warren has fov=3; the far cell (5,2) sits beyond first sight.
+    for _ in range(6):  # village:1,1 -> 7,1
+        engine.step(Move("east"))
+    engine.step(Move("south"))  # 7,2
+    engine.step(Move("south"))  # 7,3, the hole
+    engine.step(Move("down"))  # warren:1,1
+    steps = expand_click(engine, "warren", (5, 2))
+    assert steps is not None
+
+
 def test_the_expansion_actually_arrives_when_executed() -> None:
     """The macro's promises are real: stepping the expanded moves moves the
     player to the clicked position (kernel-validated, one token at a time)."""

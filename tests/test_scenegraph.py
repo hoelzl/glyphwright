@@ -96,10 +96,28 @@ def test_projection_consistency_topmost_placement_matches_flatten() -> None:
     are two projections of one run. At every cell, the *topmost* placement the
     SceneGraph would draw is exactly the glyph ``flatten`` shows the agent
     (0012 §2). If these diverge, the two observers see different games."""
-    from glyphwright.frames.frame import GridView, flatten
+    _assert_bridge(_engine().frame())
+
+
+def test_projection_consistency_holds_through_fov_fog() -> None:
+    """The warren's fog (`fov=3`) marks unseen ground ``?``; those cells flow
+    through placements and must still satisfy the bridge — fog is a
+    presentation of the same one run, not a second game."""
+    engine = _engine()
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("south"))
+    engine.step(Move("south"))
+    engine.step(Move("down"))  # into the warren
+    _assert_bridge(engine.frame())
+
+
+def _assert_bridge(frame: object) -> None:
+    """At every cell, topmost placement == the flatten() glyph (0012 §2)."""
+    from glyphwright.frames.frame import GridView, SemanticFrame, flatten
     from glyphwright.frontends.presentation import scenegraph
 
-    frame = _engine().frame()
+    assert isinstance(frame, SemanticFrame)
     assert isinstance(frame.viewport, GridView)
     graph = scenegraph.compose(frame, _manifest())
 

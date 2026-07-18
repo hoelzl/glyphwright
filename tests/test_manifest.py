@@ -94,3 +94,33 @@ def test_an_unknown_top_level_key_is_refused(tmp_path: Path) -> None:
     (tmp_path / "presentation.toml").write_text("[surprise]\nx = 1\n", encoding="utf-8")
     with pytest.raises(ManifestError, match="unknown"):
         load_manifest(tmp_path)
+
+
+def test_a_toml_datetime_hint_is_a_located_load_error(tmp_path: Path) -> None:
+    """tomllib parses RFC 3339 into ``datetime``; ``json.dumps`` then crashes
+    at first ``compose``. That must be a load-time ``ManifestError`` instead —
+    the manifest contract is 'validated, not silent dead config'."""
+    from glyphwright.frontends.presentation.manifest import (
+        ManifestError,
+        load_manifest,
+    )
+
+    (tmp_path / "presentation.toml").write_text(
+        "[hints]\nrelease = 1979-05-27T07:32:00Z\n", encoding="utf-8"
+    )
+    with pytest.raises(ManifestError, match="presentation.toml"):
+        load_manifest(tmp_path)
+
+
+def test_the_reference_packs_own_manifest_loads_and_hashes() -> None:
+    """The shipped manifest is real content: load it through the same loader
+    every pack uses, so a malformed edit cannot ship green."""
+    from importlib.resources import files
+
+    from glyphwright.frontends.presentation.manifest import load_manifest
+
+    root = files("glyphwright.content") / "packs" / "reference-vale"
+    manifest = load_manifest(root)
+    assert manifest.bindings["@"] == "tiles/player.png"
+    assert manifest.hints == {"tile_footprint": 16}
+    assert manifest.hash.startswith("sha256:")

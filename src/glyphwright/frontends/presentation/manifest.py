@@ -107,4 +107,29 @@ def _bindings(value: object) -> dict[str, str]:
 def _mapping(section: str, value: object) -> dict[str, object]:
     if not isinstance(value, dict):
         raise _fail(f"[{section}] must be a table")
-    return dict(value)
+    mapping = dict(value)
+    # The hash serializes these tables to canonical JSON; tomllib admits
+    # values JSON cannot represent (RFC 3339 dates parse to ``datetime``),
+    # which would surface later as a bare ``TypeError`` at first ``compose``.
+    # Refuse them here, at load, as a located diagnostic instead.
+    for key, item in mapping.items():
+        if not _jsonable(item):
+            raise _fail(
+                f"[{section}] {key!r} holds a value JSON cannot represent "
+                f"({type(item).__name__}); the manifest hash needs plain data"
+            )
+    return mapping
+
+
+def _jsonable(value: object) -> bool:
+    """True for the scalars and containers ``json.dumps`` can serialize."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return True
+    if isinstance(value, float):
+        # inf/nan serialize to non-standard JSON tokens; refuse them too.
+        return value == value and value not in (float("inf"), float("-inf"))
+    if isinstance(value, dict):
+        return all(isinstance(k, str) and _jsonable(v) for k, v in value.items())
+    if isinstance(value, (list, tuple)):
+        return all(_jsonable(v) for v in value)
+    return False
