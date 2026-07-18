@@ -12,7 +12,7 @@ import pytest
 
 from glyphwright.api import Engine
 from glyphwright.content.loader import PackError, load_pack
-from glyphwright.frames.frame import GridView
+from glyphwright.frames.frame import GridView, flatten
 from glyphwright.kernel.commands import Move
 from glyphwright.world.grid import GridSpace
 
@@ -47,7 +47,7 @@ def _engine(tmp_path: Path) -> Engine:
 def _tiles(engine: Engine) -> tuple[str, ...]:
     viewport = engine.frame().viewport
     assert isinstance(viewport, GridView)
-    return viewport.tiles
+    return flatten(viewport)
 
 
 def test_far_tiles_are_unseen(tmp_path: Path) -> None:

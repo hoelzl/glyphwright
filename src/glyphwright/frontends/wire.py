@@ -71,8 +71,9 @@ from glyphwright.kernel.events import (
 # rather than kept in a compatibility matrix because no external consumer
 # existed before the bumps (event: items v2, combat v3, battle v4; frame: the
 # menu viewport variant v2, the room viewport variant v3, the
-# dialogue and lock viewport variants v4).
-FRAME_SCHEMA = "glyphwright.frame/5"
+# dialogue and lock viewport variants v4, resource pools v5; the tiered grid
+# viewport of design 0012 §4 bumps to v6).
+FRAME_SCHEMA = "glyphwright.frame/6"
 EVENT_SCHEMA = "glyphwright.event/9"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
@@ -84,7 +85,15 @@ def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
             "kind": viewport.kind,
             "area": viewport.area,
             "origin": list(viewport.origin),
-            "tiles": list(viewport.tiles),
+            "cells": [
+                [
+                    {"ground": cell.ground}
+                    | ({"fixture": cell.fixture} if cell.fixture is not None else {})
+                    | ({"actor": cell.actor} if cell.actor is not None else {})
+                    for cell in row
+                ]
+                for row in viewport.cells
+            ],
             "legend": dict(viewport.legend),
         }
     if isinstance(viewport, DialogueView):

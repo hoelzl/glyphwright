@@ -71,7 +71,7 @@ def _check(payload: dict[str, Any], schema: dict[str, Any]) -> None:
 
 def test_a_real_frame_validates() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v5.json"])
+    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v6.json"])
 
 
 def test_real_events_validate() -> None:

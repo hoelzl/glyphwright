@@ -19,6 +19,7 @@ from glyphwright.frames.frame import (
     MenuView,
     RoomView,
     SemanticFrame,
+    flatten,
 )
 from glyphwright.kernel.commands import Attack, Choose, Command, Move, Pick
 
@@ -118,12 +119,19 @@ class Scene:
 
 
 def _grid_cells(viewport: GridView) -> tuple[Cell, ...]:
-    return tuple(
-        Cell(x=x, y=y, glyph=glyph, fg=_PALETTE.get(glyph, _DEFAULT_FG))
-        for y, row in enumerate(viewport.tiles)
-        for x, glyph in enumerate(row)
-        if glyph != " "
-    )
+    """Layered cells: the ground under everything, the fixture over it, the
+    actor on top (design 0012 §4). The painter draws them in order, so the
+    floor persists under whoever stands on it — the defect this fixes."""
+    cells: list[Cell] = []
+    for y, row in enumerate(viewport.cells):
+        for x, tiered in enumerate(row):
+            layers = (tiered.ground, tiered.fixture, tiered.actor)
+            for glyph in layers:
+                if glyph is not None and glyph != " ":
+                    cells.append(
+                        Cell(x=x, y=y, glyph=glyph, fg=_PALETTE.get(glyph, _DEFAULT_FG))
+                    )
+    return tuple(cells)
 
 
 def _room_text(viewport: RoomView) -> tuple[str, ...]:
@@ -200,12 +208,13 @@ def _cell_targets(frame: SemanticFrame, viewport: GridView) -> list[ClickTarget]
     col = int(x_text) - viewport.origin[0]
     row = int(y_text) - viewport.origin[1]
     domain = frame.commands.domains("move")[0]
+    flat = flatten(viewport)
     targets = []
     for token, (dx, dy) in _CARDINALS.items():
         if token not in domain:
             continue
         cx, cy = col + dx, row + dy
-        if 0 <= cy < len(viewport.tiles) and 0 <= cx < len(viewport.tiles[cy]):
+        if 0 <= cy < len(flat) and 0 <= cx < len(flat[cy]):
             targets.append(
                 ClickTarget(
                     x=MARGIN + cx * CELL_W,

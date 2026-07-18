@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.frame/5",
+  "$id": "glyphwright.frame/6",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -93,7 +93,7 @@
       "type": "object"
     },
     "schema": {
-      "const": "glyphwright.frame/5"
+      "const": "glyphwright.frame/6"
     },
     "turn": {
       "type": "integer"
@@ -105,6 +105,30 @@
           "properties": {
             "area": {
               "type": "string"
+            },
+            "cells": {
+              "items": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "actor": {
+                      "type": "string"
+                    },
+                    "fixture": {
+                      "type": "string"
+                    },
+                    "ground": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "ground"
+                  ],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "type": "array"
             },
             "kind": {
               "const": "grid"
@@ -122,20 +146,14 @@
               "maxItems": 2,
               "minItems": 2,
               "type": "array"
-            },
-            "tiles": {
-              "items": {
-                "type": "string"
-              },
-              "type": "array"
             }
           },
           "required": [
             "area",
+            "cells",
             "kind",
             "legend",
-            "origin",
-            "tiles"
+            "origin"
           ],
           "type": "object"
         },

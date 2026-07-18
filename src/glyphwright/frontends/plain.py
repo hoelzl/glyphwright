@@ -23,6 +23,7 @@ from glyphwright.frames.frame import (
     MenuView,
     RoomView,
     SemanticFrame,
+    flatten,
 )
 from glyphwright.frontends.wire import decode_command
 from glyphwright.harness import meta
@@ -89,7 +90,7 @@ def project(frame: SemanticFrame) -> PlainProjection:
         turn=frame.turn,
         mode=frame.mode,
         area=frame.viewport.area,
-        tiles=frame.viewport.tiles if isinstance(frame.viewport, GridView) else (),
+        tiles=flatten(frame.viewport) if isinstance(frame.viewport, GridView) else (),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
         mp=None if player is None else player.mp,

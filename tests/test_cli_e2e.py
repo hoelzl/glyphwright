@@ -56,7 +56,7 @@ def test_the_jsonl_frontend_emits_events_then_a_frame() -> None:
     schemas = [line["schema"] for line in lines]
     assert schemas[0] == "glyphwright.session/1"
     assert "glyphwright.event/9" in schemas
-    assert schemas[-1] == "glyphwright.frame/5"
+    assert schemas[-1] == "glyphwright.frame/6"
 
 
 def test_the_jsonl_frontend_rejects_an_unparsable_line_as_data() -> None:

@@ -77,6 +77,14 @@ def recording_schema() -> dict[str, Any]:
 
 
 def frame_schema() -> dict[str, Any]:
+    cell = _object(
+        {
+            "ground": _STRING,
+            "fixture": _STRING,
+            "actor": _STRING,
+        },
+        required=["ground"],
+    )
     grid_viewport = _object(
         {
             "kind": {"const": "grid"},
@@ -87,7 +95,7 @@ def frame_schema() -> dict[str, Any]:
                 "minItems": 2,
                 "maxItems": 2,
             },
-            "tiles": _array(_STRING),
+            "cells": _array(_array(cell)),
             "legend": {"type": "object", "additionalProperties": _STRING},
         }
     )
@@ -301,7 +309,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
         "glyphwright.session.v1.json": session_schema(),
-        "glyphwright.frame.v5.json": frame_schema(),
+        "glyphwright.frame.v6.json": frame_schema(),
         "glyphwright.event.v9.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),
         "glyphwright.query.v1.json": query_schema(),

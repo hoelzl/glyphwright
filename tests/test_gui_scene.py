@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
-from glyphwright.frames.frame import DialogueView, GridView, LockView
+from glyphwright.frames.frame import DialogueView, GridView, LockView, flatten
 from glyphwright.frontends import plain
 from glyphwright.frontends.gui import scene
 from glyphwright.kernel.commands import Move
@@ -48,7 +48,7 @@ def test_grid_frames_compose_to_cells_matching_the_tiles() -> None:
     frame = engine.step(Move("east")).frame
     composed = scene.compose(frame, frame.messages)
     assert isinstance(frame.viewport, GridView)
-    assert _rows(composed) == [row.rstrip() for row in frame.viewport.tiles]
+    assert _rows(composed) == [row.rstrip() for row in flatten(frame.viewport)]
     assert composed.text == ()
 
 
@@ -62,6 +62,34 @@ def test_every_cell_carries_a_palette_color() -> None:
     wall = [cell for cell in composed.cells if cell.glyph == "#"]
     assert player and wall
     assert player[0].fg != wall[0].fg, "the player must stand out from walls"
+
+
+def _stack_at(composed: scene.Scene, x: int, y: int) -> list[str]:
+    """The layered glyphs composed at one grid position, bottom to top."""
+    return [cell.glyph for cell in composed.cells if (cell.x, cell.y) == (x, y)]
+
+
+def test_the_ground_persists_under_an_actor() -> None:
+    """The compositing defect 0012 §4 fixes: an occupied cell composes the
+    ground glyph *and* the actor glyph, ground first, so the painter draws
+    the floor under the player rather than replacing it."""
+    frame = _engine().frame()
+    composed = scene.compose(frame, ())
+    player = next(cell for cell in composed.cells if cell.glyph == "@")
+    assert _stack_at(composed, player.x, player.y) == [
+        ".",
+        "@",
+    ], "the floor must be drawn beneath the player"
+
+
+def test_an_occupied_fixture_cell_keeps_all_three_layers() -> None:
+    engine = _engine()
+    engine.step(Move("east"))
+    engine.step(Move("east"))  # (3,1): onto the potion
+    frame = engine.frame()
+    composed = scene.compose(frame, ())
+    player = next(cell for cell in composed.cells if cell.glyph == "@")
+    assert _stack_at(composed, player.x, player.y) == [".", "!", "@"]
 
 
 # -- room frames --------------------------------------------------------------

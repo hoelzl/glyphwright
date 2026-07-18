@@ -17,6 +17,7 @@ from glyphwright.frames.frame import (
     MenuView,
     RoomView,
     SemanticFrame,
+    flatten,
 )
 
 _CLEAR = "\x1b[2J\x1b[H"
@@ -42,7 +43,7 @@ def _numbered_exits(frame: SemanticFrame) -> str:
 def _viewport_lines(frame: SemanticFrame) -> list[str]:
     viewport = frame.viewport
     if isinstance(viewport, GridView):
-        lines = list(viewport.tiles)
+        lines = list(flatten(viewport))
     elif isinstance(viewport, RoomView):
         # Contents come before the prose: a long description may be truncated
         # by the region budget, but what the player can act on may not.
