@@ -1,0 +1,22 @@
+== scenegraph · manifest sha256:33061a93475a… ==
+-- ground --
+#########
+#.......#
+#..##...#
+#.......#
+#########
+-- fixture --
+
+   !   +
+
+     t/O
+
+-- actor --
+
+  @
+
+ bg
+
+camera origin=(0, 0) focus=(2, 1)
+transition move @ village:1,1->village:2,1
+affordances: move, look, wait, cast

@@ -96,6 +96,28 @@ def _gui_lock() -> str:
     return scene.scene_text(scene.compose(frame, frame.messages))
 
 
+def _sg_village() -> str:
+    from glyphwright.frontends.presentation import scenegraph
+    from glyphwright.frontends.presentation.manifest import PresentationManifest
+
+    engine = _engine()
+    result = engine.step(Move("east"))
+    manifest = PresentationManifest(bindings={}, decoration={}, hints={})
+    graph = scenegraph.compose(result.frame, manifest, events=result.events)
+    return scenegraph.scenegraph_text(graph) + "\n"
+
+
+def _sg_battle() -> str:
+    from glyphwright.frontends.presentation import scenegraph
+    from glyphwright.frontends.presentation.manifest import PresentationManifest
+
+    engine = _engine()
+    result = engine.step(Move("south"))
+    manifest = PresentationManifest(bindings={}, decoration={}, hints={})
+    graph = scenegraph.compose(result.frame, manifest, events=result.events)
+    return scenegraph.scenegraph_text(graph) + "\n"
+
+
 GOLDENS: dict[str, Callable[[], str]] = {
     "tui_village": _tui_village,
     "tui_inn": _tui_inn,
@@ -107,6 +129,8 @@ GOLDENS: dict[str, Callable[[], str]] = {
     "gui_battle": _gui_battle,
     "gui_dialogue": _gui_dialogue,
     "gui_lock": _gui_lock,
+    "sg_village": _sg_village,
+    "sg_battle": _sg_battle,
 }
 
 

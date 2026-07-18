@@ -1,0 +1,23 @@
+# Presentation content for the reference pack (design 0012 §5): which asset
+# stands for a semantic glyph, and the hints a substrate reads. This is *not*
+# the semantic source of truth — areas.toml/entities.toml are — and its hash
+# joins the presentation fingerprint so "same seed, different manifest" is
+# detectably a different presentation.
+
+[bindings]
+"#" = "tiles/wall.png"
+"." = "tiles/floor.png"
+"@" = "tiles/player.png"
+"!" = "tiles/potion.png"
+"/" = "tiles/sword.png"
+"g" = "tiles/goblin.png"
+"b" = "tiles/bandit.png"
+"+" = "tiles/door.png"
+"O" = "tiles/cask.png"
+"M" = "tiles/mystic.png"
+"H" = "tiles/hermit.png"
+"t" = "tiles/table.png"
+"?" = "tiles/unseen.png"
+
+[hints]
+tile_footprint = 16
