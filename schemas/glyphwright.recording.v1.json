@@ -1,0 +1,27 @@
+{
+  "$id": "glyphwright.recording/1",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "command": {
+      "type": "string"
+    },
+    "events": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "glyphwright.recording/1"
+    },
+    "step": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "command",
+    "events",
+    "schema",
+    "step"
+  ],
+  "title": "GlyphWright recorded step",
+  "type": "object"
+}

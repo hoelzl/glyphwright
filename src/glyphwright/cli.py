@@ -49,6 +49,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=None,
         help="directory of a TOML content pack (default: the built-in reference pack)",
     )
+    parser.add_argument(
+        "--record",
+        type=Path,
+        default=None,
+        help="append the session's accepted commands to this recording file",
+    )
+    parser.add_argument(
+        "--replay",
+        type=Path,
+        default=None,
+        help="verify a recording against the chosen pack instead of playing",
+    )
     args = parser.parse_args(argv)
 
     if args.pack is not None:
@@ -60,18 +72,52 @@ def main(argv: Sequence[str] | None = None) -> int:
             parser.error(str(error))
     else:
         pack = reference_pack()
-    engine = Engine.new(pack, seed=args.seed)
-    if args.frontend == "jsonl":
-        return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
-    if args.frontend == "tui":
+
+    if args.replay is not None:
+        from glyphwright.harness.recording import replay
+
+        outcome = replay(pack, args.replay.read_text(encoding="utf-8").splitlines())
+        if outcome.ok:
+            assert outcome.engine is not None
+            print(
+                f"recording verified: {outcome.steps} steps, "
+                f"turn {outcome.engine.fingerprint().turn}"
+            )
+            return 0
+        print(f"recording diverged after {outcome.steps} steps: {outcome.problem}")
+        return 1
+
+    if args.record is not None:
+        from glyphwright.harness.recording import RecordingEngine
+
+        with args.record.open("w", encoding="utf-8", newline="\n") as sink:
+            engine: Engine = RecordingEngine.recording(
+                pack, seed=args.seed, sink=sink, harness=args.harness
+            )
+            return _play(parser, engine, args.frontend, harness=args.harness)
+    return _play(
+        parser, Engine.new(pack, seed=args.seed), args.frontend, harness=args.harness
+    )
+
+
+def _play(
+    parser: argparse.ArgumentParser,
+    engine: Engine,
+    frontend: str,
+    *,
+    harness: bool,
+) -> int:
+    if frontend == "jsonl":
+        return jsonl.run_session(engine, sys.stdin, sys.stdout, harness=harness)
+    if frontend == "tui":
         if not sys.stdin.isatty():
             # Fail before touching the terminal: piped input belongs to the
             # plain and JSONL frontends.
             parser.error("--frontend tui needs an interactive terminal")
         from glyphwright.frontends.tui import session as tui_session
 
-        return tui_session.run_session(engine, None, sys.stdout, harness=args.harness)
-    return plain.run_session(engine, sys.stdin, sys.stdout, harness=args.harness)
+        return tui_session.run_session(engine, None, sys.stdout, harness=harness)
+    return plain.run_session(engine, sys.stdin, sys.stdout, harness=harness)
 
 
 if __name__ == "__main__":
