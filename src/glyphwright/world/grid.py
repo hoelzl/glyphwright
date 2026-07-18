@@ -148,14 +148,18 @@ class GridSpace:
         Omniscient (``fov == 0``): everything. Otherwise: within the radius
         (Chebyshev) and reachable by a Bresenham line that crosses no
         interior wall — walls themselves are visible, nothing behind them is.
+        Sight is symmetric by construction: a line clear in either direction
+        counts, so two actors always agree on whether they can see each other.
         """
+        if not self.contains(origin):
+            raise ValueError(f"{origin} is not a position of area {self._area!r}")
         if self.fov == 0:
             return frozenset(self.positions())
         ox, oy = _coords(origin)
         seen = set()
         for y in range(max(0, oy - self.fov), min(self.height, oy + self.fov + 1)):
             for x in range(max(0, ox - self.fov), min(self.width, ox + self.fov + 1)):
-                if self._line_clear(ox, oy, x, y):
+                if self._line_clear(ox, oy, x, y) or self._line_clear(x, y, ox, oy):
                     seen.add(self.pos(x, y))
         return frozenset(seen)
 
@@ -185,8 +189,12 @@ class GridSpace:
         origin = state.entity(observer).at()
         if origin is None:
             raise ValueError(f"{observer} has no position to observe from")
-        seen = self.visible_from(origin)
-        visible = tuple(pos for pos in self.positions() if pos in seen)
+        if self.fov == 0:
+            seen = None
+            visible = tuple(self.positions())
+        else:
+            seen = self.visible_from(origin)
+            visible = tuple(pos for pos in self.positions() if pos in seen)
         actors = tuple(
             sorted(
                 entity.id
@@ -195,7 +203,7 @@ class GridSpace:
                 and entity.id != observer
                 and (at := entity.at()) is not None
                 and at.area == self._area
-                and at in seen
+                and (seen is None or at in seen)
             )
         )
         return SpatialObservation(

@@ -14,14 +14,17 @@ lands now — as the smallest thing that satisfies §20.3's phrasing: a
 **pack-level option**, and a **pure view filter**.
 
 - **Content**: a grid area may declare `fov = <radius>` (`areas.toml`; absent
-  or `0` means omniscient, today's behavior — every existing pack and golden
-  is untouched). Radius must be positive when present; room areas reject the
-  key (a room *is* its own horizon).
+  or an explicit `0` means omniscient, today's behavior — every existing pack
+  and golden is untouched). Negative radii are load errors; room areas reject
+  the key (a room *is* its own horizon). The glyph `?` is reserved for unseen
+  tiles: a renderable claiming it is a load error.
 - **Visibility rule**: a tile is visible when its Chebyshev distance is
-  within the radius **and** a Bresenham line from the observer reaches it
-  without crossing an interior wall; walls themselves are visible (you can
-  see a wall, not through it). Deterministic, integer-only, symmetric enough
-  for play; no diagonal-corner subtleties are promised.
+  within the radius **and** a Bresenham line in *either* direction connects
+  observer and tile without crossing an interior wall; walls themselves are
+  visible (you can see a wall, not through it). The either-direction rule
+  makes sight symmetric by construction — two actors always agree on mutual
+  visibility. Deterministic, integer-only; no diagonal-corner subtleties are
+  promised beyond symmetry.
 - **No state, no events**: visibility is a function of the observer's
   position and the terrain. There is no explored-tiles memory — that would
   be state, events, and schema; if fog-of-memory is ever wanted it is its
@@ -29,10 +32,13 @@ lands now — as the smallest thing that satisfies §20.3's phrasing: a
   `step`, the fold, and replay are untouched by construction.
 - **Presentation**: unseen tiles render as `?` (ASCII, parse-safe under the
   plain frontend's space-free tile rule; legend entry `? = unseen`).
-  Entities on unseen tiles are not drawn, and `ActorSummary` rows for a
-  fov-active area include only visible actors — a harness reads the same
-  truth the player sees. `observe()`'s `visible`/`actors` filter the same
-  way, honouring the `SpatialObservation` contract at last.
+  Entities on unseen tiles are not drawn; `ActorSummary` rows list only the
+  player's *current area*, and in a fov-active area only visible actors —
+  a harness reads the same truth the player sees, and no frame leaks intel
+  about other areas. Messages are filtered the same way: an unseen actor's
+  movement is not narrated. `observe()`'s `visible`/`actors` filter
+  identically, honouring the `SpatialObservation` contract at last; a
+  foreign or off-map origin raises rather than reporting blindness.
 - **What does not change**: grammars (attack needs adjacency, which is
   always visible; items are underfoot), AI (hostiles have ears — pursuing
   an unseen player is fine and keeps the scheduler untouched), and the

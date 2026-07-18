@@ -277,19 +277,15 @@ Decisions taken by the implementing agent (owner delegated open choices):
    (9B, sketched in 0006 §2) will ship fov-enabled content.
 4. The `fov` field widened grid-area identity; the pack pin was re-pinned.
 
-## Session state at pause (2026-07-18)
+## Slice 9A post-review decisions
 
-- **PR #9 (slice 9A, FOV) is open and unmerged.** The adversarial-review workflow
-  is blocked by the account's monthly spend limit; an inline self-review found no
-  defects (documented on the PR). When review capacity returns: run the
-  multi-agent review on PR #9, address findings, merge, then proceed to 9B.
-- Slices 1–8 are merged (PRs #1–#8), each after a multi-agent adversarial review
-  with all confirmed findings fixed.
-- Remaining designed-but-unbuilt work, in order: **9B tactics arena** (design
-  0006 §2 sketch), **status hooks and perks** (0003 §9.3, deferred in 0004),
-  AI ability use (0004 §5), and the §20 open questions (snapshot format,
-  adapter placement — the latter decided only when the TermVerify-side adapter
-  is actually built).
+1. **Frames disclose the here and now**: exploration `ActorSummary` rows list only
+   the player's current area (FOV or not), and in a fov-active area only visible
+   actors; messages are filtered the same way (an unseen actor's movement is not
+   narrated). The oracle stays the x-ray.
+2. **Sight is symmetric by construction**: Bresenham in either direction counts.
+   `visible_from` raises on foreign/off-map origins. `fov = 0` is accepted as
+   explicit omniscience; `?` is a reserved glyph (loader-enforced).
 
 ## Next steps
 

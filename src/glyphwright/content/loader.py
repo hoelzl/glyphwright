@@ -167,8 +167,8 @@ def _load_areas(root: Traversable) -> tuple[GridSpace | RoomGraphSpace, ...]:
         )
         where = f"grid area {fields['area']!r}"
         fov = fields.get("fov", 0)
-        if "fov" in fields and fov <= 0:
-            raise _fail(file, where, "fov must be a positive radius when present")
+        if fov < 0:
+            raise _fail(file, where, "fov must be 0 (omniscient) or a positive radius")
         try:
             areas.append(GridSpace.from_text(fields["area"], fields["rows"], fov=fov))
         except ValueError as error:
@@ -297,14 +297,15 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
         actor = Actor(**actor_fields, base_stats=stats, abilities=tuple(abilities))
     renderable = None
     if "renderable" in fields:
-        renderable = Renderable(
-            **_take(
-                file,
-                where,
-                dict(fields["renderable"]),
-                {"glyph": (True, str), "label": (True, str)},
-            )
+        renderable_fields = _take(
+            file,
+            where,
+            dict(fields["renderable"]),
+            {"glyph": (True, str), "label": (True, str)},
         )
+        if renderable_fields["glyph"] == "?":
+            raise _fail(file, where, "the glyph '?' is reserved for unseen tiles")
+        renderable = Renderable(**renderable_fields)
     ai = None
     if "ai" in fields:
         ai = AiBehavior(

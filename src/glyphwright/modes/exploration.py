@@ -65,17 +65,33 @@ _TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
 
 def _legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
     """Terrain plus every renderable in the area: glyph vocabulary is content,
-    not engine code."""
+    not engine code. The unseen glyph is written last: '?' is reserved (the
+    loader rejects it on renderables), and reserved means unoverwritable."""
     entries = dict(_TERRAIN_LEGEND)
-    space = state.areas.get(area)
-    if isinstance(space, GridSpace) and space.fov:
-        entries["?"] = "unseen"
     for entity in state.entities.values():
         at = entity.at()
         if entity.renderable is None or at is None or at.area != area:
             continue
         entries[entity.renderable.glyph] = entity.renderable.label
+    space = state.areas.get(area)
+    if isinstance(space, GridSpace) and space.fov:
+        entries["?"] = "unseen"
     return tuple(sorted(entries.items()))
+
+
+def _player_sight(state: WorldState) -> frozenset[PosId] | None:
+    """The player's visible set in a fov-active grid area, else ``None``.
+
+    Computed once per frame and threaded through viewport, summaries, and
+    message filtering, so every part of a frame tells the same truth.
+    """
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return None
+    space = state.areas[player_at.area]
+    if isinstance(space, GridSpace) and space.fov:
+        return space.visible_from(player_at)
+    return None
 
 
 def _all_exits(state: WorldState, pos: PosId) -> dict[str, PosId]:
@@ -323,11 +339,16 @@ def _equip(state: WorldState, item_id: str) -> tuple[Event, ...]:
 
 
 def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
-    """Project state and this turn's events into the canonical observation."""
+    """Project state and this turn's events into the canonical observation.
+
+    One visible set serves the viewport, the actor summaries, and the message
+    filter, so every part of a frame tells the same truth (design 0006 §1).
+    """
     space = state.space_of(PLAYER)
+    sight = _player_sight(state)
     viewport: Viewport
     if isinstance(space, GridSpace):
-        viewport = _viewport(state, space)
+        viewport = _viewport(state, space, sight)
     elif isinstance(space, RoomGraphSpace):
         viewport = _room_viewport(state, space)
     else:
@@ -336,13 +357,29 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         turn=state.turn,
         mode=NAME,
         viewport=viewport,
-        actors=_actors(state),
+        actors=_actors(state, sight),
         messages=tuple(
-            message for event in events if (message := messages.describe(event))
+            message
+            for event in events
+            if _witnessed(state, event, sight) and (message := messages.describe(event))
         ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
     )
+
+
+def _witnessed(state: WorldState, event: Event, sight: frozenset[PosId] | None) -> bool:
+    """Whether the player can honestly narrate this event.
+
+    An unseen hostile's movement must not be announced by the transcript
+    while the viewport and summaries conceal it; everything the player takes
+    part in, and everything in the light, passes through.
+    """
+    if sight is None:
+        return True
+    if isinstance(event, Moved) and event.actor != PLAYER:
+        return event.destination in sight
+    return True
 
 
 def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
@@ -369,15 +406,14 @@ def _room_viewport(state: WorldState, space: RoomGraphSpace) -> RoomView:
     )
 
 
-def _viewport(state: WorldState, space: GridSpace) -> GridView:
-    player_at = state.entity(PLAYER).at()
-    assert player_at is not None
-    seen = space.visible_from(player_at)
+def _viewport(
+    state: WorldState, space: GridSpace, sight: frozenset[PosId] | None
+) -> GridView:
     glyphs = [list(row) for row in space.rows]
-    if space.fov:
+    if sight is not None:
         for y in range(space.height):
             for x in range(space.width):
-                if space.pos(x, y) not in seen:
+                if space.pos(x, y) not in sight:
                     glyphs[y][x] = "?"
     # Items first, actors last: an actor standing on an item wins the tile,
     # whatever the ids happen to sort like. Ties within a layer stay id-sorted.
@@ -388,7 +424,7 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
         at = entity.at()
         if entity.renderable is None or at is None or at.area != space.area:
             continue
-        if at not in seen:
+        if sight is not None and at not in sight:
             continue  # beyond the light: not drawn
         from glyphwright.world.grid import _coords
 
@@ -402,25 +438,25 @@ def _viewport(state: WorldState, space: GridSpace) -> GridView:
     )
 
 
-def _actors(state: WorldState) -> tuple[ActorSummary, ...]:
+def _actors(
+    state: WorldState, sight: frozenset[PosId] | None
+) -> tuple[ActorSummary, ...]:
+    """Visible actors in the player's current area.
+
+    A frame discloses the here and now: no actor from another area, and in a
+    fov-active area none beyond the light — a harness reads the same truth
+    the player sees (design 0006 §1). The oracle remains the x-ray.
+    """
     player_at = state.entity(PLAYER).at()
-    seen = None
-    if player_at is not None:
-        player_space = state.areas[player_at.area]
-        if isinstance(player_space, GridSpace) and player_space.fov:
-            seen = (player_at.area, player_space.visible_from(player_at))
     summaries = []
     for entity in sorted(state.entities.values(), key=lambda e: e.id):
         at = entity.at()
         if entity.actor is None or at is None:
             continue
-        if (
-            seen is not None
-            and entity.id != PLAYER
-            and at.area == seen[0]
-            and at not in seen[1]
-        ):
-            continue  # in the player's area but beyond the light
+        if player_at is not None and at.area != player_at.area:
+            continue
+        if sight is not None and entity.id != PLAYER and at not in sight:
+            continue  # beyond the light
         summaries.append(
             ActorSummary(
                 id=entity.id,

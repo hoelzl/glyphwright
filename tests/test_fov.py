@@ -122,7 +122,7 @@ def test_observe_filters_the_same_way(tmp_path: Path) -> None:
     space = state.areas["vault"]
     assert isinstance(space, GridSpace)
     observation = space.observe(state, "player")
-    assert all(position in observation.visible for position in [space.pos(1, 1)])
+    assert space.pos(1, 1) in observation.visible
     assert space.pos(7, 3) not in observation.visible
     assert observation.actors == ()
 
@@ -147,11 +147,83 @@ def test_fov_on_a_room_area_is_a_load_error(tmp_path: Path) -> None:
         load_pack(tmp_path)
 
 
-def test_a_non_positive_radius_is_a_load_error(tmp_path: Path) -> None:
+def test_an_explicit_zero_radius_means_omniscient(tmp_path: Path) -> None:
     for name, text in _FOV_PACK.items():
         (tmp_path / name).write_text(text, encoding="utf-8")
     (tmp_path / "areas.toml").write_text(
         _FOV_PACK["areas.toml"].replace("fov = 2", "fov = 0"), encoding="utf-8"
     )
+    engine = Engine.new(load_pack(tmp_path), seed=5)
+    assert not any("?" in row for row in _tiles(engine))
+
+
+def test_a_negative_radius_is_a_load_error(tmp_path: Path) -> None:
+    for name, text in _FOV_PACK.items():
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    (tmp_path / "areas.toml").write_text(
+        _FOV_PACK["areas.toml"].replace("fov = 2", "fov = -1"), encoding="utf-8"
+    )
     with pytest.raises(PackError, match="fov"):
         load_pack(tmp_path)
+
+
+def test_the_unseen_glyph_is_reserved(tmp_path: Path) -> None:
+    for name, text in _FOV_PACK.items():
+        (tmp_path / name).write_text(text, encoding="utf-8")
+    (tmp_path / "entities.toml").write_text(
+        _FOV_PACK["entities.toml"].replace("glyph = 'L'", "glyph = '?'"),
+        encoding="utf-8",
+    )
+    with pytest.raises(PackError, match="reserved"):
+        load_pack(tmp_path)
+
+
+def test_sight_is_symmetric_everywhere() -> None:
+    """The review's probe generalized: every pair of tiles agrees on mutual
+    visibility, wall corners included."""
+    space = GridSpace.from_text("probe", "...\n.#.\n...", fov=3)
+    floors = [p for p in space.positions() if space.terrain(p) != "#"]
+    for a in floors:
+        for b in floors:
+            assert (b in space.visible_from(a)) == (a in space.visible_from(b)), (
+                f"asymmetric: {a} vs {b}"
+            )
+
+
+def test_a_foreign_origin_raises_instead_of_reporting_blindness() -> None:
+    from glyphwright.world.space import PosId
+
+    space = GridSpace.from_text("probe", "..", fov=1)
+    with pytest.raises(ValueError, match="not a position"):
+        space.visible_from(PosId(area="elsewhere", local="0,0"))
+
+
+def test_frames_disclose_only_the_current_area() -> None:
+    """No frame lists actors from another area — FOV or not (the village
+    frame must not describe the innkeeper in the inn)."""
+    from glyphwright.content.pack import reference_pack
+
+    engine = Engine.new(reference_pack(), seed=1)
+    assert "innkeeper" not in {actor.id for actor in engine.frame().actors}
+
+
+def test_unseen_movement_is_not_narrated(tmp_path: Path) -> None:
+    """The transcript must not announce a hostile the viewport conceals."""
+    from glyphwright.kernel.events import FlagSet
+    from glyphwright.kernel.state import fold
+
+    engine = _engine(tmp_path)
+    engine._state = fold(engine._state, (FlagSet(flag="aggro:lurker", value=True),))
+    result = engine.step(Move("east"))
+    assert not any("lurker moves" in message for message in result.frame.messages)
+    assert "lurker" not in {actor.id for actor in result.frame.actors}
+
+
+def test_fov_frames_render_in_the_tui(tmp_path: Path) -> None:
+    from glyphwright.frontends.tui import render
+
+    engine = _engine(tmp_path)
+    screen = render.paint(engine.frame(), ())
+    assert "?" in screen
+    tile_rows = [line for line in screen.splitlines() if line.startswith("#")]
+    assert tile_rows and not any("L" in row for row in tile_rows)
