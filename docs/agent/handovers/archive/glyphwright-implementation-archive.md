@@ -1,11 +1,27 @@
-# Handover — GlyphWright implementation per design 0003
+# Archive — GlyphWright implementation handover (retired 2026-07-18)
 
-Active multi-session implementation state. Read `docs/agent/design/0003-glyphwright-design.md`
-first; it is authoritative over this file. Update this document whenever a slice starts,
-finishes, or a decision worth carrying across sessions is made. Retire entries once the
-information is recorded in design docs, knowledge bundle, or code.
+> **This document is retired and NOT authoritative. Do not use it to decide what to work
+> on next, and do not update it.**
+>
+> It is kept as a historical record of per-slice decisions from slices 2–12. Its
+> "Current state" table below stops at slice 6 and its "Next steps" section is stale —
+> it lists slices 5 and 6 as upcoming when both shipped long ago, and predates slices
+> 7–13C entirely.
+>
+> For current information:
+>
+> | You want | Read |
+> | --- | --- |
+> | Slice status, what shipped, what is next | `docs/agent/design/roadmap.md` — the single authoritative status source |
+> | The specification | `docs/agent/design/0003-glyphwright-design.md` |
+> | Per-slice design decisions | the numbered documents in `docs/agent/design/` |
+> | Open questions | `0003` §20, plus each design document's open-questions section |
+>
+> Why it was retired: it duplicated slice status that `roadmap.md` also carried, and the
+> duplicate drifted. Status now lives in exactly one file. See the documentation
+> checklist in `AGENTS.md`.
 
-## Current state (2026-07-17)
+## Current state (2026-07-17 — STALE, stops at slice 6; see `roadmap.md`)
 
 | Slice (0003 §18) | Status |
 | --- | --- |
@@ -381,7 +397,11 @@ Decisions taken by the implementing agent (owner delegated open choices):
    hexer 6/6 (rockshard 2 — three casts, then it closes in), village tonic.
    Pack-id re-pinned (Actor/Ability/Consumable identity widened).
 
-## Next steps
+## Next steps (STALE as of retirement — see `docs/agent/design/roadmap.md`)
+
+> The list below was written before slices 7–13C shipped. Items 4 and 5 ("Slice 5 — TUI",
+> "Slice 6 — dialogue + one minigame") are long done, and item 2's "resource costs for
+> abilities" shipped as slice 12. Retained verbatim for the record only.
 
 1. `0003` §20 open questions: only §20.5 remains — the TermVerify-side
    adapter placement is decided when that adapter is built (ADR-001 forbids
