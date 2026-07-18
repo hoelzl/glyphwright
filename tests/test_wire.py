@@ -71,7 +71,7 @@ def _check(payload: dict[str, Any], schema: dict[str, Any]) -> None:
 
 def test_a_real_frame_validates() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v5.json"])
+    _check(encode_frame(engine.frame()), all_schemas()["glyphwright.frame.v6.json"])
 
 
 def test_real_events_validate() -> None:
@@ -111,6 +111,18 @@ def test_frames_and_events_carry_their_schema_tag() -> None:
 def test_encoded_frames_are_json_serialisable() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     json.dumps(encode_frame(engine.frame()))
+
+
+def test_encoded_grid_cells_omit_empty_tiers() -> None:
+    """The wire shape of one cell: ``ground`` always present, ``fixture`` and
+    ``actor`` omitted (not null) when empty — so the object schema and the
+    encoder cannot drift apart (0012 §4)."""
+    engine = Engine.new(reference_pack(), seed=1)
+    viewport = encode_frame(engine.frame())["viewport"]
+    cells = viewport["cells"]
+    assert cells[1][1] == {"ground": ".", "actor": "@"}  # the player on floor
+    assert cells[1][3] == {"ground": ".", "fixture": "!"}  # the potion
+    assert cells[0][0] == {"ground": "#"}  # a bare wall
 
 
 def test_the_grammar_uses_one_shape_for_every_arity() -> None:

@@ -6,7 +6,7 @@ resolution keeps the two modes from drifting apart.
 
 from __future__ import annotations
 
-from glyphwright.frames.frame import GridView
+from glyphwright.frames.frame import Cell, GridView
 from glyphwright.kernel.events import (
     Event,
     FlagSet,
@@ -55,14 +55,20 @@ def player_sight(state: WorldState) -> frozenset[PosId] | None:
 def grid_viewport(
     state: WorldState, space: GridSpace, sight: frozenset[PosId] | None
 ) -> GridView:
-    """The one grid picture: exploration and arena battles share it."""
-    glyphs = [list(row) for row in space.rows]
-    if sight is not None:
-        for y in range(space.height):
-            for x in range(space.width):
-                if space.pos(x, y) not in sight:
-                    glyphs[y][x] = "?"
-    # Items first, actors last: an actor standing on an item wins the tile.
+    """The one grid picture: exploration and arena battles share it.
+
+    Cells are tiered (design 0012 §4): the ground always shows through, a
+    fixture (item, portal) draws on the ground, and an actor draws over both
+    — so the floor persists under whoever stands on it.
+    """
+    cells: list[list[Cell]] = []
+    for y in range(space.height):
+        row = []
+        for x in range(space.width):
+            seen = sight is None or space.pos(x, y) in sight
+            row.append(Cell(ground=space.rows[y][x] if seen else "?"))
+        cells.append(row)
+    # Fixtures before actors: an actor standing on an item wins the top tier.
     draw_order = sorted(
         state.entities.values(), key=lambda e: (e.actor is not None, e.id)
     )
@@ -73,11 +79,17 @@ def grid_viewport(
         if sight is not None and at not in sight:
             continue  # beyond the light: not drawn
         x, y = _coords(at)
-        glyphs[y][x] = entity.renderable.glyph
+        cell = cells[y][x]
+        if entity.actor is not None:
+            cells[y][x] = Cell(
+                ground=cell.ground, fixture=cell.fixture, actor=entity.renderable.glyph
+            )
+        else:
+            cells[y][x] = Cell(ground=cell.ground, fixture=entity.renderable.glyph)
     return GridView(
         area=space.area,
         origin=(0, 0),
-        tiles=tuple("".join(row) for row in glyphs),
+        cells=tuple(tuple(row) for row in cells),
         legend=legend(state, space.area),
     )
 

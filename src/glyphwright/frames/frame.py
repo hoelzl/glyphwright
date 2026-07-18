@@ -53,15 +53,50 @@ class ActorSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class Cell:
+    """One grid position's compositing tiers (design 0012 §4).
+
+    A cell is not one glyph but three: the ``ground`` terrain (always
+    present), an optional ``fixture`` (item, portal, furnishing — drawn on
+    the ground), and an optional ``actor`` (drawn over both). The frame
+    carries the tiers so "the floor persists under the player" is a fact of
+    the evidence, not something a frontend must reconstruct. A cell under
+    fog of war reports ``ground == "?"`` with no fixture or actor.
+    """
+
+    ground: str
+    fixture: str | None = None
+    actor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class GridView:
-    """A viewport of tiles around the observer, plus its legend."""
+    """A viewport of tiered cells around the observer, plus its legend.
+
+    ``cells[y][x]`` is the composited tile at that viewport position. Use
+    :func:`flatten` to project the tiers back to a single-glyph surface
+    (plain, TUI) with the declared precedence actor > fixture > ground.
+    """
 
     area: str
     origin: tuple[int, int]
-    tiles: tuple[str, ...]
+    cells: tuple[tuple[Cell, ...], ...]
     legend: tuple[tuple[str, str], ...]
 
     kind: str = "grid"
+
+
+def flatten(viewport: GridView) -> tuple[str, ...]:
+    """Project a tiered grid back to one glyph per cell.
+
+    The single-glyph surfaces (plain, TUI) cannot draw a stack, so they take
+    the topmost tier — actor over fixture over ground (design 0012 §4.1).
+    The precedence is declared here once, not re-derived per frontend.
+    """
+    return tuple(
+        "".join(cell.actor or cell.fixture or cell.ground for cell in row)
+        for row in viewport.cells
+    )
 
 
 @dataclass(frozen=True, slots=True)

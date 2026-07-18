@@ -74,11 +74,11 @@ def test_taking_spends_the_turn() -> None:
 
 
 def _tiles(engine: Engine) -> tuple[str, ...]:
-    from glyphwright.frames.frame import GridView
+    from glyphwright.frames.frame import GridView, flatten
 
     viewport = engine.frame().viewport
     assert isinstance(viewport, GridView)
-    return viewport.tiles
+    return flatten(viewport)
 
 
 def test_a_taken_item_disappears_from_the_map() -> None:

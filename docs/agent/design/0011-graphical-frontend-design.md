@@ -209,6 +209,62 @@ tests and docs, and later slices may be re-scoped by what earlier ones learn.
    within-process determinism (same scene twice ⇒ identical buffer bytes)
    and no committed hash baselines; revisit once the matrix has produced
    evidence either way.
+   **Still open, and now actionable (2026-07-18):** 13A–13C have all run the
+   full matrix with the extra installed, so the evidence the interim was
+   waiting for exists. Settling this means comparing paint output for a fixed
+   scene across the matrix's platforms and pygame-ce/SDL versions; if they
+   diverge, the answer is that scene goldens plus paints-without-error are the
+   whole contract and pixel hashes never get committed. Nothing blocks on
+   this — it decides whether a test layer is added, not whether current tests
+   are correct.
 2. **Window geometry** — 13A ships a fixed-size window derived from the
    TUI's region budgets; whether resizing is wanted (and what it means for
    scene goldens) is deferred until a person asks for it.
+
+## 9. Implementation decisions (13A–13C, shipped 2026-07-18)
+
+Decisions taken while building the slices, recorded here because they refine
+this document rather than `0003`. The one-line slice status lives in
+`docs/agent/design/roadmap.md` row 13 and is not repeated here.
+
+**13A — exploration GUI.**
+
+- `frontends/gui/` splits at this document's seam: `scene.py` composes the whole
+  window as pure, pygame-free data (golden- and projection-tested against
+  plain), `paint.py` blits it with the bundled font, `session.py` runs the
+  blocking paint/key/step pump.
+- `translate` moved to `frontends/keymap.py` so the TUI and GUI share one
+  binding table rather than drifting into two.
+- `--frontend gui` fails with an install hint when the optional `pygame-ce`
+  extra is absent — a missing extra is a diagnosable user error, not a crash.
+- Battle, dialogue, and lock frames rendered an honest placeholder until 13B,
+  rather than being left unhandled.
+
+**13B — full parity.**
+
+- `compose` gained the menu battle's combatant list, wrapped dialogue with
+  numbered choices, and the lockpick pin display; projection consistency
+  against plain now covers every view type, not just exploration.
+- The `;` command bar and harness-gated `:` meta bar echo through `Scene.bar`.
+  `Scene.bar` is transient input state and is **excluded from goldens** — a
+  golden that captured a half-typed command would be noise, not a contract.
+- `gui_battle` was re-blessed from placeholder to the real view; `gui_dialogue`
+  and `gui_lock` added. All three were human-reviewed as baseline blessings.
+
+**13C — tileset and mouse.**
+
+- Click targets are minted from the frame's grammar at compose time
+  (`ClickTarget` zones: cells adjacent to the player, fixed-width exit slots,
+  combatant rows, dialogue choices, the pin row), so **the mouse can never say
+  what the grammar cannot**. Dispatch is pure geometry over scene data.
+- Exit labels are painted at their own zones, so pixels and click areas cannot
+  disagree by construction rather than by test.
+- Layout constants moved from `paint` to `scene`, where pure code can reach
+  them — a prerequisite for geometry being testable without pygame.
+- Tilesets are a **paint-time skin**: a pack-optional `tileset.toml` maps glyphs
+  to images, unlisted glyphs fall back to font rendering, and the `Scene` never
+  changes. `--tiles` turns it on (gui only, loud error when the pack ships
+  none).
+- The reference pack ships a 13-tile placeholder set, regenerated and
+  human-reviewed via `tests/regenerate_tiles.py` exactly like the goldens, and
+  verified to ship in the wheel.

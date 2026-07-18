@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
-from glyphwright.frames.frame import GridView
+from glyphwright.frames.frame import GridView, flatten
 from glyphwright.kernel.commands import Attack, Cast, Flee, Move
 from glyphwright.kernel.events import ModePopped, ModePushed, Moved
 from glyphwright.kernel.state import PLAYER, fold
@@ -314,7 +314,7 @@ def test_a_fov_arena_conceals_unseen_foes_everywhere_in_the_frame() -> None:
     )
     frame = engine.frame()
     assert isinstance(frame.viewport, GridView)
-    assert frame.viewport.tiles[2][8] == "?", "beyond the light"
+    assert flatten(frame.viewport)[2][8] == "?", "beyond the light"
     listed = {actor.id for actor in frame.actors}
     assert PLAYER in listed and "brute" not in listed
     unseen_move = MovedEvent(

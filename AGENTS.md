@@ -18,9 +18,11 @@ Precedence: `0003` is the specification and overrides every other document here.
 
 | Task or fact | Command or authoritative source |
 | --- | --- |
-| Setup | `uv --no-config sync --all-groups --locked` |
+| Setup | `uv --no-config sync --all-groups --all-extras --locked` — `--all-extras` installs the optional `gui` extra (`pygame-ce`). Without it the GUI e2e tests **silently skip** (`tests/test_gui_e2e.py` opens with `pytest.importorskip("pygame")`) and the suite still reports green |
 | Focused test | `uv --no-config run pytest tests/test_engine.py -q` |
-| Full tests | `uv --no-config run pytest --cov --cov-report=term-missing` |
+| Full tests | `uv --no-config run pytest --cov --cov-report=term-missing` — set `SDL_VIDEODRIVER=dummy` for headless GUI runs, as CI does |
+| Bare-suite check | `uv --no-config sync --all-groups --locked` (no `--all-extras`, which removes `pygame`), then `uv --no-config run pytest -q`, then re-sync with `--all-extras` to restore the GUI env. Proves the core suite passes with `pygame` absent; CI runs it as the separate `bare` job (`.github/workflows/ci.yml`). A stray top-level `pygame` import passes a normal local run and breaks this |
+| Run the GUI | `uv --no-config run glyphwright --frontend gui` (add `--tiles` for the reference pack's tileset); requires the `gui` extra |
 | Lint | `uv --no-config run ruff check .` |
 | Format check | `uv --no-config run ruff format --check .` |
 | Type check | `uv --no-config run mypy --platform win32 src tests`, then again with `--platform linux` — mypy's verdict is platform-dependent (`sys.platform` narrowing), and CI checks both |
@@ -49,7 +51,8 @@ State and returned event collections are immutable. Coordinates, command parsing
 | Contributor workflow | `CONTRIBUTING.md` and `docs/developer-guide/` |
 | Durable product, architecture, terminology, verification | `docs/knowledge/` |
 | Authoritative design, decisions, reuse assessments, roadmap | `docs/agent/design/` |
-| Active multi-session implementation state | `docs/agent/handovers/` only when needed |
+| Slice and work status | `docs/agent/design/roadmap.md` — **the single authoritative source.** Never record slice status in a second file |
+| Active multi-session implementation state | `docs/agent/handovers/` only when needed, and only for work genuinely in flight. Retire to `docs/agent/handovers/archive/` when it completes; a retired handover carries a non-authoritative banner |
 
 Every non-index Markdown file in `docs/knowledge/` has OKF frontmatter with at least `type`. Do not create empty documentation taxonomies.
 
@@ -65,9 +68,29 @@ More than one agent tool works on this repository, and no tool can read another'
 | --- | --- |
 | `AGENTS.md` | Authoritative agent guide; read by hermes and by any tool that supports the convention. |
 | `CLAUDE.md` | Pointer for Claude Code, which loads `CLAUDE.md` instead of `AGENTS.md`. |
-| `.claude/settings.json` | Tracked Claude Code permissions for the commands above. |
+| `.claude/settings.json` | Tracked Claude Code permissions for the commands above. Claude-Code-specific: another harness needs its own allowlist for the same commands, and nothing here is authoritative for it. |
 | `.claude/settings.local.json` | Per-developer overrides; untracked by design. |
+
+Where a workflow step names a tool-specific command, it is describing intent, not a
+requirement. "Run an adversarial review before merging" means: have a reviewer that did
+not write the change look for correctness bugs, contract violations, and missed test
+cases, and record what it found. A harness without a review command should substitute
+its own equivalent rather than skip the step.
 
 ## Completion Contract
 
-Use strict TDD for behavior changes: watch a focused test fail for the intended reason, implement the minimum, then run wider checks. Test semantic behavior separately from terminal wiring. Update docs when behavior or contracts change. Do not add dependencies, copy code, bless baselines, or change replay/protocol contracts without a written rationale and review plan. Before completion, run relevant tests, lint, format, mypy, and build/package checks.
+Use strict TDD for behavior changes: watch a focused test fail for the intended reason, implement the minimum, then run wider checks. Test semantic behavior separately from terminal wiring. Do not add dependencies, copy code, bless baselines, or change replay/protocol contracts without a written rationale and review plan. Before completion, run relevant tests, lint, format, mypy, and build/package checks. If the change touches the GUI or any optional-extra boundary, run the bare-suite check too — a green normal run does not cover it.
+
+### Documentation checklist
+
+"Update docs when behavior changes" is too vague to check, and has been satisfied while leaving real drift behind. Before completion, walk this list explicitly:
+
+| If the change… | Update |
+| --- | --- |
+| completed or altered a slice's status | `docs/agent/design/roadmap.md` — the **single** authoritative status source. Do not record slice status anywhere else; a second copy will drift |
+| made a design decision | `docs/agent/design/` (the relevant numbered document). A decision recorded **only in a commit message is lost** — commit messages are not in the Documentation Placement table |
+| changed CLI surface, setup, or test commands | `README.md` **and** the commands table above |
+| resolved or reopened an open question | the owning design document's open-questions section |
+| changed rules for agents | this file, `AGENTS.md` |
+
+If none apply, say so rather than skipping the list silently.
