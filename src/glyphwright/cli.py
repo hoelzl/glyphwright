@@ -1,8 +1,8 @@
 """Terminal entry point: choose a frontend, then get out of the way.
 
-Only this layer knows about terminals. Both frontends are pure functions over
-frames, so the CLI's whole job is to build the run and hand over the streams
-(design 0003 section 4).
+Only this layer knows about terminals (and, for the gui frontend, windows).
+Every frontend is a pure function over frames, so the CLI's whole job is to
+build the run and hand over the streams (design 0003 section 4).
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument(
         "--frontend",
-        choices=("plain", "jsonl", "tui"),
+        choices=("plain", "jsonl", "tui", "gui"),
         default="plain",
         help="presentation to drive the session with (default: plain)",
     )
@@ -73,6 +73,20 @@ def main(argv: Sequence[str] | None = None) -> int:
         # Fail before touching the terminal — or any recording file: piped
         # input belongs to the plain and JSONL frontends.
         parser.error("--frontend tui needs an interactive terminal")
+
+    if args.frontend == "gui":
+        # Probe before building the run, so a missing extra fails with an
+        # install hint instead of a traceback (0011 §6).
+        import os
+
+        os.environ.setdefault("PYGAME_HIDE_SUPPORT_PROMPT", "1")
+        try:
+            import pygame  # noqa: F401
+        except ImportError:
+            parser.error(
+                "the gui frontend needs the optional extra: "
+                'pip install "glyphwright[gui]"'
+            )
 
     if args.pack is not None:
         from glyphwright.content.loader import PackError, load_pack
@@ -128,6 +142,12 @@ def _play(engine: Engine, frontend: str, *, harness: bool) -> int:
         from glyphwright.frontends.tui import session as tui_session
 
         return tui_session.run_session(engine, None, sys.stdout, harness=harness)
+    if frontend == "gui":
+        from glyphwright.frontends.gui import session as gui_session
+
+        # The meta-channel is a typed channel; the GUI has no bar to type
+        # into until 13B, so `harness` has nothing to gate here.
+        return gui_session.run_session(engine)
     return plain.run_session(engine, sys.stdin, sys.stdout, harness=harness)
 
 

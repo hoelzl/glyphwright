@@ -22,6 +22,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.optional-dependencies]
+gui = ["pygame-ce>=2.5"]
+
 [project.scripts]
 glyphwright = "glyphwright.cli:main"
 

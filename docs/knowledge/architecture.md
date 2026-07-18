@@ -16,7 +16,7 @@ Data flows downward as commands and upward as events and frames. Only the topmos
 
 | Layer | Responsibility |
 | --- | --- |
-| Terminal frontends | plain REPL, TUI, JSONL |
+| Frontends | plain REPL, TUI, JSONL (terminal); pygame-ce window (`gui` extra, design `0011`) |
 | Presentation | `SemanticFrame` → renderers |
 | Mode stack | exploration, battle, dialogue, menu, minigames |
 | Deterministic kernel | `step()`, scheduler, events, seeded RNG, snapshots |

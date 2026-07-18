@@ -10,6 +10,7 @@ from pathlib import Path
 from glyphwright.api import Engine
 from glyphwright.content.pack import reference_pack
 from glyphwright.frontends import plain
+from glyphwright.frontends.gui import scene
 from glyphwright.frontends.tui import render
 from glyphwright.kernel.commands import Move
 
@@ -52,12 +53,35 @@ def _plain_inn() -> str:
     return plain.render(frame) + "\n"
 
 
+def _gui_village() -> str:
+    engine = _engine()
+    frame = engine.step(Move("east")).frame
+    return scene.scene_text(scene.compose(frame, frame.messages))
+
+
+def _gui_inn() -> str:
+    engine = _engine()
+    for _ in range(6):
+        engine.step(Move("east"))
+    frame = engine.step(Move("enter")).frame
+    return scene.scene_text(scene.compose(frame, frame.messages))
+
+
+def _gui_battle() -> str:
+    engine = _engine()
+    frame = engine.step(Move("south")).frame
+    return scene.scene_text(scene.compose(frame, frame.messages))
+
+
 GOLDENS: dict[str, Callable[[], str]] = {
     "tui_village": _tui_village,
     "tui_inn": _tui_inn,
     "tui_battle": _tui_battle,
     "plain_village": _plain_village,
     "plain_inn": _plain_inn,
+    "gui_village": _gui_village,
+    "gui_inn": _gui_inn,
+    "gui_battle": _gui_battle,
 }
 
 

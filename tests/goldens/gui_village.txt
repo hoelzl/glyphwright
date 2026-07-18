@@ -1,0 +1,11 @@
+== turn 1 · exploration · village ==
+#########
+#.@!...+#
+#..##...#
+#bg..t/O#
+#########
+exits: 1) east  2) north  3) south  4) west
+hp 17/20  mp 8/8
+log: You go east.
+hint: [arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee
+hint: [.]wait  [x]look  [q]uit

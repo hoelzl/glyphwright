@@ -9,6 +9,12 @@ on:
 permissions:
   contents: read
 
+env:
+  # Headless SDL: the GUI suite renders real surfaces without a display
+  # (design 0011 §5-6).
+  SDL_VIDEODRIVER: dummy
+  SDL_AUDIODRIVER: dummy
+
 jobs:
   quality:
     name: ${{ matrix.os }} / Python ${{ matrix.python-version }}
@@ -26,10 +32,29 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           enable-cache: true
-      - run: uv --no-config sync --all-groups --locked
+      - run: uv --no-config sync --all-groups --all-extras --locked
       - run: uv --no-config run pre-commit run --all-files
       - run: uv --no-config run pytest --cov --cov-report=term-missing
       - run: uv --no-config run mypy src tests
+
+  bare:
+    # The core package and every non-GUI test must work with the gui extra
+    # absent — enforced mechanically, like TermVerify absence (0003 §16.1,
+    # 0011 §6).
+    name: Core suite without extras
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv --no-config sync --all-groups --locked
+      - name: Prove the extra is absent
+        run: uv --no-config run python -c "import importlib.util, sys; sys.exit(importlib.util.find_spec('pygame') is not None)"
+      - run: uv --no-config run pytest -q
 
   package:
     name: Package distributions

@@ -1,0 +1,10 @@
+== turn 1 · battle · village ==
+-- battle --
+This mode is not yet drawn by the GUI.
+Play it with --frontend tui (or plain).
+hp 17/20  mp 8/8
+log: You go south.
+log: bandit-1 snarls and turns on you!
+log: Battle is joined!
+hint: [arrows/hjkl] move  [1-9] exit  [a]ttack  [t]ake  [u]se  [e]quip  [f]lee
+hint: [.]wait  [x]look  [q]uit
