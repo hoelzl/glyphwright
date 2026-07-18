@@ -6,15 +6,108 @@ resolution keeps the two modes from drifting apart.
 
 from __future__ import annotations
 
+from glyphwright.frames.frame import GridView
 from glyphwright.kernel.events import (
     Event,
     FlagSet,
     Healed,
     ItemAcquired,
     ItemUsed,
+    MoveBlocked,
+    Moved,
     TurnAdvanced,
 )
 from glyphwright.kernel.state import PLAYER, WorldState
+from glyphwright.world.grid import GridSpace
+from glyphwright.world.space import PosId
+
+_TERRAIN_LEGEND: tuple[tuple[str, str], ...] = (("#", "wall"), (".", "floor"))
+
+
+def legend(state: WorldState, area: str) -> tuple[tuple[str, str], ...]:
+    """Terrain plus every renderable in the area: glyph vocabulary is
+    content, not engine code. The unseen glyph is written last: '?' is
+    reserved (the loader rejects it on renderables)."""
+    entries = dict(_TERRAIN_LEGEND)
+    for entity in state.entities.values():
+        at = entity.at()
+        if entity.renderable is None or at is None or at.area != area:
+            continue
+        entries[entity.renderable.glyph] = entity.renderable.label
+    space = state.areas.get(area)
+    if isinstance(space, GridSpace) and space.fov:
+        entries["?"] = "unseen"
+    return tuple(sorted(entries.items()))
+
+
+def player_sight(state: WorldState) -> frozenset[PosId] | None:
+    """The player's visible set in a fov-active grid area, else ``None``."""
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return None
+    space = state.areas[player_at.area]
+    if isinstance(space, GridSpace) and space.fov:
+        return space.visible_from(player_at)
+    return None
+
+
+def grid_viewport(
+    state: WorldState, space: GridSpace, sight: frozenset[PosId] | None
+) -> GridView:
+    """The one grid picture: exploration and arena battles share it."""
+    glyphs = [list(row) for row in space.rows]
+    if sight is not None:
+        for y in range(space.height):
+            for x in range(space.width):
+                if space.pos(x, y) not in sight:
+                    glyphs[y][x] = "?"
+    # Items first, actors last: an actor standing on an item wins the tile.
+    draw_order = sorted(
+        state.entities.values(), key=lambda e: (e.actor is not None, e.id)
+    )
+    for entity in draw_order:
+        at = entity.at()
+        if entity.renderable is None or at is None or at.area != space.area:
+            continue
+        if sight is not None and at not in sight:
+            continue  # beyond the light: not drawn
+        from glyphwright.world.grid import _coords
+
+        x, y = _coords(at)
+        glyphs[y][x] = entity.renderable.glyph
+    return GridView(
+        area=space.area,
+        origin=(0, 0),
+        tiles=tuple("".join(row) for row in glyphs),
+        legend=legend(state, space.area),
+    )
+
+
+def move_player(state: WorldState, token: str) -> tuple[Event, ...]:
+    """One player move over the movement graph; shared by every mode that
+    lets the player walk (exploration and arena battles)."""
+    origin = state.entity(PLAYER).at()
+    assert origin is not None
+    destination = state.exits_from(origin).get(token)
+    turn = TurnAdvanced(turn=state.turn + 1)
+
+    if destination is None or destination.area not in state.areas:
+        reason: str | None = "edge"
+    else:
+        reason = state.areas[destination.area].blocked_reason(
+            state, destination, PLAYER
+        )
+    if destination is None or reason is not None:
+        return (
+            MoveBlocked(
+                actor=PLAYER, origin=origin, exit=token, reason=reason or "edge"
+            ),
+            turn,
+        )
+    return (
+        Moved(actor=PLAYER, origin=origin, destination=destination, exit=token),
+        turn,
+    )
 
 
 def cast_grammar(

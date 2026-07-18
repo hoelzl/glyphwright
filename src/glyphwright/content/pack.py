@@ -109,6 +109,33 @@ class ContentPack:
                         f"openable {entity.id!r} answers to unknown key "
                         f"{openable.key!r}"
                     )
+        for entity in self.entities:
+            ai = entity.ai
+            if ai is None or ai.arena is None:
+                continue
+            # An arena must be a grid with room to fight and no back doors:
+            # flee is the exit (design 0006 §2).
+            arena_space = spaces.get(ai.arena)
+            if not isinstance(arena_space, GridSpace):
+                raise ValueError(
+                    f"actor {entity.id!r} names arena {ai.arena!r}, which is "
+                    "not a grid area"
+                )
+            floors = sum(
+                1 for pos in arena_space.positions() if arena_space.terrain(pos) != "#"
+            )
+            if floors < 2:
+                raise ValueError(f"arena {ai.arena!r} has no room to fight")
+            for other in self.entities:
+                if (
+                    other.portal is not None
+                    and (at := other.at()) is not None
+                    and at.area == ai.arena
+                ):
+                    raise ValueError(
+                        f"arena {ai.arena!r} contains portal {other.id!r}; "
+                        "a battlefield has no back doors"
+                    )
         claimed: set[tuple[str, str]] = set()
         for entity in self.entities:
             portal = entity.portal

@@ -23,9 +23,10 @@ if TYPE_CHECKING:
 class Mode(Protocol):
     """What every mode module provides (0003 §10).
 
-    ``VERBS`` is the mode's full verb vocabulary — a superset of any one
-    frame's grammar — so a rejection can distinguish "not a thing you do in
-    this mode" from "nothing to do it to right now".
+    ``VERBS`` classifies *unadvertised* verbs: a verb the current grammar
+    advertises is always valid, whatever this set says; a verb in neither is
+    rejected as ``wrong_mode``. This lets a rejection distinguish "not a
+    thing you do in this mode" from "nothing to do it to right now".
     """
 
     NAME: str

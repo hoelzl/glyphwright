@@ -44,19 +44,39 @@ lands now — as the smallest thing that satisfies §20.3's phrasing: a
   an unseen player is fine and keeps the scheduler untouched), and the
   oracle (`:query` is the harness's x-ray, not the player's eyes).
 
-## 2. The tactics arena (slice 9B, sketch)
+## 2. The tactics arena (slice 9B)
 
 `0003` §10.1: the battle mode instantiates a `GridSpace` arena; movement and
-range reuse the spatial model unchanged. The intended shape, recorded now and
-detailed when 9B starts:
+range reuse the spatial model unchanged. Detailed for implementation:
 
-- A pack declares an `arena` grid area (fov optional). An engaging hostile
-  with `tactics = true` opens a battle *in the arena*: combatants' positions
-  are moved there by ordinary `Moved` events (deterministic placement:
-  player at the first floor tile, foes in sorted-id order after), and the
-  battle mode's verbs become `move`/`attack`/`cast`/`flee` over the grid.
-- Victory/defeat/flee move the survivors back the same way. Everything is
-  events; nothing new enters the kernel.
+- **Content**: `AiBehavior` gains `arena = "<area>"` — an engaging hostile
+  that names an arena opens its battles *there* (a plain engager without one
+  keeps the menu presentation; both stay ordinary battles on the same mode
+  and scheduler). Pack validation: the arena must name a grid area and hold
+  enough floor for the combatants; portals inside an arena are rejected
+  (a battlefield has no back doors — `flee` is the exit).
+- **Entering**: engagement emits ordinary `Moved` events after the
+  `ModePushed`: the player to the first free floor tile in row-major order,
+  then the foes in initiative order to the next free tiles. `ModePushed`
+  carries a `returns` table (`(combatant, origin)` pairs) that the fold
+  installs as `WorldState.battle_returns` — the way home is state, so it
+  replays (event schema v6 → v7).
+- **Fighting**: with `battle_returns` set, the battle frame's viewport is
+  the arena's `GridView` (frame schema already admits it — no bump) and the
+  verbs are `move`/`attack`/`cast`/`flee`/`look`. `attack` needs melee
+  adjacency on the grid; `cast` foe-targeting reaches any living foe (magic
+  outranges steel — the first ranged/melee distinction, deliberately given
+  to abilities). Foes chase-or-strike using the same pursuit logic as
+  exploration; the arena's own `fov` applies to the viewport like any grid.
+- **Leaving**: every battle pop (victory, defeat, flee) is preceded by
+  `Moved` events returning each *surviving* combatant to its recorded
+  origin; the `ModePopped` fold clears `battle_returns`. Arena `flee` obeys
+  the same break-contact rule as menu flee: after the homecoming the player
+  takes one escaping step (scored against every hostile), and if no step
+  breaks melee contact with the battle's foes the flee fails — returning to
+  a tile beside an aggroed engager cannot count as escaping.
+- Everything is events; nothing new enters the kernel beyond the
+  `battle_returns` field and its two fold arms.
 
 ## 3. Non-goals (9A)
 

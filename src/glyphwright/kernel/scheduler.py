@@ -151,21 +151,63 @@ def _battle_joiners(state: WorldState, engager: Entity) -> tuple[EntityId, ...]:
     return tuple(sorted(joiners))
 
 
+def _arena_placement(
+    state: WorldState, arena_name: str, order: tuple[EntityId, ...]
+) -> tuple[tuple[Event, ...], tuple[tuple[EntityId, PosId], ...]] | None:
+    """Moves into the arena plus the way home, or ``None`` when the arena
+    cannot seat everyone (the battle falls back to the menu presentation)."""
+    space = state.areas[arena_name]
+    floors = [
+        pos
+        for pos in space.positions()
+        if space.blocked_reason(state, pos, PLAYER) is None
+    ]
+    combatants = [PLAYER, *[c for c in order if c != PLAYER]]
+    if len(floors) < len(combatants):
+        return None
+    moves: list[Event] = []
+    returns: list[tuple[EntityId, PosId]] = []
+    for combatant, destination in zip(combatants, floors, strict=False):
+        origin = state.entity(combatant).at()
+        assert origin is not None
+        returns.append((combatant, origin))
+        moves.append(
+            Moved(
+                actor=combatant,
+                origin=origin,
+                destination=destination,
+                exit="arena",
+            )
+        )
+    return tuple(moves), tuple(returns)
+
+
 def _engage(
     state: WorldState, entity: Entity, rng: Rng
 ) -> tuple[tuple[Event, ...], Rng]:
     """A formal opponent opens a battle instead of trading skirmish blows.
 
-    Every foe that outrolled the player strikes pre-emptively in the
-    engagement round, which is what makes the rolled order behaviorally real:
-    in later rounds the player's command resolves first by the command-driven
-    convention, and initiative orders the foes.
+    A menu battle grants pre-emptive strikes to foes that outrolled the
+    player. An arena battle (the engager names one) instead moves everyone
+    onto the battlefield — placement is the engagement round; the fighting
+    starts at range next round (design 0006 §2).
     """
     foes = _battle_joiners(state, entity)
     order, rng = roll_initiative(state, (PLAYER, *foes), rng)
     events: list[Event] = []
     for foe in foes:
         events.extend(provoke(state, foe))
+
+    assert entity.ai is not None
+    placement = None
+    if entity.ai.arena is not None:
+        placement = _arena_placement(state, entity.ai.arena, order)
+    if placement is not None:
+        moves, returns = placement
+        events.append(ModePushed(mode=MODE_BATTLE, initiative=order, returns=returns))
+        events.extend(moves)
+        return tuple(events), rng
+
     events.append(ModePushed(mode=MODE_BATTLE, initiative=order))
     state = fold(state, tuple(events))
     for combatant in order:
@@ -232,9 +274,39 @@ def _take_turn(
 ) -> tuple[tuple[Event, ...], Rng]:
     """One AI turn under the active mode's rules."""
     if state.mode == MODE_BATTLE:
-        # Menu battle abstracts distance: a combatant simply strikes.
-        return strike(state, actor_id, PLAYER, rng)
+        if not state.battle_returns:
+            # Menu battle abstracts distance: a combatant simply strikes.
+            return strike(state, actor_id, PLAYER, rng)
+        # Arena battle: the spatial model, unchanged (0003 §10.1) — close
+        # with the player, strike when in reach.
+        player_at = state.entity(PLAYER).at()
+        at = state.entity(actor_id).at()
+        if player_at is None or at is None or at.area != player_at.area:
+            return (), rng
+        space = state.areas[at.area]
+        if melee_adjacent(space, at, player_at):
+            return strike(state, actor_id, PLAYER, rng)
+        moved = _chase_step(state, state.entity(actor_id), player_at)
+        return ((moved,) if moved is not None else ()), rng
     return _act(state, state.entity(actor_id), rng)
+
+
+def battle_homecoming(state: WorldState) -> tuple[Event, ...]:
+    """Moves returning every surviving combatant to its recorded origin.
+
+    Emitted before any battle pop; the dead are simply skipped, and the
+    ModePopped fold clears the table."""
+    moves: list[Event] = []
+    for combatant, origin in state.battle_returns:
+        if combatant not in state.entities:
+            continue
+        current = state.entity(combatant).at()
+        if current is None or current == origin:
+            continue
+        moves.append(
+            Moved(actor=combatant, origin=current, destination=origin, exit="return")
+        )
+    return tuple(moves)
 
 
 def _expired_statuses(state: WorldState) -> tuple[Event, ...]:
@@ -260,9 +332,15 @@ def _battle_outcome(state: WorldState) -> tuple[Event, ...]:
         for combatant in state.initiative
     )
     if not foes_alive:
-        return (ModePopped(mode=MODE_BATTLE, outcome="victory"),)
+        return (
+            *battle_homecoming(state),
+            ModePopped(mode=MODE_BATTLE, outcome="victory"),
+        )
     if state.flags.get(PLAYER_DEFEATED):
-        return (ModePopped(mode=MODE_BATTLE, outcome="defeat"),)
+        return (
+            *battle_homecoming(state),
+            ModePopped(mode=MODE_BATTLE, outcome="defeat"),
+        )
     return ()
 
 

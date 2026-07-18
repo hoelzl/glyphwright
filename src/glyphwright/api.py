@@ -177,7 +177,10 @@ class Engine:
             )
         mode = modes.active(self._state)
         grammar = mode.available_commands(self._state)
-        if command.verb not in mode.VERBS:
+        # The grammar wins first: a verb the frame advertises is valid here
+        # whatever the mode's static vocabulary says (an arena battle
+        # advertises move; a menu battle never does).
+        if command.verb not in grammar.verb_names() and command.verb not in mode.VERBS:
             # Not a thing you do in this mode — never "there are no exits":
             # a mode-absent verb must not misdescribe the world.
             return Rejected(

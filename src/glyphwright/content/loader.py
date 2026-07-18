@@ -313,7 +313,11 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
                 file,
                 where,
                 dict(fields["ai"]),
-                {"hostile": (False, bool), "engages": (False, bool)},
+                {
+                    "hostile": (False, bool),
+                    "engages": (False, bool),
+                    "arena": (False, str),
+                },
             )
         )
     portal = None

@@ -25,3 +25,21 @@ description = "Casks line the walls of this low vault, and something small glint
 
 [rooms.room.exits]
 up = "common-room"
+
+[[grid]]
+area = "warren"
+fov = 3
+rows = """
+#######
+#.....#
+#.....#
+#######"""
+
+[[grid]]
+area = "pit"
+rows = """
+#########
+#.......#
+#...#...#
+#.......#
+#########"""

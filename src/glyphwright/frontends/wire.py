@@ -70,7 +70,7 @@ from glyphwright.kernel.events import (
 # menu viewport variant v2, the room viewport variant v3, the
 # dialogue and lock viewport variants v4).
 FRAME_SCHEMA = "glyphwright.frame/4"
-EVENT_SCHEMA = "glyphwright.event/6"
+EVENT_SCHEMA = "glyphwright.event/7"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -224,6 +224,12 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"flag": event.flag, "value": event.value}
         case ModePushed():
             payload |= {"mode": event.mode, "initiative": list(event.initiative)}
+            if event.returns:
+                payload |= {
+                    "returns": [
+                        [combatant, str(origin)] for combatant, origin in event.returns
+                    ]
+                }
         case ModePopped():
             payload |= {"mode": event.mode, "outcome": event.outcome}
         case FleeFailed():

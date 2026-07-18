@@ -11,7 +11,13 @@ later.
 from __future__ import annotations
 
 from glyphwright.effects.combat import hostile_actors, melee_adjacent, strike
-from glyphwright.frames.frame import ActorSummary, MenuView, PromptSpec, SemanticFrame
+from glyphwright.frames.frame import (
+    ActorSummary,
+    MenuView,
+    PromptSpec,
+    SemanticFrame,
+    Viewport,
+)
 from glyphwright.kernel.commands import (
     Attack,
     Cast,
@@ -19,6 +25,7 @@ from glyphwright.kernel.commands import (
     CommandGrammar,
     Flee,
     Look,
+    Move,
     Use,
 )
 from glyphwright.kernel.events import (
@@ -48,9 +55,33 @@ def _foes(state: WorldState) -> tuple[str, ...]:
     )
 
 
+def _melee_foes(state: WorldState) -> tuple[str, ...]:
+    """In the arena, steel needs adjacency; the menu abstracts distance."""
+    foes = _foes(state)
+    if not state.battle_returns:
+        return foes
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return ()
+    space = state.areas[player_at.area]
+    return tuple(
+        foe
+        for foe in foes
+        if (at := state.entity(foe).at()) is not None
+        and at.area == player_at.area
+        and space.melee_range(player_at, at)
+    )
+
+
 def available_commands(state: WorldState) -> CommandGrammar:
     verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = []
-    foes = _foes(state)
+    if state.battle_returns:
+        player_at = state.entity(PLAYER).at()
+        assert player_at is not None
+        exits = tuple(sorted(state.exits_from(player_at)))
+        if exits:
+            verbs.append(("move", (exits,)))
+    foes = _melee_foes(state)
     if foes:
         verbs.append(("attack", (foes,)))
     usable = common.usable_items(state)
@@ -72,6 +103,8 @@ def handle(
             return (), rng
         case Use(item=item_id):
             return common.use_item(state, item_id), rng
+        case Move(exit=token):
+            return common.move_player(state, token), rng
         case Attack(target=target_id):
             struck, rng = strike(state, PLAYER, target_id, rng)
             return (*struck, TurnAdvanced(turn=state.turn + 1)), rng
@@ -88,12 +121,38 @@ def handle(
 def _flee(state: WorldState) -> tuple[Event, ...]:
     """Break away: pop the battle and gain ground, or fail and pay the turn.
 
-    The escape is scored against every hostile in the area, not only the
-    battle's foes, and it only counts as an escape if it actually breaks
-    melee contact with the foes — otherwise the same step would re-engage
-    and "You break away and flee!" would be a lie.
+    In an arena battle the return table *is* the escape: everyone goes home
+    and the battle pops — no escape geometry, no FleeFailed (design 0006 §2).
+    In a menu battle the escape is scored against every hostile in the area,
+    and only counts if it breaks melee contact with the foes — otherwise the
+    same step would re-engage and "You break away and flee!" would be a lie.
     """
     turn = TurnAdvanced(turn=state.turn + 1)
+    if state.battle_returns:
+        from glyphwright.kernel.scheduler import battle_homecoming
+        from glyphwright.kernel.state import fold
+
+        homecoming = battle_homecoming(state)
+        landed = fold(state, homecoming)
+        threats = tuple(actor.id for actor in hostile_actors(landed))
+        escape = escape_step(landed, PLAYER, threats)
+        if escape is None:
+            return (FleeFailed(actor=PLAYER), turn)
+        space = landed.areas[escape.destination.area]
+        still_in_reach = any(
+            (foe_at := landed.entity(foe).at()) is not None
+            and foe_at.area == escape.destination.area
+            and melee_adjacent(space, escape.destination, foe_at)
+            for foe in _foes(landed)
+        )
+        if still_in_reach:
+            return (FleeFailed(actor=PLAYER), turn)
+        return (
+            *homecoming,
+            ModePopped(mode=NAME, outcome="fled"),
+            escape,
+            turn,
+        )
     threats = tuple(actor.id for actor in hostile_actors(state))
     moved = escape_step(state, PLAYER, threats)
     if moved is None:
@@ -110,13 +169,20 @@ def _flee(state: WorldState) -> tuple[Event, ...]:
 
 
 def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
+    from glyphwright.world.grid import GridSpace
+
     player_at = state.entity(PLAYER).at()
     assert player_at is not None
     combatants = tuple(c for c in state.initiative if c in state.entities)
+    viewport: Viewport = MenuView(area=player_at.area, combatants=combatants)
+    if state.battle_returns:
+        space = state.areas[player_at.area]
+        assert isinstance(space, GridSpace)
+        viewport = common.grid_viewport(state, space, common.player_sight(state))
     return SemanticFrame(
         turn=state.turn,
         mode=NAME,
-        viewport=MenuView(area=player_at.area, combatants=combatants),
+        viewport=viewport,
         actors=_actors(state, combatants),
         messages=tuple(
             message for event in events if (message := messages.describe(event))
