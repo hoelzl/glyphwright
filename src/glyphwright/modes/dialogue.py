@@ -138,14 +138,5 @@ def _actors(state: WorldState, speaker: str) -> tuple[ActorSummary, ...]:
         at = entity.at()
         if entity.actor is None or at is None:
             continue
-        summaries.append(
-            ActorSummary(
-                id=entity.id,
-                name=entity.actor.name,
-                hp=entity.actor.hp,
-                max_hp=entity.actor.max_hp,
-                at=at,
-                statuses=entity.statuses.ids() if entity.statuses else (),
-            )
-        )
+        summaries.append(ActorSummary.of(entity, at))
     return tuple(summaries)

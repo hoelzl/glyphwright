@@ -200,11 +200,14 @@ def use_item(state: WorldState, item_id: str) -> tuple[Event, ...]:
     events: list[Event] = [
         ItemUsed(actor=PLAYER, item=item_id, target=PLAYER, consumed=True)
     ]
-    if consumable.heal > 0:
-        healed = min(consumable.heal, actor.max_hp - actor.hp)
+    # Only restorations that actually land become events: a dual elixir used
+    # at full hp must not record a zero-amount Healed — events are evidence
+    # of what happened, and "You recover 0 hp." is not a thing that happened.
+    healed = min(consumable.heal, actor.max_hp - actor.hp)
+    if healed > 0:
         events.append(Healed(target=PLAYER, amount=healed, source=item_id))
-    if consumable.mana > 0:
-        restored = min(consumable.mana, actor.max_mp - actor.mp)
+    restored = min(consumable.mana, actor.max_mp - actor.mp)
+    if restored > 0:
         events.append(ManaRestored(target=PLAYER, amount=restored, source=item_id))
     events.append(TurnAdvanced(turn=state.turn + 1))
     return tuple(events)

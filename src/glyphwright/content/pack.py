@@ -75,24 +75,21 @@ class ContentPack:
         for entity in self.entities:
             if entity.actor is not None and not (
                 0 <= entity.actor.mp <= entity.actor.max_mp
-                if entity.actor.max_mp
-                else entity.actor.mp == 0
             ):
                 raise ValueError(
                     f"actor {entity.id!r} has mp {entity.actor.mp} outside "
                     f"0..{entity.actor.max_mp}"
                 )
-            if entity.consumable is not None and (
-                entity.consumable.heal < 0 or entity.consumable.mana < 0
-            ):
-                raise ValueError(f"consumable {entity.id!r} restores a negative amount")
-            if entity.consumable is not None and (
-                entity.consumable.heal == 0 and entity.consumable.mana == 0
-            ):
-                raise ValueError(
-                    f"consumable {entity.id!r} restores nothing: it could "
-                    "never be offered"
-                )
+            if entity.consumable is not None:
+                if entity.consumable.heal < 0 or entity.consumable.mana < 0:
+                    raise ValueError(
+                        f"consumable {entity.id!r} restores a negative amount"
+                    )
+                if entity.consumable.heal == 0 and entity.consumable.mana == 0:
+                    raise ValueError(
+                        f"consumable {entity.id!r} restores nothing: it could "
+                        "never be offered"
+                    )
 
         # The kernel's preconditions, promised at load rather than discovered
         # mid-session: a playable protagonist, and every position on the map.

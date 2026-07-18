@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 from glyphwright.effects.stats import derive
 from glyphwright.kernel.events import CastFizzled, Event, ManaSpent, TurnAdvanced
 from glyphwright.kernel.rng import Rng
+from glyphwright.kernel.state import apply, fold
 from glyphwright.world.entities import Entity, StatModifier
 from glyphwright.world.space import EntityId
 
@@ -116,7 +117,6 @@ def run_effect_chain(
     subject leaves the world.
     """
     from glyphwright.effects.primitives import PRIMITIVES
-    from glyphwright.kernel.state import fold
 
     events: list[Event] = []
     for name, params in effects:
@@ -185,15 +185,13 @@ def cast_events(
             turn,
         ), rng
 
-    from glyphwright.kernel.state import fold
-
     events: list[Event] = []
     if ability.cost:
         # The cost precedes the chain; a fizzle above spent nothing (the
         # cast never resolved — the turn is the fizzle's whole price).
         spend = ManaSpent(caster=caster, amount=ability.cost)
         events.append(spend)
-        state = fold(state, (spend,))
+        state = apply(state, spend)
     chain, _, rng = run_effect_chain(
         state,
         caster,

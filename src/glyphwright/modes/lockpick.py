@@ -106,15 +106,7 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         turn=state.turn,
         mode=NAME,
         viewport=LockView(area=player_at.area, target=target, pins=pins, total=PINS),
-        actors=(
-            ActorSummary(
-                id=PLAYER,
-                name=player.actor.name,
-                hp=player.actor.hp,
-                max_hp=player.actor.max_hp,
-                at=player_at,
-            ),
-        ),
+        actors=(ActorSummary.of(player, player_at),),
         messages=tuple(
             message for event in events if (message := messages.describe(event))
         ),

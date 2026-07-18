@@ -213,3 +213,51 @@ def test_the_frame_reports_pools_only_where_they_exist() -> None:
     assert actors["goblin-1"].mp is None, (
         "absence means no mana system, never an empty pool"
     )
+
+
+def test_the_pool_survives_a_mode_change() -> None:
+    """The mana pool must not vanish mid-session: a dialogue frame reports
+    it exactly like exploration and battle (one summary factory)."""
+    from glyphwright.kernel.commands import Talk
+
+    engine = Engine.new(reference_pack(), seed=3)
+    for _ in range(6):
+        engine.step(Move("east"))
+    engine.step(Move("enter"))
+    grammar = engine.frame().commands
+    assert "talk" in grammar.verb_names(), "the inn holds a speaker"
+    speaker = grammar.domains("talk")[0][0]
+    engine.step(Talk(speaker))
+    assert engine._state.mode == "dialogue"
+    player = next(a for a in engine.frame().actors if a.id == PLAYER)
+    assert player.mp == (8, 8), "the pool does not vanish mid-conversation"
+
+
+def test_a_dual_elixir_never_records_a_zero_restoration() -> None:
+    """Events are evidence of what landed: a dual consumable used at full hp
+    emits no Healed(0)."""
+    from glyphwright.kernel.events import Healed
+
+    pack = _pack(
+        {
+            "areas.toml": '[[grid]]\narea = "field"\nrows = """\n...\n"""\n',
+            "entities.toml": (
+                '[[entity]]\nid = "player"\nposition = "field:0,0"\n'
+                "[entity.actor]\nname = 'P'\nhp = 10\nmax_hp = 10\n"
+                "mp = 1\nmax_mp = 6\n"
+                '[[entity]]\nid = "elixir"\nposition = "field:1,0"\n'
+                "[entity.item]\nname = 'Elixir'\n"
+                "[entity.consumable]\nheal = 5\nmana = 5\n"
+            ),
+        }
+    )
+    engine = Engine.new(pack, seed=1)
+    engine.step(Move("east"))
+    engine.step(Take("elixir"))
+    result = engine.step(Use("elixir"))
+    assert result.accepted
+    assert not any(isinstance(e, Healed) for e in result.events), (
+        "full hp: no Healed event at all, never a zero-amount one"
+    )
+    restored = [e for e in result.events if isinstance(e, ManaRestored)]
+    assert restored and restored[0].amount == 5

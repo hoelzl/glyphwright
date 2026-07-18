@@ -212,12 +212,14 @@ def apply(state: WorldState, event: Event) -> WorldState:
             return state.with_entity(replace(target, actor=healed))
         case ManaSpent():
             caster = state.entity(event.caster)
-            assert caster.actor is not None, "only actors spend mana"
+            if caster.actor is None:
+                raise ValueError(f"ManaSpent caster {event.caster} is not an actor")
             spent = replace(caster.actor, mp=max(caster.actor.mp - event.amount, 0))
             return state.with_entity(replace(caster, actor=spent))
         case ManaRestored():
             target = state.entity(event.target)
-            assert target.actor is not None, "only actors hold mana"
+            if target.actor is None:
+                raise ValueError(f"ManaRestored target {event.target} is not an actor")
             restored = replace(
                 target.actor,
                 mp=min(target.actor.mp + event.amount, target.actor.max_mp),
