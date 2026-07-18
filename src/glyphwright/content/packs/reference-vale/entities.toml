@@ -172,3 +172,43 @@ id = "silver-locket"
 
 [entity.item]
 name = "Silver Locket"
+
+[[entity]]
+id = "warren-hole"
+position = "village:7,3"
+
+[entity.portal]
+token = "down"
+to = "warren:1,1"
+
+[entity.renderable]
+glyph = "O"
+label = "hole"
+
+[[entity]]
+id = "warren-exit"
+position = "warren:1,1"
+
+[entity.portal]
+token = "up"
+to = "village:7,3"
+
+[[entity]]
+id = "marauder-1"
+position = "warren:3,1"
+blocker = true
+
+[entity.actor]
+name = "Marauder"
+hp = 9
+max_hp = 9
+stats = { atk = 4, def = 2, spd = 5 }
+
+[entity.renderable]
+glyph = "M"
+label = "marauder"
+
+[entity.ai]
+hostile = true
+engages = true
+arena = "pit"

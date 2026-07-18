@@ -85,6 +85,7 @@ class AiBehavior:
 
     hostile: bool = True
     engages: bool = False
+    arena: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

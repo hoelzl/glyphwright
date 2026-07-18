@@ -79,6 +79,7 @@ class WorldState:
     flags: Mapping[str, bool]
     initiative: tuple[EntityId, ...] = ()
     focus: tuple[EntityId, str] | None = None
+    battle_returns: tuple[tuple[EntityId, PosId], ...] = ()
     ability_defs: Mapping[str, Ability] = field(default_factory=dict)
     status_defs: Mapping[str, Status] = field(default_factory=dict)
 
@@ -231,12 +232,15 @@ def apply(state: WorldState, event: Event) -> WorldState:
             return survivors
         case ModePushed():
             # A push without an initiative payload (a future dialogue or menu
-            # atop a battle) must not wipe the battle's queue beneath it.
+            # atop a battle) must not wipe the battle's queue beneath it; the
+            # same preservation rule guards the way home.
             initiative = event.initiative if event.initiative else state.initiative
+            returns = event.returns if event.returns else state.battle_returns
             return replace(
                 state,
                 mode_stack=(*state.mode_stack, event.mode),
                 initiative=initiative,
+                battle_returns=returns,
             )
         case ModePopped():
             if state.mode != event.mode:
@@ -244,11 +248,13 @@ def apply(state: WorldState, event: Event) -> WorldState:
                     f"cannot pop {event.mode!r}: the active mode is {state.mode!r}"
                 )
             initiative = () if event.mode == MODE_BATTLE else state.initiative
+            returns = () if event.mode == MODE_BATTLE else state.battle_returns
             focus = None if event.mode in FOCUS_MODES else state.focus
             return replace(
                 state,
                 mode_stack=state.mode_stack[:-1],
                 initiative=initiative,
+                battle_returns=returns,
                 focus=focus,
             )
         case FleeFailed():

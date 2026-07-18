@@ -245,6 +245,11 @@ def _load_dialogue(file: str, where: str, value: Any) -> Dialogue:
         raise _fail(file, where, str(error)) from error
 
 
+# The engine narrates battle placement and homecoming through these exit
+# tokens on Moved events; a content portal claiming one would make a plain
+# walk read as a battle transition.
+_RESERVED_EXIT_TOKENS = frozenset({"arena", "return"})
+
 _COMPONENT_SPEC: dict[str, tuple[bool, type | None]] = {
     "id": (True, str),
     "position": (False, str),
@@ -313,7 +318,11 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
                 file,
                 where,
                 dict(fields["ai"]),
-                {"hostile": (False, bool), "engages": (False, bool)},
+                {
+                    "hostile": (False, bool),
+                    "engages": (False, bool),
+                    "arena": (False, str),
+                },
             )
         )
     portal = None
@@ -324,6 +333,13 @@ def _build_entity(file: str, where: str, fields: dict[str, Any]) -> Entity:
             dict(fields["portal"]),
             {"token": (True, str), "to": (True, str)},
         )
+        if portal_fields["token"] in _RESERVED_EXIT_TOKENS:
+            raise _fail(
+                file,
+                where,
+                f"the portal token {portal_fields['token']!r} is reserved "
+                "for battle transitions",
+            )
         portal = Portal(
             token=portal_fields["token"],
             to=_pos(file, where, portal_fields["to"]),

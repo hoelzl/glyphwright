@@ -40,6 +40,14 @@ from glyphwright.kernel.state import MODE_BATTLE, MODE_LOCKPICK, PLAYER
 def describe(event: Event) -> str:
     """Render one event as prose from a template. Empty string: no message."""
     match event:
+        case Moved(exit="arena", actor=actor) if actor == PLAYER:
+            return "You are swept onto the battlefield!"
+        case Moved(exit="arena"):
+            return f"{event.actor} is swept onto the battlefield."
+        case Moved(exit="return", actor=actor) if actor == PLAYER:
+            return "You find your way back."
+        case Moved(exit="return"):
+            return f"{event.actor} withdraws."
         case Moved(actor=actor) if actor == PLAYER:
             return f"You go {event.exit}."
         case Moved():

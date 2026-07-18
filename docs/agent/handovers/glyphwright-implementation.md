@@ -287,6 +287,31 @@ Decisions taken by the implementing agent (owner delegated open choices):
    `visible_from` raises on foreign/off-map origins. `fov = 0` is accepted as
    explicit omniscience; `?` is a reserved glyph (loader-enforced).
 
+## Slice 9B decisions (the tactics arena — design 0006 §2)
+
+1. `AiBehavior.arena` names a grid battle area; engagement moves everyone there via
+   ordinary `Moved` events (`exit="arena"`), with the way home carried by
+   `ModePushed.returns` and installed as `WorldState.battle_returns` (event v7).
+   If the arena cannot seat everyone, the battle falls back to the menu
+   presentation.
+2. Arena battles: GridView viewport (no frame bump), verbs move/attack/cast/flee/
+   look; `attack` needs grid adjacency, `cast` reaches any living foe (the first
+   ranged/melee distinction, deliberately given to abilities); foes chase-or-strike
+   with the exploration pursuit logic; the arena's own `fov` applies.
+3. Every battle pop is preceded by homecoming `Moved`s (`exit="return"`) for the
+   survivors; arena flee obeys the menu flee's break-contact rule (homecoming +
+   one escaping step, else `FleeFailed`).
+4. Validation: an arena must be a grid with no portals and enough floor for
+   the player plus every hostile in the engager's home area (the possible
+   joiners); the exit tokens `arena`/`return` are reserved — a content portal
+   claiming one is a load error. `wrong_mode` classification is now
+   grammar-first: an advertised verb is always valid regardless of the mode's
+   static `VERBS` set. In a fov-active arena the one visible set filters
+   viewport, actor summaries, and messages alike (review findings, PR #10).
+5. The reference pack grows the warren (fov 3) behind a hole at village:7,3, the
+   marauder (engages, arena="pit"), and the pit arena. The village goldens gained
+   the hole glyph — deliberate, regenerated, reviewed.
+
 ## Next steps
 
 1. Finish slice 2 (see task breakdown in session, or re-derive from §18.2).

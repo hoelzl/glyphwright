@@ -11,7 +11,13 @@ later.
 from __future__ import annotations
 
 from glyphwright.effects.combat import hostile_actors, melee_adjacent, strike
-from glyphwright.frames.frame import ActorSummary, MenuView, PromptSpec, SemanticFrame
+from glyphwright.frames.frame import (
+    ActorSummary,
+    MenuView,
+    PromptSpec,
+    SemanticFrame,
+    Viewport,
+)
 from glyphwright.kernel.commands import (
     Attack,
     Cast,
@@ -19,18 +25,22 @@ from glyphwright.kernel.commands import (
     CommandGrammar,
     Flee,
     Look,
+    Move,
     Use,
 )
 from glyphwright.kernel.events import (
     Event,
     FleeFailed,
     ModePopped,
+    Moved,
     TurnAdvanced,
 )
 from glyphwright.kernel.rng import Rng
-from glyphwright.kernel.scheduler import escape_step
-from glyphwright.kernel.state import MODE_BATTLE, PLAYER, WorldState
+from glyphwright.kernel.scheduler import battle_homecoming, escape_step
+from glyphwright.kernel.state import MODE_BATTLE, PLAYER, WorldState, fold
 from glyphwright.modes import common, messages
+from glyphwright.world.grid import GridSpace
+from glyphwright.world.space import PosId
 
 NAME = MODE_BATTLE
 
@@ -48,15 +58,41 @@ def _foes(state: WorldState) -> tuple[str, ...]:
     )
 
 
+def _melee_foes(state: WorldState) -> tuple[str, ...]:
+    """In the arena, steel needs adjacency; the menu abstracts distance."""
+    foes = _foes(state)
+    if not state.battle_returns:
+        return foes
+    player_at = state.entity(PLAYER).at()
+    if player_at is None:
+        return ()
+    space = state.areas[player_at.area]
+    return tuple(
+        foe
+        for foe in foes
+        if (at := state.entity(foe).at()) is not None
+        and at.area == player_at.area
+        and melee_adjacent(space, player_at, at)
+    )
+
+
 def available_commands(state: WorldState) -> CommandGrammar:
     verbs: list[tuple[str, tuple[tuple[str, ...], ...]]] = []
-    foes = _foes(state)
-    if foes:
-        verbs.append(("attack", (foes,)))
+    if state.battle_returns:
+        player_at = state.entity(PLAYER).at()
+        assert player_at is not None
+        exits = tuple(sorted(state.exits_from(player_at)))
+        if exits:
+            verbs.append(("move", (exits,)))
+    melee = _melee_foes(state)
+    if melee:
+        verbs.append(("attack", (melee,)))
     usable = common.usable_items(state)
     if usable:
         verbs.append(("use", (usable,)))
-    cast_domains = common.cast_grammar(state, foes)
+    # Steel needs adjacency; magic outranges it and reaches any living foe
+    # (design 0006 §2).
+    cast_domains = common.cast_grammar(state, _foes(state))
     if cast_domains is not None:
         verbs.append(("cast", cast_domains))
     verbs.append(("flee", ()))
@@ -72,6 +108,8 @@ def handle(
             return (), rng
         case Use(item=item_id):
             return common.use_item(state, item_id), rng
+        case Move(exit=token):
+            return common.move_player(state, token), rng
         case Attack(target=target_id):
             struck, rng = strike(state, PLAYER, target_id, rng)
             return (*struck, TurnAdvanced(turn=state.turn + 1)), rng
@@ -88,51 +126,86 @@ def handle(
 def _flee(state: WorldState) -> tuple[Event, ...]:
     """Break away: pop the battle and gain ground, or fail and pay the turn.
 
-    The escape is scored against every hostile in the area, not only the
-    battle's foes, and it only counts as an escape if it actually breaks
-    melee contact with the foes — otherwise the same step would re-engage
-    and "You break away and flee!" would be a lie.
+    Both presentations obey the same break-contact rule (design 0006 §2): the
+    escaping step is scored against every hostile in reach, and it only counts
+    if it breaks melee contact with the battle's foes — otherwise the same
+    step would re-engage and "You break away and flee!" would be a lie. In an
+    arena battle everyone first goes home, and the escape is judged from the
+    homecoming tile.
     """
     turn = TurnAdvanced(turn=state.turn + 1)
+    prologue: tuple[Event, ...] = ()
+    landed = state
+    if state.battle_returns:
+        prologue = battle_homecoming(state)
+        landed = fold(state, prologue)
+    escape = _escaping_step(landed)
+    if escape is None:
+        return (FleeFailed(actor=PLAYER), turn)
+    return (*prologue, ModePopped(mode=NAME, outcome="fled"), escape, turn)
+
+
+def _escaping_step(state: WorldState) -> Moved | None:
+    """The player's one escaping step, or ``None`` when no step breaks melee
+    contact with the battle's foes."""
     threats = tuple(actor.id for actor in hostile_actors(state))
     moved = escape_step(state, PLAYER, threats)
     if moved is None:
-        return (FleeFailed(actor=PLAYER), turn)
+        return None
     space = state.areas[moved.destination.area]
     still_in_reach = any(
         (foe_at := state.entity(foe).at()) is not None
+        and foe_at.area == moved.destination.area
         and melee_adjacent(space, moved.destination, foe_at)
         for foe in _foes(state)
     )
-    if still_in_reach:
-        return (FleeFailed(actor=PLAYER), turn)
-    return (ModePopped(mode=NAME, outcome="fled"), moved, turn)
+    return None if still_in_reach else moved
 
 
 def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
+    """Project the battle into the canonical observation.
+
+    In a fov-active arena the one visible set filters the viewport, the actor
+    summaries, and the messages alike, exactly as exploration does — a frame
+    must not narrate or list a foe its viewport conceals (design 0006 §1). The
+    menu presentation abstracts distance, so it never conceals a combatant.
+    """
     player_at = state.entity(PLAYER).at()
     assert player_at is not None
     combatants = tuple(c for c in state.initiative if c in state.entities)
+    sight: frozenset[PosId] | None = None
+    viewport: Viewport = MenuView(area=player_at.area, combatants=combatants)
+    if state.battle_returns:
+        space = state.areas[player_at.area]
+        assert isinstance(space, GridSpace)
+        sight = common.player_sight(state)
+        viewport = common.grid_viewport(state, space, sight)
     return SemanticFrame(
         turn=state.turn,
         mode=NAME,
-        viewport=MenuView(area=player_at.area, combatants=combatants),
-        actors=_actors(state, combatants),
+        viewport=viewport,
+        actors=_actors(state, combatants, sight),
         messages=tuple(
-            message for event in events if (message := messages.describe(event))
+            message
+            for event in events
+            if common.witnessed(event, sight) and (message := messages.describe(event))
         ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
     )
 
 
-def _actors(state: WorldState, combatants: tuple[str, ...]) -> tuple[ActorSummary, ...]:
+def _actors(
+    state: WorldState, combatants: tuple[str, ...], sight: frozenset[PosId] | None
+) -> tuple[ActorSummary, ...]:
     summaries = []
     for combatant in combatants:
         entity = state.entity(combatant)
         at = entity.at()
         if entity.actor is None or at is None:
             continue
+        if sight is not None and combatant != PLAYER and at not in sight:
+            continue  # beyond the light
         summaries.append(
             ActorSummary(
                 id=entity.id,

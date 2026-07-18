@@ -189,6 +189,7 @@ class ModePushed:
 
     mode: str
     initiative: tuple[EntityId, ...] = ()
+    returns: tuple[tuple[EntityId, PosId], ...] = ()
 
     type: str = "ModePushed"
 

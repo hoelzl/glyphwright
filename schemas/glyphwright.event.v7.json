@@ -1,5 +1,5 @@
 {
-  "$id": "glyphwright.event/6",
+  "$id": "glyphwright.event/7",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
@@ -78,11 +78,22 @@
         "null"
       ]
     },
+    "returns": {
+      "items": {
+        "items": {
+          "type": "string"
+        },
+        "maxItems": 2,
+        "minItems": 2,
+        "type": "array"
+      },
+      "type": "array"
+    },
     "rng": {
       "type": "string"
     },
     "schema": {
-      "const": "glyphwright.event/6"
+      "const": "glyphwright.event/7"
     },
     "slot": {
       "type": "string"
