@@ -16,7 +16,13 @@ from dataclasses import dataclass
 from glyphwright import modes
 from glyphwright.content.pack import ContentPack, reference_pack
 from glyphwright.frames.frame import SemanticFrame
-from glyphwright.frontends.wire import encode_command
+from glyphwright.frontends.wire import (
+    decode_command,
+    encode_command,
+    encode_event,
+    encode_frame,
+    encode_rejection,
+)
 from glyphwright.harness.fingerprint import RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
@@ -71,6 +77,11 @@ __all__ = [
     "Talk",
     "Use",
     "Wait",
+    "decode_command",
+    "encode_command",
+    "encode_event",
+    "encode_frame",
+    "encode_rejection",
     "reference_pack",
 ]
 

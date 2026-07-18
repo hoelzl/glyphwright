@@ -16,6 +16,27 @@ def test_the_api_exports_everything_an_adapter_needs() -> None:
         assert hasattr(api, name)
 
 
+def test_the_api_exports_the_wire_codec() -> None:
+    # An adapter turns text into commands and frames/events/rejections into
+    # their published wire forms; forcing it into glyphwright.frontends for
+    # that contradicts "the only supported programmatic entry point"
+    # (design 0003 section 14; surfaced by the TermVerify direct-adapter spike).
+    for name in (
+        "decode_command",
+        "encode_command",
+        "encode_frame",
+        "encode_event",
+        "encode_rejection",
+    ):
+        assert hasattr(api, name), name
+        assert name in api.__all__, name
+    command = api.decode_command("move east")
+    assert command == Move("east")
+    assert api.encode_command(command) == "move east"
+    engine = Engine.new(reference_pack(), seed=1)
+    assert api.encode_frame(engine.frame())["schema"].startswith("glyphwright.frame/")
+
+
 def test_a_rejected_command_advances_nothing() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     before = engine.frame()

@@ -121,7 +121,34 @@ Ordering rationale: (1) is what turns produced evidence into verification at all
 but depends on neither; (4) is cheap hygiene that lowers the cost of every external
 adapter, ours first.
 
-## 6. Consequences for the GlyphWright roadmap
+## 6. Spike results (2026-07-18, same day)
+
+The §3 spike was built and passes: `spikes/termverify-direct-adapter/` maps
+`glyphwright.api` onto `DirectApplication`/`ConstraintPorts`, drives a scripted
+session through `DirectAdapter` to a clean `RunFinished`, and assembles it into
+a `termverify.transcript/v1` that TermVerify's strict codec validates —
+byte-identical across identical runs. TermVerify stays a `uv run --with`
+overlay; nothing in the package, test suite, or mypy scope touches it.
+
+What the evidence changed:
+
+- **One GlyphWright bug, fixed**: the adapter needed the wire codec, which was
+  not on `glyphwright.api`. `decode_command`/`encode_command`/`encode_frame`/
+  `encode_event`/`encode_rejection` are now re-exported there (`0003` §14
+  updated). Otherwise the mapping was as mechanical as §14 predicted.
+- **Ask 1 of issue #114 is now measured**: the spike's `TranscriptRecorder`
+  (~120 lines) is the adapter-calls-to-transcript-records harness TermVerify
+  does not ship; every adapter author will rewrite it until it exists upstream.
+- **§2's constraint-posture claim confirmed**: all seven constraints receipt
+  cleanly with zero accommodation; `KeyInput` fails closed as the contract
+  demands; rejections map to diagnostics without losing the rejection/refusal
+  distinction.
+- **§20.5 remains open, as designed**: the spike is placement evidence, not a
+  conformance suite. The overlay mechanism shows the "in this repository,
+  dev-only, optional" option costs nothing; the code would also drop into a
+  TermVerify examples directory unchanged.
+
+## 7. Consequences for the GlyphWright roadmap
 
 Next integration step: the **direct-path adapter spike** (§3), placed per §20.5's
 "decide when built" rule. Flavors 2 and 3 and all differential testing wait on

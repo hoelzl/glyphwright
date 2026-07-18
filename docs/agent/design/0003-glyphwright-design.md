@@ -363,7 +363,7 @@ class Engine:
     def fingerprint(self) -> RunFingerprint               # engine version, pack hash, seed, turn
 ```
 
-Everything an external harness needs flows through this surface (command enumeration lives on the frame). Nothing in `kernel/`, `world/`, `modes/`, or `effects/` is public. The producer-side TermVerify adapter — wherever it ends up living (§20.5) — maps this API onto TermVerify's adapter contract; the mapping is expected to be nearly mechanical. **If the adapter needs logic, the API surface is missing something**; that is treated as a GlyphWright bug. The adapter is a consumer of this API like any other, which is what keeps its placement a free choice.
+Everything an external harness needs flows through this surface (command enumeration lives on the frame). That includes the wire codec: `decode_command`, `encode_command`, `encode_frame`, `encode_event`, and `encode_rejection` are re-exported here, because an adapter that turns harness text into commands and engine values into their published wire forms (§15) must not have to reach into `frontends` to do it (surfaced by the first direct-adapter spike, 2026-07-18). Nothing in `kernel/`, `world/`, `modes/`, or `effects/` is public. The producer-side TermVerify adapter — wherever it ends up living (§20.5) — maps this API onto TermVerify's adapter contract; the mapping is expected to be nearly mechanical. **If the adapter needs logic, the API surface is missing something**; that is treated as a GlyphWright bug. The adapter is a consumer of this API like any other, which is what keeps its placement a free choice.
 
 ## 15. Wire formats and schemas
 

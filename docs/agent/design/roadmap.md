@@ -59,10 +59,13 @@ TermVerify side, out of this repository's scope for now: the direct adapter and 
 
 ## Next integration step
 
-`0010-termverify-integration-assessment.md` (2026-07-18) surveys TermVerify's state: the
-direct in-process adapter path is feasible now and is the next integration step; the JSONL
-subprocess and PTY flavors, and all differential testing, are blocked on TermVerify-side
-work listed there as prioritized asks.
+`0010-termverify-integration-assessment.md` (2026-07-18) surveys TermVerify's state and
+records the asks filed as `hoelzl/termverify#114`. The direct in-process adapter spike is
+**done** (`spikes/termverify-direct-adapter/`, `0010` §6): validated deterministic
+`termverify.transcript/v1` from a scripted session, one API gap found and fixed (wire
+codec now on `glyphwright.api`). The JSONL subprocess and PTY flavors, and all
+differential testing, remain blocked on TermVerify-side work; adapter placement
+(`0003` §20.5) stays open until a real conformance suite exists.
 
 ## Open questions
 
