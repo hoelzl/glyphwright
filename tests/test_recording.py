@@ -86,7 +86,7 @@ def test_only_accepted_steps_are_recorded() -> None:
     text, _ = _record(seed=99)
     lines = [json.loads(line) for line in text.splitlines()]
     header, steps = lines[0], lines[1:]
-    assert header["schema"] == "glyphwright.session/1"
+    assert header["schema"] == "glyphwright.session/2"
     assert [line["step"] for line in steps] == list(range(1, len(steps) + 1))
     commands = [line["command"] for line in steps]
     assert "look" in commands, "accepted observations are part of the run"
@@ -143,6 +143,53 @@ def test_an_empty_recording_is_a_diagnosis_not_a_crash() -> None:
     outcome = replay(reference_pack(), [])
     assert not outcome.ok
     assert outcome.problem is not None and "header" in outcome.problem
+
+
+def test_a_legacy_session1_header_still_replays() -> None:
+    """Backward compatibility: a session/1 recording predates the oracle and
+    manifest terms, so it is read as a session/2 header with both absent
+    (0012 §11.5). The run replays identically."""
+    text, recorded = _record(seed=99)
+    lines = text.splitlines()
+    header = json.loads(lines[0])
+    header["schema"] = "glyphwright.session/1"
+    lines[0] = json.dumps(header)
+    outcome = replay(reference_pack(), lines)
+    assert outcome.ok, outcome.problem
+    assert outcome.engine is not None
+    assert outcome.engine.snapshot() == recorded.snapshot()
+
+
+def test_an_unknown_session_schema_is_refused() -> None:
+    text, _ = _record(seed=99)
+    lines = text.splitlines()
+    header = json.loads(lines[0])
+    header["schema"] = "glyphwright.session/99"
+    lines[0] = json.dumps(header)
+    outcome = replay(reference_pack(), lines)
+    assert not outcome.ok and outcome.steps == 0
+    assert outcome.problem is not None and "header" in outcome.problem
+
+
+def test_oracle_and_manifest_terms_are_carried_without_breaking_replay() -> None:
+    """A Tier-2 run records which oracle it consulted and which manifest it
+    presented. Those terms are opaque to replay — replay re-executes the
+    recorded commands and never re-consults the oracle — so their presence
+    must not change the verified outcome (0012 §11.5)."""
+    text, recorded = _record(seed=99)
+    lines = text.splitlines()
+    header = json.loads(lines[0])
+    header["oracle"] = {
+        "level": "/Game/Maps/Village",
+        "plugin": "agentworld-0.4.0",
+        "positions": "sha256:abc",
+    }
+    header["manifest"] = "sha256:def"
+    lines[0] = json.dumps(header)
+    outcome = replay(reference_pack(), lines)
+    assert outcome.ok, outcome.problem
+    assert outcome.engine is not None
+    assert outcome.engine.snapshot() == recorded.snapshot()
 
 
 def test_a_misnumbered_step_is_refused() -> None:

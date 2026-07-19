@@ -97,8 +97,28 @@ def test_the_session_header_validates() -> None:
     engine = Engine.new(reference_pack(), seed=7)
     _check(
         engine.fingerprint().header(harness=True),
-        all_schemas()["glyphwright.session.v1.json"],
+        all_schemas()["glyphwright.session.v2.json"],
     )
+
+
+def test_a_tier2_session_header_validates() -> None:
+    """The optional oracle + manifest terms validate when present (0012 §5/§6)."""
+    from glyphwright.harness.fingerprint import OracleFingerprint, RunFingerprint
+
+    fingerprint = RunFingerprint.create(pack="reference-vale@sha256:0", seed=7, turn=0)
+    tier2 = RunFingerprint(
+        engine=fingerprint.engine,
+        pack=fingerprint.pack,
+        seed=fingerprint.seed,
+        turn=fingerprint.turn,
+        oracle=OracleFingerprint(
+            level="/Game/Maps/Village",
+            plugin="agentworld-0.4.0",
+            positions="sha256:abc",
+        ),
+        manifest="sha256:def",
+    )
+    _check(tier2.header(harness=False), all_schemas()["glyphwright.session.v2.json"])
 
 
 def test_frames_and_events_carry_their_schema_tag() -> None:

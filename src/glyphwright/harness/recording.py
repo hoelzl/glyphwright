@@ -25,7 +25,7 @@ from glyphwright.frontends.wire import (
     encode_command,
     encode_event,
 )
-from glyphwright.harness.fingerprint import SESSION_SCHEMA
+from glyphwright.harness.fingerprint import COMPATIBLE_SESSION_SCHEMAS, SESSION_SCHEMA
 from glyphwright.kernel.commands import Command
 from glyphwright.kernel.events import Event
 from glyphwright.kernel.state import WorldState
@@ -137,7 +137,10 @@ def replay(pack: ContentPack, source: Iterable[str]) -> Replay:
         header = json.loads(raw)
     except json.JSONDecodeError:
         return _fail(0, "the session header is not JSON")
-    if not isinstance(header, dict) or header.get("schema") != SESSION_SCHEMA:
+    if (
+        not isinstance(header, dict)
+        or header.get("schema") not in COMPATIBLE_SESSION_SCHEMAS
+    ):
         return _fail(0, f"the first line is not a {SESSION_SCHEMA} header")
     expected_engine = f"glyphwright {__version__}"
     if header.get("engine") != expected_engine:

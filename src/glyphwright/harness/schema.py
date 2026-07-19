@@ -42,6 +42,13 @@ def _array(items: dict[str, Any]) -> dict[str, Any]:
 
 
 def session_schema() -> dict[str, Any]:
+    oracle = _object(
+        {
+            "level": _STRING,
+            "plugin": _STRING,
+            "positions": _STRING,
+        }
+    )
     return {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "$id": SESSION_SCHEMA,
@@ -53,7 +60,13 @@ def session_schema() -> dict[str, Any]:
                 "pack": _STRING,
                 "seed": _INTEGER,
                 "harness": {"type": "boolean"},
-            }
+                # Optional Tier-2/presentation terms (0012 §5/§6): absent for
+                # headless/Tier-1 runs, which is what makes session/1 a
+                # degenerate session/2 header.
+                "oracle": oracle,
+                "manifest": _STRING,
+            },
+            required=["schema", "engine", "pack", "seed", "harness"],
         ),
     }
 
@@ -308,7 +321,7 @@ def query_schema() -> dict[str, Any]:
 def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     return {
-        "glyphwright.session.v1.json": session_schema(),
+        "glyphwright.session.v2.json": session_schema(),
         "glyphwright.frame.v6.json": frame_schema(),
         "glyphwright.event.v9.json": event_schema(),
         "glyphwright.rejection.v1.json": rejection_schema(),

@@ -23,7 +23,7 @@ from glyphwright.frontends.wire import (
     encode_frame,
     encode_rejection,
 )
-from glyphwright.harness.fingerprint import RunFingerprint
+from glyphwright.harness.fingerprint import OracleFingerprint, RunFingerprint
 from glyphwright.harness.query import QueryResult
 from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
@@ -66,6 +66,7 @@ __all__ = [
     "Look",
     "Move",
     "Open",
+    "OracleFingerprint",
     "Pick",
     "QueryResult",
     "Rejected",
