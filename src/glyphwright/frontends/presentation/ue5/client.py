@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import math
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -155,12 +156,13 @@ class UE5Client:
         )
         if result is None:
             return None
-        try:
-            return float(result)  # type: ignore[arg-type]
-        except (TypeError, ValueError) as exc:
-            raise UE5Error(
-                f"trace_world returned a non-numeric payload: {result!r}"
-            ) from exc
+        if type(result) not in (int, float):
+            raise UE5Error(f"trace_world returned an invalid distance: {result!r}")
+        assert isinstance(result, int | float)
+        distance = float(result)
+        if not math.isfinite(distance) or distance < 0.0:
+            raise UE5Error(f"trace_world returned an invalid distance: {result!r}")
+        return distance
 
     async def capture_viewport(
         self, *, location: tuple[float, float, float], yaw: float, pitch: float

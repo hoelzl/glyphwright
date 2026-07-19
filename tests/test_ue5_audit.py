@@ -84,6 +84,14 @@ def test_passable_edges_enumerates_each_floor_pair_once() -> None:
     assert Edge(a=_pos("room", 0, 0), b=_pos("room", 0, 1)) in edges
 
 
+def test_passable_edges_use_numeric_reading_order_past_single_digit_cells() -> None:
+    wide = GridSpace.from_text("wide", "." * 12)
+
+    assert passable_edges(wide) == tuple(
+        Edge(a=_pos("wide", x, 0), b=_pos("wide", x + 1, 0)) for x in range(11)
+    )
+
+
 def test_passable_edges_ignores_walls_and_terminates_at_them() -> None:
     edges = passable_edges(WALLED)
     # Only the left cell (0,0) and right cell (2,0) are floor; the wall between
@@ -120,12 +128,27 @@ def test_audit_reports_no_drift_when_every_edge_is_clear() -> None:
     assert run(audit(client, OPEN, _manifest())) == ()
 
 
-def test_trace_world_rejects_a_non_numeric_hit_with_a_located_error() -> None:
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"distance": 40.0},
+        [40.0],
+        True,
+        "not-a-distance",
+        float("nan"),
+        float("inf"),
+        -1.0,
+    ],
+    ids=["object", "list", "boolean", "string", "nan", "infinity", "negative"],
+)
+def test_trace_world_rejects_an_invalid_hit_with_a_located_error(
+    payload: object,
+) -> None:
     async def transport(tool: str, arguments: dict[str, object]) -> object:
-        return {"returnValue": json.dumps({"distance": 40.0})}
+        return {"returnValue": json.dumps(payload)}
 
     client = UE5Client(transport)
-    with pytest.raises(UE5Error, match="trace_world.*non-numeric payload"):
+    with pytest.raises(UE5Error, match="trace_world.*invalid distance"):
         run(client.trace_world((0.0, 0.0, 0.0), (100.0, 0.0, 0.0)))
 
 
@@ -178,8 +201,13 @@ def test_audit_projects_non_default_tile_size_through_classification() -> None:
 
     assert seen[0]["start"] == {"x": 32.0, "y": 32.0, "z": 50.0}
     assert seen[0]["end"] == {"x": 96.0, "y": 32.0, "z": 50.0}
-    assert drifts[0].expected == tile
-    assert drifts[0].hit == 20.0
+    assert drifts == (
+        Drift(
+            edge=Edge(a=_pos("room", 0, 0), b=_pos("room", 1, 0)),
+            expected=tile,
+            hit=20.0,
+        ),
+    )
 
 
 def test_audit_tolerates_a_hit_at_the_far_cell_boundary() -> None:

@@ -45,8 +45,9 @@ DEFAULT_PROBE_HEIGHT_CM = 50.0
 @dataclass(frozen=True, slots=True)
 class Edge:
     """One adjacent pair of floor cells, canonicalized so each unordered pair
-    appears once (``a`` sorts before ``b``). Passability here is terrain, not
-    occupancy: the audit checks the *map's* geometry, not where actors stand."""
+    appears once (``a`` precedes ``b`` in numeric reading order). Passability
+    here is terrain, not occupancy: the audit checks the *map's* geometry, not
+    where actors stand."""
 
     a: PosId
     b: PosId
@@ -66,10 +67,14 @@ class Drift:
     hit: float
 
 
+def _cell_xy(pos: PosId) -> tuple[int, int]:
+    x_text, _, y_text = pos.local.partition(",")
+    return int(x_text), int(y_text)
+
+
 def _cell_center(pos: PosId, tile: float, height: float) -> tuple[float, float, float]:
     """The world-space center of a grid cell, matching the importer's projection."""
-    x_text, _, y_text = pos.local.partition(",")
-    x, y = int(x_text), int(y_text)
+    x, y = _cell_xy(pos)
     return ((x + 0.5) * tile, (y + 0.5) * tile, height)
 
 
@@ -90,12 +95,12 @@ def passable_edges(grid: GridSpace) -> tuple[Edge, ...]:
             for neighbour in grid.exits(here).values():
                 if grid.terrain(neighbour) != FLOOR:
                     continue
-                edge = Edge(a=here, b=neighbour)
                 # Canonicalize: emit each unordered pair once, from the cell
-                # that sorts first, so east/south edges are not duplicated as
-                # their west/north mirrors.
-                if (edge.a.area, edge.a.local) < (edge.b.area, edge.b.local):
-                    edges.append(edge)
+                # that comes first in numeric reading order, so east/south
+                # edges are not duplicated as their west/north mirrors.
+                neighbour_x, neighbour_y = _cell_xy(neighbour)
+                if (y, x) < (neighbour_y, neighbour_x):
+                    edges.append(Edge(a=here, b=neighbour))
     return tuple(edges)
 
 
