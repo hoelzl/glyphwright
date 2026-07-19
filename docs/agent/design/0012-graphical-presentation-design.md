@@ -407,8 +407,9 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   fingerprint are a versioned-protocol change to the `glyphwright.session/1`
   header and its committed schema. Per the completion contract (no replay/
   protocol change without a written rationale and review) and the standing
-  gate that protocol/evidence decisions are human-reviewed, that change is
-  **deferred to 14D**, where the oracle model it encodes is ratified anyway.
+  gate that protocol/evidence decisions are human-reviewed, that change was
+  **deferred to 14D**; 14D in turn moved it to 15A, where the oracle model it
+  encodes is ratified (see the 14D Resolution below).
   14C ships the client, importer, and opt-in e2e without it.*
 - **14D — Substrate decision ratified.** On 14C's evidence, either keep C as
   the human-facing path (updating this section) or fall back to A and scope B.
