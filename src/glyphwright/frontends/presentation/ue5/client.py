@@ -89,8 +89,14 @@ class UE5Client:
         fingerprint needs (0012 §6): it is what the editor's AgentWorld toolset
         reports about its own build, so the fingerprint pins "which oracle" to
         a real, queryable value rather than a guessed string.
+
+        The descriptor is passed through :func:`_decode`: a live editor returns
+        it unwrapped (the meta-tools do not use the ``call_tool`` envelope), so
+        the decode is a no-op today — but if a future build wraps it, the
+        decode unwraps it rather than the ``version`` check failing opaquely.
         """
-        value = await self._transport("describe_toolset", {"toolset_name": toolset})
+        raw = await self._transport("describe_toolset", {"toolset_name": toolset})
+        value = _decode(raw, tool=f"describe_toolset({toolset})")
         if not isinstance(value, dict) or "version" not in value:
             raise UE5Error(
                 f"describe_toolset({toolset}) returned no version: {value!r}"

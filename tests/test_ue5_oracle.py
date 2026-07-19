@@ -90,3 +90,48 @@ def test_oracle_fingerprint_ignores_anchors_without_a_world_state_key() -> None:
     )
     fp = run(oracle_fingerprint(client))
     assert fp.positions == positions_fingerprint(["hall"])
+
+
+def test_positions_fingerprint_of_the_empty_set_is_well_formed() -> None:
+    # A map with zero bound positions hashes to the sha256 of the empty string
+    # — a conscious, valid fingerprint (0012 §11.5 hashes the *set*, which may
+    # be empty), not an error.
+    empty = positions_fingerprint([])
+    assert empty.startswith("sha256:")
+    assert empty == positions_fingerprint([])
+    assert empty != positions_fingerprint(["anything"])
+
+
+def test_an_empty_world_state_key_binds_no_position() -> None:
+    # A present-but-empty key binds no position, so it is dropped exactly like
+    # an absent one — pinned so the absent/empty conflation is deliberate.
+    client = _scripted_client(
+        level="/Game/Maps/Village",
+        version="1.0",
+        anchors=[{"worldStateKey": ""}, {"worldStateKey": "hall"}],
+    )
+    fp = run(oracle_fingerprint(client))
+    assert fp.positions == positions_fingerprint(["hall"])
+
+
+def test_describe_toolset_unwraps_an_enveloped_descriptor() -> None:
+    # The meta-tools return descriptors unwrapped today, but describe_toolset
+    # routes through _decode so a future build that wraps the payload (the
+    # {"returnValue": ...} envelope call_tool uses) still resolves the version.
+    async def wrapped(tool: str, arguments: dict[str, object]) -> object:
+        assert tool == "describe_toolset"
+        return {"returnValue": json.dumps({"name": ANCHOR, "version": "2.5"})}
+
+    client = UE5Client(wrapped)
+    assert run(client.describe_toolset(ANCHOR))["version"] == "2.5"
+
+
+def test_describe_toolset_rejects_a_versionless_payload() -> None:
+    from glyphwright.frontends.presentation.ue5.client import UE5Error
+
+    async def versionless(tool: str, arguments: dict[str, object]) -> object:
+        return {"name": ANCHOR, "tools": []}
+
+    client = UE5Client(versionless)
+    with pytest.raises(UE5Error, match="no version"):
+        run(client.describe_toolset(ANCHOR))

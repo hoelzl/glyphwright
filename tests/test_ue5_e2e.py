@@ -129,6 +129,18 @@ def test_oracle_fingerprint_populates_from_the_live_editor() -> None:
     assert oracle["level"] == fp.level
     assert oracle["plugin"] == fp.plugin
     assert oracle["positions"] == fp.positions
+    # And the live-populated oracle object matches the session/2 schema's
+    # declared oracle shape (level/plugin/positions, all required strings,
+    # nothing else) — so a drift between as_dict() and the schema fails here,
+    # not just a round-trip of its own input. The full header is schema-checked
+    # offline in test_wire.py; this pins the live fingerprint against the same
+    # declared oracle object.
+    from glyphwright.harness.schema import session_schema
+
+    oracle_spec = session_schema()["properties"]["oracle"]
+    assert set(oracle) == set(oracle_spec["required"])
+    assert set(oracle) == set(oracle_spec["properties"])
+    assert all(isinstance(v, str) for v in oracle.values())
 
 
 def test_drift_audit_flags_a_blocked_edge_and_clears_when_removed() -> None:
