@@ -82,6 +82,27 @@ class UE5Client:
             raise UE5Error(f"ListAnchors returned a non-list payload: {value!r}")
         return value
 
+    async def describe_toolset(self, toolset: str) -> dict[str, object]:
+        """A toolset's descriptor (``name``, ``version``, ``tools``, …).
+
+        The ``version`` field is the plugin-version source the oracle
+        fingerprint needs (0012 §6): it is what the editor's AgentWorld toolset
+        reports about its own build, so the fingerprint pins "which oracle" to
+        a real, queryable value rather than a guessed string.
+
+        The descriptor is passed through :func:`_decode`: a live editor returns
+        it unwrapped (the meta-tools do not use the ``call_tool`` envelope), so
+        the decode is a no-op today — but if a future build wraps it, the
+        decode unwraps it rather than the ``version`` check failing opaquely.
+        """
+        raw = await self._transport("describe_toolset", {"toolset_name": toolset})
+        value = _decode(raw, tool=f"describe_toolset({toolset})")
+        if not isinstance(value, dict) or "version" not in value:
+            raise UE5Error(
+                f"describe_toolset({toolset}) returned no version: {value!r}"
+            )
+        return value
+
     async def spawn_from_class(
         self,
         class_path: str,
