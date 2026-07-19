@@ -15,14 +15,18 @@ from dataclasses import dataclass
 
 from glyphwright.frontends.presentation.manifest import PresentationManifest
 from glyphwright.frontends.presentation.scenegraph import SceneGraph
-from glyphwright.frontends.presentation.ue5.client import UE5Client
+from glyphwright.frontends.presentation.ue5.client import UE5Client, UE5Error
 
 #: Default grid-cell footprint in UE5 units (centimeters) when the manifest
 #: does not declare ``tile_size_cm``.
 DEFAULT_TILE_CM = 100.0
 
-#: Default per-tier heights. Ground sits at z=0; actors stand on the floor.
+#: Default per-tier heights. Ground sits at z=0; fixtures and actors stand on
+#: the floor unless the manifest's ``tier_height`` hint says otherwise.
 DEFAULT_TIER_HEIGHT = {"ground": 0.0, "fixture": 0.0, "actor": 0.0}
+
+#: Reading order of tiers within a cell, for the canonical plan sort.
+_TIER_ORDER = {"ground": 0, "fixture": 1, "actor": 2}
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +37,11 @@ class SpawnOp:
     semantic_pos: str
     asset_path: str
     location: tuple[float, float, float]
+    tier: str
+
+
+class ImporterError(ValueError):
+    """A SceneGraph that cannot be planned, located by what was wrong."""
 
 
 def _tile_size(manifest: PresentationManifest) -> float:
@@ -46,31 +55,53 @@ def _tier_height(manifest: PresentationManifest, tier: str) -> float:
     return float(heights.get(tier, 0.0))
 
 
-def _spawn_name(semantic_pos: str) -> str:
-    """A stable, collision-free actor name from a semantic position.
+def _parse_pos(semantic_pos: str) -> tuple[str, int, int]:
+    """``village:7,3`` -> ``("village", 7, 3)``, or a located ``ImporterError``.
 
-    ``village:7,3`` -> ``gw_village_7_3``. The ``gw_`` prefix keeps importer
-    actors findable and removable as a group, and the position-derived suffix
+    The absolute grid coordinate is the authoritative position: ``compose``
+    bakes the viewport origin into ``semantic_pos`` while ``render_pos`` stays
+    viewport-local, so a panned scene must be planned from here, not from
+    ``render_pos`` (which would double-offset).
+    """
+    area, sep, local = semantic_pos.partition(":")
+    xs, comma, ys = local.partition(",")
+    if not sep or not comma:
+        raise ImporterError(
+            f"semantic_pos {semantic_pos!r} is not 'area:x,y'; cannot place it"
+        )
+    try:
+        return area, int(xs), int(ys)
+    except ValueError as error:
+        raise ImporterError(
+            f"semantic_pos {semantic_pos!r} has non-integer coordinates"
+        ) from error
+
+
+def _spawn_name(area: str, x: int, y: int, tier: str) -> str:
+    """A stable, collision-free actor name for a placement.
+
+    ``gw_village_ground_7_3``. The ``gw_`` prefix keeps importer actors
+    findable and removable as a group; the tier segment disambiguates the
+    ground/fixture/actor stack that shares one grid cell; the position suffix
     means re-importing the same SceneGraph reuses the same names rather than
     accumulating duplicates.
     """
-    area, _, local = semantic_pos.partition(":")
-    x, _, y = local.partition(",")
-    return f"gw_{area}_{x}_{y}"
+    return f"gw_{area}_{tier}_{x}_{y}"
 
 
 def plan_spawns(graph: SceneGraph, manifest: PresentationManifest) -> list[SpawnOp]:
     """Map a SceneGraph's placements to an ordered, deterministic spawn plan.
 
-    Pure: same graph, same manifest, same plan. Order is canonical — sorted by
-    semantic position — so equal SceneGraphs plan identically regardless of
-    the placement iteration order, and the plan's hash-like identity is stable
-    for goldens and review.
+    Pure: same graph, same manifest, same plan. World coordinates come from
+    ``semantic_pos`` (the absolute grid cell), never from the viewport-local
+    ``render_pos``. Order is canonical — grid reading order (y, then x, then
+    tier) — so equal SceneGraphs plan identically and the plan reads spatially
+    for review, not lexicographically (``village:10,0`` after ``village:2,0``).
     """
     tile = _tile_size(manifest)
     plan: list[SpawnOp] = []
     for placement in graph.placements:
-        x, y, _ = placement.render_pos
+        area, x, y = _parse_pos(placement.semantic_pos)
         location = (
             (x + 0.5) * tile,
             (y + 0.5) * tile,
@@ -78,13 +109,21 @@ def plan_spawns(graph: SceneGraph, manifest: PresentationManifest) -> list[Spawn
         )
         plan.append(
             SpawnOp(
-                name=_spawn_name(placement.semantic_pos),
+                name=_spawn_name(area, x, y, placement.tier),
                 semantic_pos=placement.semantic_pos,
                 asset_path=placement.asset_id,
                 location=location,
+                tier=placement.tier,
             )
         )
-    plan.sort(key=lambda op: op.semantic_pos)
+    plan.sort(
+        key=lambda op: (
+            _parse_pos(op.semantic_pos)[2],  # y
+            _parse_pos(op.semantic_pos)[1],  # x
+            _TIER_ORDER.get(op.tier, len(_TIER_ORDER)),
+            op.name,
+        )
+    )
     return plan
 
 
@@ -93,13 +132,21 @@ async def apply(client: UE5Client, plan: list[SpawnOp]) -> list[str]:
 
     This is the only importer function that touches the network. Each op
     spawns its mesh at its projected location; the editor resolves the asset
-    path. Errors propagate as :class:`UE5Error` with the failing op named, so
-    a partial import is attributable rather than silent.
+    path. A spawn that fails aborts the import with a :class:`UE5Error` naming
+    the op's actor name and semantic position, so a partial import is
+    attributable rather than silent.
     """
     spawned: list[str] = []
     for op in plan:
-        result = await client.spawn_from_class(
-            op.asset_path, name=op.name, location=op.location
-        )
+        try:
+            result = await client.spawn_from_class(
+                op.asset_path, name=op.name, location=op.location
+            )
+        except UE5Error:
+            raise
+        except Exception as error:
+            raise UE5Error(
+                f"import failed at {op.name} ({op.semantic_pos}): {error}"
+            ) from error
         spawned.append(str(result))
     return spawned

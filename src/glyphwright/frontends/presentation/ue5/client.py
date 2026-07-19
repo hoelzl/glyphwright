@@ -30,19 +30,23 @@ class UE5Error(Exception):
     """An MCP call to the editor failed, with the tool and the report."""
 
 
-def _decode(payload: object, *, tool: str) -> object:
+def _decode(payload: object, *, tool: str, _depth: int = 0) -> object:
     """Unwrap the editor's ``{"returnValue": ...}`` envelope.
 
     ``call_tool`` results arrive as MCP text content carrying a JSON object
     with a single ``returnValue``; nested tool payloads are themselves JSON
     strings (e.g. ``ListAnchors`` returns a JSON array as a string), so this
-    unwraps recursively until a non-string value remains.
+    unwraps recursively until a non-string value remains. The recursion is
+    depth-capped so a re-encoded envelope from a misbehaving endpoint surfaces
+    as a :class:`UE5Error` rather than a ``RecursionError``.
     """
+    if _depth > 8:
+        raise UE5Error(f"{tool}: returnValue nested too deeply to decode")
     if isinstance(payload, dict) and set(payload) == {"returnValue"}:
-        return _decode(payload["returnValue"], tool=tool)
+        return _decode(payload["returnValue"], tool=tool, _depth=_depth + 1)
     if isinstance(payload, str):
         try:
-            return _decode(json.loads(payload), tool=tool)
+            return _decode(json.loads(payload), tool=tool, _depth=_depth + 1)
         except json.JSONDecodeError:
             return payload
     return payload
@@ -65,12 +69,17 @@ class UE5Client:
     async def current_level(self) -> str:
         """The loaded level's path (``/Game/Maps/...``)."""
         value = await self.call(SCENE, "get_current_level")
-        return str(value)
+        if not isinstance(value, str) or not value:
+            raise UE5Error(
+                f"get_current_level returned a non-string payload: {value!r}"
+            )
+        return value
 
     async def list_anchors(self) -> list[dict[str, object]]:
         """Semantic anchors on actors in loaded cells (world-state bindings)."""
         value = await self.call(ANCHOR, "ListAnchors")
-        assert isinstance(value, list)
+        if not isinstance(value, list):
+            raise UE5Error(f"ListAnchors returned a non-list payload: {value!r}")
         return value
 
     async def spawn_from_class(
@@ -165,18 +174,24 @@ class LiveSession:
         # than strict mode admits; the boundary is deliberately ``Any`` (the
         # plugin is Experimental — 0012 §8), with the shapes pinned by the
         # opt-in e2e against a live editor.
-        http: Any = self._http_client
-        session_cls: Any = self._session_cls
-        read, write, _ = await stack.enter_async_context(http(self._url))
-        session: Any = await stack.enter_async_context(session_cls(read, write))
-        await session.initialize()
+        try:
+            http: Any = self._http_client
+            session_cls: Any = self._session_cls
+            read, write, _ = await stack.enter_async_context(http(self._url))
+            session: Any = await stack.enter_async_context(session_cls(read, write))
+            await session.initialize()
+        except BaseException:
+            # A failed enter must not leak the partially-entered transports.
+            await stack.aclose()
+            raise
         self._stack = stack
         self._session = session
         return UE5Client(self._transport)
 
     async def __aexit__(self, *exc: object) -> None:
-        assert self._stack is not None
-        await self._stack.aclose()
+        stack, self._stack = self._stack, None
+        if stack is not None:
+            await stack.aclose()
 
     async def _transport(self, tool: str, arguments: dict[str, object]) -> object:
         result = await self._session.call_tool(tool, arguments)
