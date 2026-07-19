@@ -155,7 +155,12 @@ class UE5Client:
         )
         if result is None:
             return None
-        return float(result)  # type: ignore[arg-type]
+        try:
+            return float(result)  # type: ignore[arg-type]
+        except (TypeError, ValueError) as exc:
+            raise UE5Error(
+                f"trace_world returned a non-numeric payload: {result!r}"
+            ) from exc
 
     async def capture_viewport(
         self, *, location: tuple[float, float, float], yaw: float, pitch: float
