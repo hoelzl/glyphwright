@@ -100,6 +100,37 @@ def test_capture_viewport_returns_png_bytes() -> None:
     assert data.startswith(b"\x89PNG"), "capture did not decode to a PNG"
 
 
+def test_oracle_fingerprint_populates_from_the_live_editor() -> None:
+    """A Tier-2 oracle fingerprint built from the live editor is well-formed
+    and produces a valid session/2 header (0012 §6)."""
+    from glyphwright.frontends.presentation.ue5.oracle import oracle_fingerprint
+    from glyphwright.harness.fingerprint import OracleFingerprint, RunFingerprint
+
+    async def go() -> tuple[OracleFingerprint, dict[str, object]]:
+        async with _client_ctx() as client:
+            fp = await oracle_fingerprint(client)
+            run_fp = RunFingerprint(
+                engine="glyphwright 0.0.0",
+                pack="reference-vale@sha256:0",
+                seed=7,
+                turn=0,
+                oracle=fp,
+            )
+            return fp, run_fp.header(harness=False)
+
+    fp, header = anyio.run(go)
+    assert isinstance(fp.level, str) and fp.level.startswith("/Game/")
+    assert fp.plugin, "toolset version must be non-empty"
+    assert fp.positions.startswith("sha256:")
+    # The populated oracle term rides the header under session/2.
+    assert header["schema"] == "glyphwright.session/2"
+    oracle = header["oracle"]
+    assert isinstance(oracle, dict)
+    assert oracle["level"] == fp.level
+    assert oracle["plugin"] == fp.plugin
+    assert oracle["positions"] == fp.positions
+
+
 def test_drift_audit_flags_a_blocked_edge_and_clears_when_removed() -> None:
     """The drift audit against a live editor: a collision cube across an edge
     is flagged as drift; once removed, the edge reads clear (0012 §11.5)."""
