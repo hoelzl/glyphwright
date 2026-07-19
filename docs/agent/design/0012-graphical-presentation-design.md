@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §1 Goal 1's framing (§1) and §1 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle model is adopted in principle but **not yet exercised**; the session-fingerprint change encoding it is deferred to 15A (§10) |
+| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §1 Goal 1's framing (§1) and §1 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections-as-events, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
 | **Date** | 2026-07-18 |
 | **Scope** | What "a person enjoys playing it" means for the architecture: the three-observer model, the SceneGraph seam, click-to-move with the two-tier oracle model, decoration, and the 2D/in-repo-3D/UE5 substrate decision — with the UE5 MCP probe as decision evidence |
 | **Authority** | `0003` wins on any disagreement outside the two premises this document explicitly revises (§1 framing, §6 determinism); this document supersedes `0011` §7's "usability claim" |
@@ -237,15 +237,20 @@ clock into the interaction loop:
     depends on UE5's current state (level build, NavMesh version, plugin
     version). Rather than treat this as a violation of determinism, the
     project treats it as a fingerprint input: an oracle-consulting run
-    records *which oracle* it consulted (UE5 plugin version, level
-    fingerprint) alongside the seed and command stream, so two runs
-    against the same oracle reproduce, and a run against a different
-    oracle is detectably different — the same shape TermVerify gives to
-    any external oracle. The determinism contract becomes "same
-    `(pack, seed, commands, oracle-fingerprint)` ⇒ same frames," with
-    oracle-fingerprint optional and empty for Tier-1 runs. This is a
-    narrower, more honest contract than "always deterministic
-    regardless of oracle"; it is what TermVerify already assumes.
+    records *which oracle* it consulted alongside the seed and command
+    stream, so two runs against the same oracle reproduce, and a run
+    against a different oracle is detectably different — the same shape
+    TermVerify gives to any external oracle. The determinism contract
+    becomes "same `(pack, seed, commands, oracle-fingerprint)` ⇒ same
+    frames," with oracle-fingerprint optional and empty for Tier-1 runs.
+    This is a narrower, more honest contract than "always deterministic
+    regardless of oracle"; it is what TermVerify already assumes. **The
+    oracle-fingerprint is coarse** (§11.5): the level path, the UE5/plugin
+    version, and the set of bound semantic-position keys, as one opaque
+    hashed string — cheap to compute, stable across cosmetic edits.
+    Collision-geometry drift is *not* encoded in the fingerprint; it is
+    caught by an explicit, on-demand drift-detection audit (§11.5), not by
+    per-run fingerprinting.
   - *The bridge compares runs, not absolute truth.* The bridge's job is
     not "the semantic path is correct" but "the agent's observation and
     the human's observation agree given the oracle they each used." An
@@ -254,7 +259,11 @@ clock into the interaction loop:
     through Tier 1 and checks that the resulting `PosId` sequence
     matches, *flagging* any cell where Tier 2's collision correction
     moved the character off the Tier-1 path as a grid/level drift to
-    investigate. Disagreement is signal, not failure.
+    investigate. Disagreement is signal, not failure. **A Tier-2
+    collision correction is recorded as a durable, typed event in the
+    session log** (§11.5), so replay reproduces it exactly from the
+    record rather than re-consulting UE5 — necessary because the coarse
+    fingerprint does not determine collision answers.
 
   UE5's NavMesh and collision are therefore first-class navigation
   inputs when available, not forbidden resources. GlyphWright's pure
@@ -305,14 +314,16 @@ an opt-in e2e that performs the real round-trip — level query, semantic-anchor
 listing (each anchor carrying `worldStateKey`), a spawn+remove, and a posed
 `CaptureViewport` → PNG. The §8 loop is no longer a one-off finding; it is a
 tested seam. Two scope facts temper the ratification and are carried into
-§10/§11 rather than hidden: the anchor-*fidelity* and oracle-*identity*
-questions remain open (14C listed anchors but never set one carrying a
-GlyphWright semantic position, and no navigation-drift case has been run), so
-the two-tier oracle model of §6 is **adopted in principle but not yet
-exercised** — no code consults UE5 for navigation or collision yet, and the
-session fingerprint still carries no oracle term. C is ratified as the
-*presentation* path; the *oracle* role of §6 Tier 2 is provisional pending that
-evidence.
+§10/§11 rather than hidden: at 14D the anchor-*fidelity* and oracle-*identity*
+questions were still open (14C listed anchors but never set one carrying a
+GlyphWright semantic position, and no navigation-drift case had been run), so
+the two-tier oracle model of §6 was adopted in principle but not yet exercised.
+Both questions are **resolved in 15A** (§11.1, §11.5): anchors carry semantic
+positions via the world-state file, and the oracle fingerprint is coarse with
+corrections recorded as events. No code consults UE5 for navigation or collision
+yet — that is 15A's `glyphwright.session/2` implementation — but the contract it
+encodes is now pinned. C is ratified as the *presentation* path; the *oracle*
+role of §6 Tier 2 is no longer provisional, only unimplemented.
 
 ## 8. Decision evidence: the UE5 MCP probe
 
@@ -428,33 +439,45 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   fingerprint work is therefore deferred to the oracle-model slice below (15A),
   which owns resolving §11.1/§11.5 first and only then ratifying the
   fingerprint terms. 14D ships as a documentation-only ratification.*
-- **15A — Oracle model + session fingerprint (protocol change).** Resolve the
-  two live-editor questions that gate the §6 two-tier oracle model —
-  anchor fidelity (§11.1: can a UE5 anchor carry a GlyphWright semantic
-  position as a first-class identity?) and oracle identity + correction replay
-  (§11.5: what is a stable oracle fingerprint, and how does a Tier-2
-  collision-corrected run reproduce?) — then, with that evidence in hand,
-  bump the session schema to `glyphwright.session/2` carrying the optional
-  manifest and oracle fingerprints (§5/§6), with the written rationale recorded
-  here and the replay-compatibility story reviewed per the completion
-  contract. This is the slice where UE5 first becomes a *navigation/collision
-  oracle*, not just a presentation host.
+- **15A — Oracle model + session fingerprint (protocol change).** The two
+  live-editor questions are now **resolved** (§11.1, §11.5, both 2026-07-19):
+  anchors carry semantic positions via the world-state file, and the oracle
+  fingerprint is coarse (level path + plugin version + semantic-position set)
+  with collision drift caught by an explicit audit and corrections recorded as
+  events. What remains in the slice is the *implementation*: bump the session
+  schema to `glyphwright.session/2` carrying the optional manifest and oracle
+  fingerprints (§5/§6) plus the typed correction event, with the written
+  rationale recorded here and the replay-compatibility story reviewed per the
+  completion contract. This is the slice where UE5 first becomes a
+  *navigation/collision oracle*, not just a presentation host.
 
 ## 11. Open questions
 
-*State after 14D (2026-07-19): the substrate decision is ratified (§7), so the
-questions below are re-scoped by what 14C did and did not evidence. None are
-closed by 14D — in particular 14C *listed* anchors but never *set* one, so the
-fidelity and oracle questions that gate 15A remain genuinely open.*
+*State after 15A evidence-gathering (2026-07-19): the substrate decision is
+ratified (§7). §11.1 (anchor fidelity) and §11.5 (oracle-fingerprint identity +
+correction replay) are now RESOLVED — §11.1 by a live world-state-file round-trip,
+§11.5 by a live `trace_world` collision probe plus a design decision (coarse
+fingerprint + explicit drift-detection audit; record corrections as events).
+§11.2 (editor-in-CI) remains open; §11.3 (B's headless story) and §11.4
+(z-levels) stay dormant.*
 
 1. **Anchor fidelity** — whether UE5's `AgentWorldToolset` anchors can carry
    GlyphWright's semantic positions (`village:7,3`) as first-class anchor
    identities, or whether the importer must maintain the mapping externally.
-   **Still open, and now owned by 15A.** 14C established that anchors exist and
-   each carries a `worldStateKey` (the opt-in e2e asserts this), but it never
-   wrote an anchor carrying a GlyphWright semantic position, so the fidelity
-   question is unanswered. Resolving it needs a live-editor round-trip that
-   *sets* an anchor and reads it back.
+   **RESOLVED (15A, 2026-07-19): first-class, via a world-state file.** There is
+   no MCP anchor-write tool — the toolset's whole surface is `ListAnchors`,
+   `ValidateAnchors`, `Solve`, `RefreshConstraints`, `LoadRegion`,
+   `ListActorDescriptors`. The binding surface is the engine-authoritative file
+   `WorldState/<MapShortName>.json` (vocabulary v1, documented in
+   `WorldState/SCHEMA.md`): a `locations` object keyed by the semantic id
+   (`village_7_3`), each `{kind, size, inside?, adjacentTo?, description?}`,
+   plus `bindings` mapping `key → anchorId guid`. Verified live: authoring such a
+   file made `RefreshConstraints` report `loaded:true, locations:N, bindings:M`
+   (unbound keys flagged with a warning), and a bound key surfaced in
+   `ListAnchors` as `worldStateKey: <key>`. So a GlyphWright semantic position
+   becomes a first-class anchor identity by the importer *authoring the file* —
+   location key + spawn `LayoutBox` + record `bindings[key]=guid`. The mapping is
+   internal to the engine, not maintained externally.
 2. **Editor-as-fixture in CI** — whether the 14C e2e can run on a self-hosted
    runner with UE5 installed, or stays a local-only opt-in. **Still open.**
    Affects how much of the bridge is continuously verified vs. run on demand.
@@ -468,32 +491,42 @@ fidelity and oracle questions that gate 15A remain genuinely open.*
    `(x, y, layer)` PosId; deferred until a pack needs stairs, as it has been.
 5. **Oracle-fingerprint identity and replay semantics (from §6).** The
    two-tier oracle model widens the determinism contract to
-   "same `(pack, seed, commands, oracle-fingerprint)` ⇒ same frames," but
-   what constitutes a stable oracle identity, and how a Tier-2 run that
-   hit a collision correction reproduces on replay, are not yet pinned
-   down. **Both sub-questions are still open and are now owned by 15A** —
-   the 14B/14C resolution hoped for here did not happen (14C shipped the
-   presentation host without exercising navigation oracles), so they must be
-   resolved against a real UE5 level in 15A before the session fingerprint is
-   bumped:
+   "same `(pack, seed, commands, oracle-fingerprint)` ⇒ same frames."
+   **RESOLVED as a design decision (15A, 2026-07-19), on live evidence.** The
+   drift *detector* was confirmed against the running editor
+   (`SceneTools.trace_world`: a ray through a collision-enabled cube wall
+   returns the hit distance, e.g. `800`; a ray beside it returns `null`; only
+   geometry with a collision mesh registers, so spawn the collision *asset* —
+   `add_to_scene_from_asset` with `asset_path` — not the bare class). The two
+   sub-questions resolve as follows:
 
-   - *Identity.* What counts as a stable UE5 oracle identity — plugin
-     version plus level-build hash? Does a NavMesh rebuild change it?
-     Does lighting or a non-navigation editor tweak? The fingerprint
-     must be coarse enough that legitimate cosmetic changes don't
-     invalidate recordings, but fine enough that a change which alters
-     collision *does*. The §8 probe did not exercise this; it needs a
-     real drift case to calibrate.
-   - *Correction replay.* When a Tier-2 run consulted UE5 and the
-     oracle corrected a path (e.g., steered around a wall the grid
-     predicted as passable), the correction is part of the run's
-     observable behavior. A later replay against the same
-     oracle-fingerprint must reproduce that correction rather than
-     re-consulting UE5 and potentially diverging — otherwise replay is
-     not deterministic even with a fixed oracle. The open question is
-     whether the correction is recorded as an enriched event in the
-     session log (making it part of the durable record, like any other
-     event) or re-derived from the oracle-fingerprint alone. Recording
-     it is safer; re-deriving it is cleaner but assumes the oracle is a
-     pure function of its fingerprint, which may not hold for NavMesh
-     rebuilds that depend on build-order nondeterminism.
+   - *Identity → coarse fingerprint + an explicit drift-detection step.*
+     The oracle fingerprint in the session header is **coarse**: the level
+     path, the UE5/plugin version, and the set of bound semantic-position keys,
+     recorded as one opaque hashed string. It answers "is this the same map,
+     same plugin build, same set of semantic positions?" — cheap to compute,
+     stable across the cosmetic edits (lighting, materials, non-navigation
+     tweaks) that must not invalidate recordings. What it deliberately does
+     *not* encode is collision geometry, because the fine alternative — hashing
+     `trace_world` results over the grid's passable edges — was rejected: it is
+     O(grid) per fingerprinted run, untenable on large maps, and its continuous
+     hit-distances (or any float-normalization) would over-invalidate
+     recordings on trivial geometry nudges. Collision-drift detection is
+     instead a **separate, explicit audit step** (re-`trace_world` the
+     passable-edge set and diff against expectation), run on demand — with the
+     option to auto-trigger it later if we hit false-positives where a same-
+     named, same-positions map has nonetheless drifted. This keeps the per-run
+     contract cheap and puts geometry-drift detection where it can be scoped
+     to a region of interest rather than every recording's identity.
+
+   - *Correction replay → record the correction as an enriched session
+     event, never re-derive it.* Because the fingerprint is coarse, the oracle
+     is *not* a pure function of it (a NavMesh rebuild or a sub-position
+     geometry nudge can change a trace answer without moving the fingerprint),
+     so re-deriving a Tier-2 correction from the fingerprint alone would be
+     unsound. A Tier-2 run that consults UE5 and receives a collision
+     correction records that correction as a durable, typed event in the
+     session log — like any other event — so replay against the same
+     `(pack, seed, commands, oracle-fingerprint)` reproduces the correction
+     exactly without re-consulting UE5. Re-consultation on replay is reserved
+     for the explicit drift-detection audit, not for ordinary replay.
