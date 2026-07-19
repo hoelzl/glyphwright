@@ -1,0 +1,100 @@
+"""The UE5 host against a live editor: the opt-in e2e (design 0012 §9, 14C).
+
+These tests are **never part of the standard suite.** They require a running
+Unreal Editor with the MCP plugin, named by ``GLYPHWRIGHT_UE5_URL`` (default
+``http://127.0.0.1:8000/mcp``); without it they skip, so CI — which has no
+editor — is unaffected. Run them on demand against the local editor::
+
+    GLYPHWRIGHT_UE5_URL=http://127.0.0.1:8000/mcp \\
+        uv --no-config run pytest -m ue5 -q
+
+They verify the real round-trip the design's §8 probe established by hand:
+scene query (current level, semantic anchors), a spawn + remove through the
+importer, and a posed viewport capture as the human-facing pixel evidence.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING
+
+import pytest
+
+# Like the GUI tests, these need the `ue5` extra (which pulls in ``anyio`` via
+# ``mcp``); skip cleanly without it so the bare CI job passes.
+pytest.importorskip("anyio")
+
+import anyio  # noqa: E402
+
+if TYPE_CHECKING:
+    from glyphwright.frontends.presentation.ue5.client import LiveSession
+
+pytestmark = [
+    pytest.mark.ue5,
+    pytest.mark.skipif(
+        os.environ.get("GLYPHWRIGHT_UE5_URL") is None,
+        reason="GLYPHWRIGHT_UE5_URL not set; no live editor to test against",
+    ),
+]
+
+URL = os.environ.get("GLYPHWRIGHT_UE5_URL", "http://127.0.0.1:8000/mcp")
+
+
+def _client_ctx() -> LiveSession:
+    import importlib.util
+
+    if importlib.util.find_spec("mcp") is None:
+        pytest.skip("ue5 extra not installed")
+    from glyphwright.frontends.presentation.ue5.client import LiveSession, connect
+
+    session = connect(URL)
+    assert isinstance(session, LiveSession)
+    return session
+
+
+def test_live_editor_reports_its_level() -> None:
+    async def go() -> str:
+        async with _client_ctx() as client:
+            return await client.current_level()
+
+    level = anyio.run(go)
+    assert level.startswith("/Game/"), f"unexpected level path: {level}"
+
+
+def test_live_editor_lists_semantic_anchors() -> None:
+    async def go() -> list[dict[str, object]]:
+        async with _client_ctx() as client:
+            return await client.list_anchors()
+
+    anchors = anyio.run(go)
+    assert isinstance(anchors, list)
+    # Every anchor carries the world-state binding the design relies on.
+    for anchor in anchors:
+        assert "worldStateKey" in anchor
+
+
+def test_importer_spawns_and_removes_an_actor() -> None:
+    async def go() -> str:
+        async with _client_ctx() as client:
+            actor_path = await client.spawn_from_class(
+                "/Script/Engine.StaticMeshActor",
+                name="gw_e2e_probe",
+                location=(0.0, 0.0, 0.0),
+            )
+            assert actor_path.startswith("/Game/"), actor_path
+            await client.remove(actor_path)
+            return actor_path
+
+    path = anyio.run(go)
+    assert "StaticMeshActor" in path
+
+
+def test_capture_viewport_returns_png_bytes() -> None:
+    async def go() -> bytes:
+        async with _client_ctx() as client:
+            return await client.capture_viewport(
+                location=(400.0, 150.0, 600.0), yaw=0.0, pitch=-90.0
+            )
+
+    data = anyio.run(go)
+    assert data.startswith(b"\x89PNG"), "capture did not decode to a PNG"
