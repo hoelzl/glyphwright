@@ -98,3 +98,40 @@ def test_capture_viewport_returns_png_bytes() -> None:
 
     data = anyio.run(go)
     assert data.startswith(b"\x89PNG"), "capture did not decode to a PNG"
+
+
+def test_drift_audit_flags_a_blocked_edge_and_clears_when_removed() -> None:
+    """The drift audit against a live editor: a collision cube across an edge
+    is flagged as drift; once removed, the edge reads clear (0012 §11.5)."""
+    from glyphwright.frontends.presentation.manifest import PresentationManifest
+    from glyphwright.frontends.presentation.ue5.audit import audit
+    from glyphwright.world.grid import GridSpace
+
+    async def go() -> tuple[int, int]:
+        grid = GridSpace.from_text("room", "..")
+        manifest = PresentationManifest(
+            bindings={}, decoration={}, hints={"tile_size_cm": 100.0}
+        )
+        async with _client_ctx() as client:
+            # A thin wall at x=100 blocks the (0,0)-(1,0) edge (centers 50,150).
+            wall = await client.call(
+                "editor_toolset.toolsets.scene.SceneTools",
+                "add_to_scene_from_asset",
+                asset_path="/Engine/BasicShapes/Cube.Cube",
+                name="gw_e2e_drift_wall",
+                xform={
+                    "location": {"x": 100.0, "y": 50.0, "z": 50.0},
+                    "scale": {"x": 0.2, "y": 2.0, "z": 2.0},
+                },
+            )
+            assert isinstance(wall, dict) and "refPath" in wall
+            try:
+                blocked = await audit(client, grid, manifest, probe_height=50.0)
+            finally:
+                await client.remove(str(wall["refPath"]))
+            cleared = await audit(client, grid, manifest, probe_height=50.0)
+            return len(blocked), len(cleared)
+
+    blocked, cleared = anyio.run(go)
+    assert blocked == 1, "the wall across the edge was not flagged as drift"
+    assert cleared == 0, "the edge still reads blocked after the wall was removed"

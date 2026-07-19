@@ -112,6 +112,30 @@ class UE5Client:
             SCENE, "remove_from_scene", actor={"refPath": actor_path}
         )
 
+    async def trace_world(
+        self,
+        start: tuple[float, float, float],
+        end: tuple[float, float, float],
+    ) -> float | None:
+        """A collision trace from ``start`` to ``end``.
+
+        Returns the distance from ``start`` to the first hit, or ``None`` when
+        the ray reaches ``end`` unobstructed. This is the drift-detection
+        oracle's primitive (0012 §11.5): a ray between two grid cells the pack
+        calls passable should return ``None`` (or the full distance); a shorter
+        hit means geometry blocks an edge the semantics expect to be open. Only
+        geometry with a collision mesh registers (live finding, 2026-07-19).
+        """
+        result = await self.call(
+            SCENE,
+            "trace_world",
+            start={"x": start[0], "y": start[1], "z": start[2]},
+            end={"x": end[0], "y": end[1], "z": end[2]},
+        )
+        if result is None:
+            return None
+        return float(result)  # type: ignore[arg-type]
+
     async def capture_viewport(
         self, *, location: tuple[float, float, float], yaw: float, pitch: float
     ) -> bytes:

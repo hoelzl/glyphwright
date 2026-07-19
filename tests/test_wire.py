@@ -121,6 +121,49 @@ def test_a_tier2_session_header_validates() -> None:
     _check(tier2.header(harness=False), all_schemas()["glyphwright.session.v2.json"])
 
 
+def test_optional_terms_are_omitted_never_null() -> None:
+    """A header emits oracle/manifest only when set — never as a JSON ``null``.
+
+    ``additionalProperties: false`` means an absent term is fine but a present
+    ``null`` would fail the schema; this pins that emission omits the key
+    rather than serializing ``None``, across all four presence combinations
+    (adversarial-review follow-up to #23).
+    """
+    from glyphwright.harness.fingerprint import OracleFingerprint, RunFingerprint
+
+    base = RunFingerprint.create(pack="reference-vale@sha256:0", seed=7, turn=0)
+    oracle = OracleFingerprint(
+        level="/Game/Maps/Village", plugin="agentworld-0.4.0", positions="sha256:abc"
+    )
+    cases = {
+        "neither": RunFingerprint(base.engine, base.pack, base.seed, base.turn),
+        "oracle-only": RunFingerprint(
+            base.engine, base.pack, base.seed, base.turn, oracle=oracle
+        ),
+        "manifest-only": RunFingerprint(
+            base.engine, base.pack, base.seed, base.turn, manifest="sha256:def"
+        ),
+        "both": RunFingerprint(
+            base.engine,
+            base.pack,
+            base.seed,
+            base.turn,
+            oracle=oracle,
+            manifest="sha256:def",
+        ),
+    }
+    for name, fingerprint in cases.items():
+        header = fingerprint.header(harness=False)
+        assert header.get("oracle") is not None or "oracle" not in header, name
+        assert header.get("manifest") is not None or "manifest" not in header, name
+        # Every emitted header validates against the committed schema.
+        _check(header, all_schemas()["glyphwright.session.v2.json"])
+    assert "oracle" in cases["both"].header(harness=False)
+    assert "manifest" in cases["both"].header(harness=False)
+    assert "oracle" not in cases["manifest-only"].header(harness=False)
+    assert "manifest" not in cases["oracle-only"].header(harness=False)
+
+
 def test_frames_and_events_carry_their_schema_tag() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     result = engine.step(Move("east"))
