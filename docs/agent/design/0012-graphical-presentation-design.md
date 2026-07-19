@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §1 Goal 1's framing (§1) and §1 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections-as-events, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
+| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §2 Goal 1's framing (§1) and §2 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections-as-events, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
 | **Date** | 2026-07-18 |
 | **Scope** | What "a person enjoys playing it" means for the architecture: the three-observer model, the SceneGraph seam, click-to-move with the two-tier oracle model, decoration, and the 2D/in-repo-3D/UE5 substrate decision — with the UE5 MCP probe as decision evidence |
 | **Authority** | `0003` wins on any disagreement outside the two premises this document explicitly revises (§1 framing, §6 determinism); this document supersedes `0011` §7's "usability claim" |
@@ -420,7 +420,8 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   protocol change without a written rationale and review) and the standing
   gate that protocol/evidence decisions are human-reviewed, that change was
   **deferred to 14D**; 14D in turn moved it to 15A, where the oracle model it
-  encodes is ratified (see the 14D Resolution below).
+  encodes is pinned as a design decision and its fingerprint terms await
+  ratification in the `session/2` schema (see the 14D Resolution below).
   14C ships the client, importer, and opt-in e2e without it.*
 - **14D — Substrate decision ratified.** On 14C's evidence, either keep C as
   the human-facing path (updating this section) or fall back to A and scope B.
@@ -430,15 +431,16 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
 
   *Resolution (14D, 2026-07-19): C is kept — see §7's Ratification. The
   deferred fingerprint terms are **moved out of this slice**, not landed here:
-  bumping `glyphwright.session/1` is a replay/protocol-contract change, and the
-  §6 oracle model it would encode is not yet evidenced — neither the
-  anchor-fidelity question (§11.1) nor the oracle-identity/correction-replay
-  question (§11.5) has been resolved against a live editor, and both gate what
+  bumping `glyphwright.session/1` is a replay/protocol-contract change, and at
+  that date the §6 oracle model it would encode was not yet evidenced — neither
+  the anchor-fidelity question (§11.1) nor the oracle-identity/correction-replay
+  question (§11.5) had been resolved against a live editor, and both gate what
   a stable oracle fingerprint even *is*. Writing the schema field before that
   evidence would encode a guessed contract into a versioned protocol. The
   fingerprint work is therefore deferred to the oracle-model slice below (15A),
-  which owns resolving §11.1/§11.5 first and only then ratifying the
-  fingerprint terms. 14D ships as a documentation-only ratification.*
+  which would resolve §11.1/§11.5 first and only then ratify the fingerprint
+  terms (both since resolved in 15A). 14D ships as a documentation-only
+  ratification.*
 - **15A — Oracle model + session fingerprint (protocol change).** The two
   live-editor questions are now **resolved** (§11.1, §11.5, both 2026-07-19):
   anchors carry semantic positions via the world-state file, and the oracle
