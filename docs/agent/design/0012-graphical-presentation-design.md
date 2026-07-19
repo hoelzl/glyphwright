@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §2 Goal 1's framing (§1) and §2 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections-as-events, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
+| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §2 Goal 1's framing (§1) and §2 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections captured in the recorded commands upstream of the kernel, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
 | **Date** | 2026-07-18 |
 | **Scope** | What "a person enjoys playing it" means for the architecture: the three-observer model, the SceneGraph seam, click-to-move with the two-tier oracle model, decoration, and the 2D/in-repo-3D/UE5 substrate decision — with the UE5 MCP probe as decision evidence |
 | **Authority** | `0003` wins on any disagreement outside the two premises this document explicitly revises (§1 framing, §6 determinism); this document supersedes `0011` §7's "usability claim" |
@@ -259,11 +259,16 @@ clock into the interaction loop:
     through Tier 1 and checks that the resulting `PosId` sequence
     matches, *flagging* any cell where Tier 2's collision correction
     moved the character off the Tier-1 path as a grid/level drift to
-    investigate. Disagreement is signal, not failure. **A Tier-2
-    collision correction is recorded as a durable, typed event in the
-    session log** (§11.5), so replay reproduces it exactly from the
-    record rather than re-consulting UE5 — necessary because the coarse
-    fingerprint does not determine collision answers.
+    investigate. Disagreement is signal, not failure. **A Tier-2 collision
+    correction happens upstream of the kernel, in the click-to-move macro, and
+    the kernel never sees it** (§11.5): the macro consults UE5, reroutes, and
+    emits the *corrected* `Move` command sequence, which `step` processes like
+    any other. Those emitted `Move` commands are already what the session log
+    records, so replay reproduces the corrected path exactly by re-executing
+    the recorded commands — no oracle re-consultation, and no oracle seam in
+    the kernel. The coarse fingerprint identifies *which* oracle was consulted
+    for the run; it does not determine collision answers, and it need not,
+    because the corrected path is carried by the commands themselves.
 
   UE5's NavMesh and collision are therefore first-class navigation
   inputs when available, not forbidden resources. GlyphWright's pure
@@ -320,10 +325,11 @@ GlyphWright semantic position, and no navigation-drift case had been run), so
 the two-tier oracle model of §6 was adopted in principle but not yet exercised.
 Both questions are **resolved in 15A** (§11.1, §11.5): anchors carry semantic
 positions via the world-state file, and the oracle fingerprint is coarse with
-corrections recorded as events. No code consults UE5 for navigation or collision
-yet — that is 15A's `glyphwright.session/2` implementation — but the contract it
-encodes is now pinned. C is ratified as the *presentation* path; the *oracle*
-role of §6 Tier 2 is no longer provisional, only unimplemented.
+corrections captured in the recorded commands upstream of the kernel. No code
+consults UE5 for navigation or collision yet — that is 15A's
+`glyphwright.session/2` implementation — but the contract it encodes is now
+pinned. C is ratified as the *presentation* path; the *oracle* role of §6 Tier 2
+is no longer provisional, only unimplemented.
 
 ## 8. Decision evidence: the UE5 MCP probe
 
@@ -445,13 +451,15 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   live-editor questions are now **resolved** (§11.1, §11.5, both 2026-07-19):
   anchors carry semantic positions via the world-state file, and the oracle
   fingerprint is coarse (level path + plugin version + semantic-position set)
-  with collision drift caught by an explicit audit and corrections recorded as
-  events. What remains in the slice is the *implementation*: bump the session
-  schema to `glyphwright.session/2` carrying the optional manifest and oracle
-  fingerprints (§5/§6) plus the typed correction event, with the written
-  rationale recorded here and the replay-compatibility story reviewed per the
-  completion contract. This is the slice where UE5 first becomes a
-  *navigation/collision oracle*, not just a presentation host.
+  with collision drift caught by an explicit audit and corrections captured in
+  the recorded commands upstream of the kernel. What remains in the slice is
+  the *implementation*: bump the session schema to `glyphwright.session/2`
+  carrying the optional manifest and oracle fingerprints (§5/§6) — no
+  correction *event* is added, because the corrected path is already carried by
+  the recorded commands — with the written rationale recorded here and the
+  replay-compatibility story reviewed per the completion contract. This is the
+  slice where UE5 first becomes a *navigation/collision oracle*, not just a
+  presentation host.
 
 ## 11. Open questions
 
@@ -459,7 +467,8 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
 ratified (§7). §11.1 (anchor fidelity) and §11.5 (oracle-fingerprint identity +
 correction replay) are now RESOLVED — §11.1 by a live world-state-file round-trip,
 §11.5 by a live `trace_world` collision probe plus a design decision (coarse
-fingerprint + explicit drift-detection audit; record corrections as events).
+fingerprint + explicit drift-detection audit; corrections are captured in the
+recorded commands upstream of the kernel, not as kernel events).
 §11.2 (editor-in-CI) remains open; §11.3 (B's headless story) and §11.4
 (z-levels) stay dormant.*
 
@@ -521,14 +530,22 @@ fingerprint + explicit drift-detection audit; record corrections as events).
      contract cheap and puts geometry-drift detection where it can be scoped
      to a region of interest rather than every recording's identity.
 
-   - *Correction replay → record the correction as an enriched session
-     event, never re-derive it.* Because the fingerprint is coarse, the oracle
-     is *not* a pure function of it (a NavMesh rebuild or a sub-position
-     geometry nudge can change a trace answer without moving the fingerprint),
-     so re-deriving a Tier-2 correction from the fingerprint alone would be
-     unsound. A Tier-2 run that consults UE5 and receives a collision
-     correction records that correction as a durable, typed event in the
-     session log — like any other event — so replay against the same
-     `(pack, seed, commands, oracle-fingerprint)` reproduces the correction
-     exactly without re-consulting UE5. Re-consultation on replay is reserved
-     for the explicit drift-detection audit, not for ordinary replay.
+   - *Correction replay → the correction lives upstream of the kernel, in the
+     recorded commands, not in the kernel event stream.* A Tier-2 collision
+     correction is applied by the click-to-move macro *before* any command
+     reaches `step`: the macro consults UE5, finds a candidate segment blocked,
+     reroutes, and emits the corrected `Move` command sequence. The kernel
+     processes those `Move`s exactly like player-typed moves and emits ordinary
+     `Moved`/`MoveBlocked` events — there is no oracle-specific kernel event,
+     and no oracle seam or oracle cursor in `WorldState`, so the kernel stays
+     pure. Because the session log records the *emitted commands*, replay
+     re-executes them and reproduces the corrected path exactly, verifying the
+     per-step event digests — it never re-runs pathfinding and never
+     re-consults UE5, so the coarse fingerprint's not determining collision
+     answers is irrelevant to replay correctness. This is strictly better than
+     a "correction event" folded into kernel state, which replay could not
+     reproduce (replay runs the pure kernel, which cannot consult UE5). A
+     per-step *annotation* marking which recorded `Move`s came from a Tier-2
+     reroute (rather than the player's own input) is optional recording
+     metadata for the drift-detection audit and for debugging — carried in the
+     recording, outside the event digest, never folded into state.
