@@ -1,0 +1,54 @@
+{
+  "$id": "glyphwright.session/2",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "engine": {
+      "type": "string"
+    },
+    "harness": {
+      "type": "boolean"
+    },
+    "manifest": {
+      "type": "string"
+    },
+    "oracle": {
+      "additionalProperties": false,
+      "properties": {
+        "level": {
+          "type": "string"
+        },
+        "plugin": {
+          "type": "string"
+        },
+        "positions": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "level",
+        "plugin",
+        "positions"
+      ],
+      "type": "object"
+    },
+    "pack": {
+      "type": "string"
+    },
+    "schema": {
+      "const": "glyphwright.session/2"
+    },
+    "seed": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "engine",
+    "harness",
+    "pack",
+    "schema",
+    "seed"
+  ],
+  "title": "GlyphWright session header",
+  "type": "object"
+}

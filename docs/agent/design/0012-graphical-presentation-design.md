@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §2 Goal 1's framing (§1) and §2 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections captured in the recorded commands upstream of the kernel, §11.5) and anchor fidelity is resolved (§11.1); its `glyphwright.session/2` implementation is 15A's remaining work (§10) |
+| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §2 Goal 1's framing (§1) and §2 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle contract is **pinned** (coarse oracle fingerprint + drift-detection audit + corrections captured in the recorded commands upstream of the kernel, §11.5) and anchor fidelity is resolved (§11.1); `glyphwright.session/2` carries the optional oracle + manifest terms, replayed backward-compatibly with `session/1` (§10) |
 | **Date** | 2026-07-18 |
 | **Scope** | What "a person enjoys playing it" means for the architecture: the three-observer model, the SceneGraph seam, click-to-move with the two-tier oracle model, decoration, and the 2D/in-repo-3D/UE5 substrate decision — with the UE5 MCP probe as decision evidence |
 | **Authority** | `0003` wins on any disagreement outside the two premises this document explicitly revises (§1 framing, §6 determinism); this document supersedes `0011` §7's "usability claim" |
@@ -452,14 +452,17 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   anchors carry semantic positions via the world-state file, and the oracle
   fingerprint is coarse (level path + plugin version + semantic-position set)
   with collision drift caught by an explicit audit and corrections captured in
-  the recorded commands upstream of the kernel. What remains in the slice is
-  the *implementation*: bump the session schema to `glyphwright.session/2`
-  carrying the optional manifest and oracle fingerprints (§5/§6) — no
-  correction *event* is added, because the corrected path is already carried by
-  the recorded commands — with the written rationale recorded here and the
-  replay-compatibility story reviewed per the completion contract. This is the
-  slice where UE5 first becomes a *navigation/collision oracle*, not just a
-  presentation host.
+  the recorded commands upstream of the kernel. The `glyphwright.session/2`
+  schema is now **implemented**: the header carries optional `oracle`
+  (`{level, plugin, positions}`) and `manifest` terms, absent for Tier-1 runs,
+  and **no** correction *event* is added (the corrected path is already carried
+  by the recorded commands). Replay is **backward-compatible**: it accepts both
+  `session/1` and `session/2` headers, reading a `session/1` header as a
+  `session/2` one with both terms absent, so every pre-existing (Tier-1)
+  recording still verifies; the oracle/manifest terms are opaque to replay,
+  which re-executes the recorded commands and never re-consults the oracle.
+  This is the slice where UE5 first becomes a *navigation/collision oracle*,
+  not just a presentation host.
 
 ## 11. Open questions
 

@@ -53,6 +53,6 @@ design specifies; code that uses different names is wrong and should be renamed.
 - **Frontend**: plain line REPL, JSONL stream, or TUI. All are pure functions over frames.
 - **Terminal session**: the production line-oriented adapter mapping text input to commands and rendering results.
 - **Meta-channel**: the `:`-prefixed introspection vocabulary gated by `--harness`; queries never advance the turn.
-- **Run fingerprint**: engine version, pack ID, seed, and turn — recorded in every session header.
+- **Run fingerprint**: engine version, pack ID, seed, and turn — recorded in every session header. `glyphwright.session/2` adds two *optional* terms for presentation runs: a coarse **oracle fingerprint** (which UE5 oracle a Tier-2 run consulted) and a **manifest fingerprint** (the presentation manifest's hash), both absent for headless/Tier-1 runs.
 - **Replay**: the canonical transcript `(fingerprint, seed, [commands])`, sufficient to reproduce and compare a run.
 - **Snapshot**: an opaque, serializable world state; free, because state is immutable.

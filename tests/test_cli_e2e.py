@@ -44,7 +44,7 @@ def test_the_plain_frontend_is_deterministic_across_processes() -> None:
 def test_the_jsonl_frontend_opens_with_a_session_header() -> None:
     result = _run(["--frontend", "jsonl", "--harness"], "quit\n")
     header = json.loads(result.stdout.splitlines()[0])
-    assert header["schema"] == "glyphwright.session/1"
+    assert header["schema"] == "glyphwright.session/2"
     assert header["harness"] is True
     assert header["seed"] == 424242
     assert header["pack"].startswith("reference-vale@sha256:")
@@ -54,7 +54,7 @@ def test_the_jsonl_frontend_emits_events_then_a_frame() -> None:
     result = _run(["--frontend", "jsonl"], "move east\nquit\n")
     lines = [json.loads(line) for line in result.stdout.splitlines()]
     schemas = [line["schema"] for line in lines]
-    assert schemas[0] == "glyphwright.session/1"
+    assert schemas[0] == "glyphwright.session/2"
     assert "glyphwright.event/9" in schemas
     assert schemas[-1] == "glyphwright.frame/6"
 
