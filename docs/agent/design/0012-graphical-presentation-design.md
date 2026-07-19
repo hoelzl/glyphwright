@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft 2026-07-18 — subordinate to `0003`; revises `0003` §1 Goal 1's framing (§1) and §1 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9) |
+| **Status** | Substrate C ratified 2026-07-19 (14D, §7) — subordinate to `0003`; revises `0003` §1 Goal 1's framing (§1) and §1 Goal 3's determinism contract (§6, when an oracle is consulted); supersedes `0011`'s scope where they disagree (§1, §9). The §6 two-tier oracle model is adopted in principle but **not yet exercised**; the session-fingerprint change encoding it is deferred to 15A (§10) |
 | **Date** | 2026-07-18 |
 | **Scope** | What "a person enjoys playing it" means for the architecture: the three-observer model, the SceneGraph seam, click-to-move with the two-tier oracle model, decoration, and the 2D/in-repo-3D/UE5 substrate decision — with the UE5 MCP probe as decision evidence |
 | **Authority** | `0003` wins on any disagreement outside the two premises this document explicitly revises (§1 framing, §6 determinism); this document supersedes `0011` §7's "usability claim" |
@@ -295,6 +295,25 @@ agent-facing seam this design needs, via `AgentWorldToolset` anchors. B is
 named as contingency rather than evaluated up front because paying its
 headless-GL/CI cost is only worthwhile if C actually fails.
 
+**Ratification (14D, 2026-07-19).** C is **kept** as the human-facing path.
+14C converted the §8 hand-probe into a reproducible, version-controlled
+capability and verified it against the running editor: an isolated
+`frontends/presentation/ue5` package (its own `ue5 = ["mcp"]` extra, excluded
+from the bare CI job exactly like the GUI), an async MCP client over the
+plugin's meta-tools, a pure deterministic `SceneGraph → SpawnOp` importer, and
+an opt-in e2e that performs the real round-trip — level query, semantic-anchor
+listing (each anchor carrying `worldStateKey`), a spawn+remove, and a posed
+`CaptureViewport` → PNG. The §8 loop is no longer a one-off finding; it is a
+tested seam. Two scope facts temper the ratification and are carried into
+§10/§11 rather than hidden: the anchor-*fidelity* and oracle-*identity*
+questions remain open (14C listed anchors but never set one carrying a
+GlyphWright semantic position, and no navigation-drift case has been run), so
+the two-tier oracle model of §6 is **adopted in principle but not yet
+exercised** — no code consults UE5 for navigation or collision yet, and the
+session fingerprint still carries no oracle term. C is ratified as the
+*presentation* path; the *oracle* role of §6 Tier 2 is provisional pending that
+evidence.
+
 ## 8. Decision evidence: the UE5 MCP probe
 
 A throwaway probe (not committed) drove the running editor over MCP at
@@ -393,22 +412,57 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   14C ships the client, importer, and opt-in e2e without it.*
 - **14D — Substrate decision ratified.** On 14C's evidence, either keep C as
   the human-facing path (updating this section) or fall back to A and scope B.
-  *Also owns the deferred fingerprint terms above: if C is kept, bump the
+  ~~*Also owns the deferred fingerprint terms above: if C is kept, bump the
   session schema to carry the optional manifest and oracle fingerprints (§5/§6),
-  with the written rationale recorded here.*
+  with the written rationale recorded here.*~~
+
+  *Resolution (14D, 2026-07-19): C is kept — see §7's Ratification. The
+  deferred fingerprint terms are **moved out of this slice**, not landed here:
+  bumping `glyphwright.session/1` is a replay/protocol-contract change, and the
+  §6 oracle model it would encode is not yet evidenced — neither the
+  anchor-fidelity question (§11.1) nor the oracle-identity/correction-replay
+  question (§11.5) has been resolved against a live editor, and both gate what
+  a stable oracle fingerprint even *is*. Writing the schema field before that
+  evidence would encode a guessed contract into a versioned protocol. The
+  fingerprint work is therefore deferred to the oracle-model slice below (15A),
+  which owns resolving §11.1/§11.5 first and only then ratifying the
+  fingerprint terms. 14D ships as a documentation-only ratification.*
+- **15A — Oracle model + session fingerprint (protocol change).** Resolve the
+  two live-editor questions that gate the §6 two-tier oracle model —
+  anchor fidelity (§11.1: can a UE5 anchor carry a GlyphWright semantic
+  position as a first-class identity?) and oracle identity + correction replay
+  (§11.5: what is a stable oracle fingerprint, and how does a Tier-2
+  collision-corrected run reproduce?) — then, with that evidence in hand,
+  bump the session schema to `glyphwright.session/2` carrying the optional
+  manifest and oracle fingerprints (§5/§6), with the written rationale recorded
+  here and the replay-compatibility story reviewed per the completion
+  contract. This is the slice where UE5 first becomes a *navigation/collision
+  oracle*, not just a presentation host.
 
 ## 11. Open questions
+
+*State after 14D (2026-07-19): the substrate decision is ratified (§7), so the
+questions below are re-scoped by what 14C did and did not evidence. None are
+closed by 14D — in particular 14C *listed* anchors but never *set* one, so the
+fidelity and oracle questions that gate 15A remain genuinely open.*
 
 1. **Anchor fidelity** — whether UE5's `AgentWorldToolset` anchors can carry
    GlyphWright's semantic positions (`village:7,3`) as first-class anchor
    identities, or whether the importer must maintain the mapping externally.
-   Answerable in 14C against the live editor.
+   **Still open, and now owned by 15A.** 14C established that anchors exist and
+   each carries a `worldStateKey` (the opt-in e2e asserts this), but it never
+   wrote an anchor carrying a GlyphWright semantic position, so the fidelity
+   question is unanswered. Resolving it needs a live-editor round-trip that
+   *sets* an anchor and reads it back.
 2. **Editor-as-fixture in CI** — whether the 14C e2e can run on a self-hosted
-   runner with UE5 installed, or stays a local-only opt-in. Affects how much of
-   the bridge is continuously verified vs. run on demand.
+   runner with UE5 installed, or stays a local-only opt-in. **Still open.**
+   Affects how much of the bridge is continuously verified vs. run on demand.
+   Not blocking 15A's protocol change, but it gates whether 15A's oracle
+   evidence can be reproduced in CI or only locally.
 3. **B's headless story** — if C falters, what osmesa/EGL costs the matrix
    across both OSes before B is viable. Not worth answering until C's outcome
-   is known.
+   is known; C was ratified in 14D, so this stays dormant unless a concrete
+   blocker forces re-evaluation.
 4. **Z-levels** — whether any near-term content wants `0003` §7.2's
    `(x, y, layer)` PosId; deferred until a pack needs stairs, as it has been.
 5. **Oracle-fingerprint identity and replay semantics (from §6).** The
@@ -416,8 +470,11 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
    "same `(pack, seed, commands, oracle-fingerprint)` ⇒ same frames," but
    what constitutes a stable oracle identity, and how a Tier-2 run that
    hit a collision correction reproduces on replay, are not yet pinned
-   down. Two sub-questions, both for 14B/14C to resolve against a real
-   UE5 level rather than in the abstract:
+   down. **Both sub-questions are still open and are now owned by 15A** —
+   the 14B/14C resolution hoped for here did not happen (14C shipped the
+   presentation host without exercising navigation oracles), so they must be
+   resolved against a real UE5 level in 15A before the session fingerprint is
+   bumped:
 
    - *Identity.* What counts as a stable UE5 oracle identity — plugin
      version plus level-build hash? Does a NavMesh rebuild change it?
