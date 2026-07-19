@@ -31,7 +31,9 @@ def test_core_imports_without_touching_the_ue5_package() -> None:
     result = subprocess.run(
         [sys.executable, "-c", code], capture_output=True, text=True, check=False
     )
-    assert result.returncode == 0, f"core pulled in the ue5 package: {result.stdout}{result.stderr}"
+    assert result.returncode == 0, (
+        f"core pulled in the ue5 package: {result.stdout}{result.stderr}"
+    )
 
 
 def test_ue5_package_reports_mcp_absent_cleanly() -> None:

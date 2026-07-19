@@ -29,7 +29,9 @@ def _graph(placements: list[Placement], manifest: PresentationManifest) -> Scene
     )
 
 
-def _manifest(bindings: dict[str, str], hints: dict[str, object]) -> PresentationManifest:
+def _manifest(
+    bindings: dict[str, str], hints: dict[str, object]
+) -> PresentationManifest:
     return PresentationManifest(bindings=bindings, decoration={}, hints=hints)
 
 

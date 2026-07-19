@@ -56,6 +56,7 @@ addopts = "-ra"
 testpaths = ["tests"]
 markers = [
   "e2e: subprocess or terminal-facing end-to-end checks",
+  "ue5: opt-in checks against a running Unreal Editor (GLYPHWRIGHT_UE5_URL); never part of the standard suite",
 ]
 
 [tool.coverage.run]

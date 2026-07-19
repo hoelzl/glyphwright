@@ -384,8 +384,18 @@ landing with tests and docs, later slices re-scoped by what earlier ones learn.
   extra; scaffolding a level from a pack + manifest; viewport-capture evidence;
   excluded from the bare job; verified against a running editor, which is the
   fixture — an opt-in e2e mark, never part of the standard suite.
+  *Scope note (14C): the §5 manifest-term and §6 oracle-term in the session
+  fingerprint are a versioned-protocol change to the `glyphwright.session/1`
+  header and its committed schema. Per the completion contract (no replay/
+  protocol change without a written rationale and review) and the standing
+  gate that protocol/evidence decisions are human-reviewed, that change is
+  **deferred to 14D**, where the oracle model it encodes is ratified anyway.
+  14C ships the client, importer, and opt-in e2e without it.*
 - **14D — Substrate decision ratified.** On 14C's evidence, either keep C as
   the human-facing path (updating this section) or fall back to A and scope B.
+  *Also owns the deferred fingerprint terms above: if C is kept, bump the
+  session schema to carry the optional manifest and oracle fingerprints (§5/§6),
+  with the written rationale recorded here.*
 
 ## 11. Open questions
 

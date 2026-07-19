@@ -12,8 +12,10 @@ was confirmed against the owner's UE 5.8 instance (2026-07-19).
 
 from __future__ import annotations
 
+import contextlib
 import json
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 #: A transport: (tool, arguments) -> the decoded JSON-RPC result payload.
 #: The default connects to a live editor; tests inject a fake.
@@ -77,39 +79,64 @@ class UE5Client:
         *,
         name: str,
         location: tuple[float, float, float],
-    ) -> object:
-        """Spawn an actor of a native class at a world location."""
-        return await self.call(
+    ) -> str:
+        """Spawn an actor of a native class at a world location.
+
+        Returns the spawned actor's full soft path (``/Game/Maps/...``), which
+        is the handle :meth:`remove` and anchor queries need — confirmed against
+        the live editor, which answers ``{"refPath": ...}``.
+        """
+        result = await self.call(
             SCENE,
             "add_to_scene_from_class",
             actor_type={"refPath": class_path},
             name=name,
             xform={"location": {"x": location[0], "y": location[1], "z": location[2]}},
         )
+        if isinstance(result, dict) and "refPath" in result:
+            return str(result["refPath"])
+        return str(result)
 
     async def remove(self, actor_path: str) -> object:
-        """Remove an actor by its soft path."""
-        return await self.call(SCENE, "remove_from_scene", actor={"refPath": actor_path})
+        """Remove an actor by its full soft path (the spawn's return value)."""
+        return await self.call(
+            SCENE, "remove_from_scene", actor={"refPath": actor_path}
+        )
 
     async def capture_viewport(
         self, *, location: tuple[float, float, float], yaw: float, pitch: float
-    ) -> object:
-        """A viewport capture from a posed camera (the human-facing evidence)."""
-        return await self.call(
+    ) -> bytes:
+        """A viewport capture from a posed camera, as PNG bytes.
+
+        The editor answers ``{"image": {"mimeType", "data"}}`` with base64
+        data and requires an (empty) ``annotations`` object; both are live
+        findings (2026-07-19). Returns the decoded bytes.
+        """
+        import base64
+
+        result = await self.call(
             APP,
             "CaptureViewport",
             captureTransform={
                 "location": {"x": location[0], "y": location[1], "z": location[2]},
                 "rotation": {"pitch": pitch, "yaw": yaw, "roll": 0.0},
             },
+            annotations={},
         )
+        if isinstance(result, dict) and "image" in result:
+            image = result["image"]
+            assert isinstance(image, dict)
+            return base64.b64decode(str(image["data"]))
+        return base64.b64decode(str(result))
 
 
-async def connect(url: str) -> "LiveSession":
-    """Open a live session to a running editor at ``url`` (streamable-HTTP).
+def connect(url: str) -> LiveSession:
+    """Prepare a live session to a running editor at ``url`` (streamable-HTTP).
 
-    Returns a context manager owning the connection; build a client with
-    :meth:`LiveSession.client`. Deferred imports keep ``mcp`` out of the core.
+    Returns a context manager owning the connection; ``async with`` it to get a
+    transport-bound :class:`UE5Client`. Deferred imports keep ``mcp`` out of
+    the core. Construction is synchronous — only entering the context opens
+    the connection.
     """
     from mcp import ClientSession
     from mcp.client.streamable_http import streamablehttp_client
@@ -120,19 +147,28 @@ async def connect(url: str) -> "LiveSession":
 class LiveSession:
     """Owns one MCP connection; yields a transport-bound :class:`UE5Client`."""
 
-    def __init__(self, http_client: object, session_cls: object, url: str) -> None:
+    def __init__(
+        self,
+        http_client: Callable[..., object],
+        session_cls: Callable[..., object],
+        url: str,
+    ) -> None:
         self._http_client = http_client
         self._session_cls = session_cls
         self._url = url
-        self._stack: object | None = None
-        self._session: object | None = None
+        self._stack: contextlib.AsyncExitStack | None = None
+        self._session: Any = None
 
-    async def __aenter__(self) -> "UE5Client":
-        import contextlib
-
+    async def __aenter__(self) -> UE5Client:
         stack = contextlib.AsyncExitStack()
-        read, write, _ = await stack.enter_async_context(self._http_client(self._url))
-        session = await stack.enter_async_context(self._session_cls(read, write))
+        # The ``mcp`` client's context-manager and session types are looser
+        # than strict mode admits; the boundary is deliberately ``Any`` (the
+        # plugin is Experimental — 0012 §8), with the shapes pinned by the
+        # opt-in e2e against a live editor.
+        http: Any = self._http_client
+        session_cls: Any = self._session_cls
+        read, write, _ = await stack.enter_async_context(http(self._url))
+        session: Any = await stack.enter_async_context(session_cls(read, write))
         await session.initialize()
         self._stack = stack
         self._session = session
@@ -143,7 +179,6 @@ class LiveSession:
         await self._stack.aclose()
 
     async def _transport(self, tool: str, arguments: dict[str, object]) -> object:
-        assert self._session is not None
         result = await self._session.call_tool(tool, arguments)
         texts = [c.text for c in result.content if getattr(c, "type", None) == "text"]
         if getattr(result, "isError", False):

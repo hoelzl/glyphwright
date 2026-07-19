@@ -7,7 +7,6 @@ behind the ``ue5`` extra, is excluded from the bare CI job like the GUI
 pattern ADR-001 uses for TermVerify.
 
 The source of truth for navigation and game state stays in GlyphWright packs;
-this host *realizes* a :class:`~glyphwright.frontends.presentation.scenegraph.SceneGraph`
-into level geometry and reports pixel evidence back. It never decides game
-rules.
+this host *realizes* a ``SceneGraph`` into level geometry and reports pixel
+evidence back. It never decides game rules.
 """

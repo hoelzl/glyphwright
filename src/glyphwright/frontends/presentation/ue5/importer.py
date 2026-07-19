@@ -43,7 +43,7 @@ def _tile_size(manifest: PresentationManifest) -> float:
 def _tier_height(manifest: PresentationManifest, tier: str) -> float:
     heights = manifest.hints.get("tier_height", DEFAULT_TIER_HEIGHT)
     assert isinstance(heights, dict)
-    return float(heights.get(tier, 0.0))  # type: ignore[arg-type]
+    return float(heights.get(tier, 0.0))
 
 
 def _spawn_name(semantic_pos: str) -> str:
