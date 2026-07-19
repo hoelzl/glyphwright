@@ -3,7 +3,15 @@
 Design 0012 §11.5 keeps collision drift *out* of the per-run oracle fingerprint
 (the fingerprint is deliberately coarse) and detects it here instead, on
 demand: re-run the passable-edge set through UE5's ``trace_world`` and report
-every edge where the geometry disagrees with the pack's semantics.
+every edge the grid calls passable that the geometry blocks.
+
+This detects one direction of drift — "geometry blocks what should be open" —
+and deliberately not the other: a wall that *disappears* in UE5 leaves no
+passable edge to trace, so a missing wall is invisible here (a floor→wall audit
+would be a separate pass over wall cells). It is also a single horizontal ray
+per edge at ``probe_height``, so it assumes the collision that matters to
+movement crosses that height; an obstacle entirely below it is not seen. Both
+are conscious consequences of §11.5's on-demand, coarse contract.
 
 The split mirrors the importer's: deriving the passable-edge set and
 classifying the traced results are *pure* (no editor, no MCP), so they are
@@ -26,8 +34,11 @@ from glyphwright.frontends.presentation.ue5.importer import DEFAULT_TILE_CM
 from glyphwright.world.grid import FLOOR, GridSpace
 from glyphwright.world.space import PosId
 
-#: Height above the floor (centimeters) at which edges are traced. Low enough
-#: to catch a wall or a fallen block, high enough to clear floor trim.
+#: Height above the floor (centimeters) at which edges are traced. A coarse,
+#: unverified default: it assumes the collision that matters to movement
+#: crosses this height and that the floor's own surface sits below it (a floor
+#: top above it would register as a near-zero self-hit). Callers with a
+#: different floor/obstacle profile should pass an explicit ``probe_height``.
 DEFAULT_PROBE_HEIGHT_CM = 50.0
 
 
@@ -55,9 +66,7 @@ class Drift:
     hit: float
 
 
-def _cell_center(
-    grid: GridSpace, pos: PosId, tile: float, height: float
-) -> tuple[float, float, float]:
+def _cell_center(pos: PosId, tile: float, height: float) -> tuple[float, float, float]:
     """The world-space center of a grid cell, matching the importer's projection."""
     x_text, _, y_text = pos.local.partition(",")
     x, y = int(x_text), int(y_text)
@@ -116,8 +125,8 @@ async def audit(
     tile = float(manifest.hints.get("tile_size_cm", DEFAULT_TILE_CM))  # type: ignore[arg-type]
     drifts: list[Drift] = []
     for edge in passable_edges(grid):
-        start = _cell_center(grid, edge.a, tile, probe_height)
-        end = _cell_center(grid, edge.b, tile, probe_height)
+        start = _cell_center(edge.a, tile, probe_height)
+        end = _cell_center(edge.b, tile, probe_height)
         expected = _edge_length(start, end)
         hit = await client.trace_world(start, end)
         if hit is None:
