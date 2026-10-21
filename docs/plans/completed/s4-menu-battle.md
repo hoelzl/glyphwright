@@ -63,8 +63,8 @@ resumes dialogue or lockpicking) stays in v0 with those modes.
 - [x] `world.initiative` query (a new path is no new shape, so `query/2` stays)
 - [x] Battle walks and a defeat-seeking walk; battle golden
 - [x] Kernel, content-pack, and authoring pages; README
-- [ ] Owner review of the S4 pull request
-- [ ] Tag `s4`; move this plan to `docs/plans/completed/`
+- [x] Owner review of the S4 pull request (merged as #5)
+- [x] Tag `s4`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
