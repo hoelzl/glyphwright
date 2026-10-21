@@ -65,7 +65,6 @@ CLAUDE_MD_FALLBACK = "@AGENTS.md"
 PLANNED: Mapping[str, str] = {
     ".agents/skills/": "created with the first skill",
     ".claude/commands/": "generated once the first skill exists",
-    "docs/knowledge/": "created by the slice that ports the first subsystem",
     ".claude/settings.json": "created once there are Claude-only settings",
 }
 

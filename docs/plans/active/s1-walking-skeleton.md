@@ -59,35 +59,65 @@ the findings in code that S1 ports:
 
 ## Progress
 
-- [ ] Plan, dev dependencies, CLI entry point
-- [ ] `Rng`
-- [ ] World: space, grid, entities
-- [ ] Kernel: commands, events, state
-- [ ] Frames and the exploration mode
-- [ ] `step` (K1)
-- [ ] `ContentPack` and the reference area (L1, L2)
-- [ ] Wire encoding and run fingerprint
-- [ ] `Engine` API (K9)
-- [ ] Schemas (H1, H10) and decision record for the schema tags
-- [ ] Plain frontend and golden transcript
-- [ ] Meta channel and JSONL frontend (H6, H7)
-- [ ] CLI
-- [ ] Property tests (T1, T4) and the no-ambient-I/O test
-- [ ] Kernel knowledge page, docs map, `AGENTS.md` route, README quickstart
+- [x] Plan, dev dependencies, CLI entry point
+- [x] `Rng`
+- [x] World (space, grid, entities) and the kernel (commands, events, state)
+- [x] `step` (K1) and the exploration mode
+- [x] `ContentPack` and the reference village (L1, L2)
+- [x] `Engine` API, wire encoding, run fingerprint (K9)
+- [x] Schemas (H1, H10) and decision 0002 for the schema tags
+- [x] Plain and JSONL frontends, meta channel, CLI (H6, H7), golden transcript
+- [x] Property tests (T1, T4, T8) and the enforcing tests for the invariants
+- [x] Kernel knowledge page, `AGENTS.md` routes, README quickstart
+- [ ] Owner review of the S1 pull request
+- [ ] Tag `s1`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
-Filled in as the slice proceeds.
+**Added, because S1's content needs it:**
+
+- `docs/knowledge/` with its index and the kernel page, the first subsystem
+  page. Its last section is the checklist for adding an event or a command,
+  because that change touches six files.
+- An `AGENTS.md` route to the kernel page, and the regeneration commands for
+  the two new derived views: the wire schemas and the golden transcript.
+- `schemas/`, generated and committed, with a test that fails when the
+  encoders and the committed files disagree.
+- Decision 0002 on schema versioning, because every later slice bumps a tag.
+- A README quickstart, replacing the "no engine yet" notice.
+
+**Deliberately not added yet:**
+
+- **No skills.** Porting a slice has now been done once; the brief's
+  candidates (play a session, author a pack) need S2's content first.
+- **No `commands` or `content-packs` knowledge pages.** The kernel page covers
+  S1's three commands; the command reference is generated in S3.
+- **No `--pack`, `--record`, or `--replay`** in the CLI: S2 and S5.
 
 ## Decisions
 
 - **A minimal `ContentPack` comes forward from S2**, so `Engine.new(pack,
   seed)` and the run fingerprint have their final shape from S1 on. S2 adds
   the TOML loader behind it.
-- **Wire schema tags restart at version 1.** S1's frames and events differ
-  from v0's, so continuing v0's numbers would suggest a compatibility that
-  does not exist. Recorded as a decision.
+- **Wire schema tags restart at version 1** (decision 0002).
+- **The plain delimiter is ASCII:** `== turn N | mode | area ==`. v0 used a
+  middle dot while its docstring promised ASCII; on Windows pipes that byte
+  would differ from the other systems. The CLI also forces UTF-8 stdio with
+  Unix newlines, because content glyphs may be non-ASCII.
+- **`jsonschema` is a dev-only dependency** for validating real output (H10).
+  The engine keeps no runtime dependencies.
+- **Invariant tests name their invariant**, in `tests/test_invariants.py`,
+  so each `AGENTS.md` invariant points at what enforces it.
+- **`WorldState.exits_from` stays** as the one movement-graph accessor, so a
+  later exit source such as a portal reaches every mover at once.
 
 ## Surprises
 
-None yet.
+- **v0's bootstrap commit `02ebe75` was almost exactly S1**, which made it a
+  good cross-check for the cut.
+- **H6 was wider than the register said.** A line like `move <byte 0xFF>` parses as a
+  valid move, so the engine's own rejection echoed the raw byte without
+  passing through the JSONL escape. Every frontend now sanitizes each input
+  line as it reads it, before anything parses it.
+- **The pack-id pin changed**, as expected: v2's `Entity` has fewer
+  components than v0's. The pin is re-pinned in this slice.
