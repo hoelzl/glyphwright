@@ -66,20 +66,45 @@ The verdicts go in the setup log below.
 ## Progress
 
 - [x] Plan
-- [ ] Rules revision and `session/2` header (H2, H4); decision 0003
-- [ ] Recording and replay with exact verdicts (H8, H11)
-- [ ] `--record` and `--replay` in the CLI (F7)
-- [ ] The pinned reference-world recording
-- [ ] Replay-and-determinism page; `AGENTS.md` route
-- [ ] Skills: play-a-session, author-a-pack, add-an-item, pin-behavior-with-a-replay
-- [ ] CI quickstart job
+- [x] Rules revision and `session/2` header (H2, H4); decision 0003
+- [x] Recording and replay with exact verdicts (H8, H11)
+- [x] `--record` and `--replay` in the CLI (F7)
+- [x] The pinned reference-world recording
+- [x] Replay-and-determinism page; `AGENTS.md` route
+- [x] Skills: play-a-session, author-a-pack, add-an-item, pin-behavior-with-a-replay
+- [x] CI quickstart job
 - [ ] Usability gate: agent run, owner run, CI
 - [ ] Owner review of the S5 pull request
 - [ ] Tag `s5` and the course tag; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
-Filled in as the slice proceeds.
+- Commits, in order: plan; rules revision and header check (decision 0003);
+  recording and replay; CLI; the pin; replay page; skills; CI quickstart;
+  then the fixes from the agent gate.
+- New structure: `tests/recordings/` for the pin, `.agents/skills/` with four
+  skills, and their generated stubs in `.claude/commands/`. The planned-path
+  entries for those folders are gone now that they exist.
+- New gate: versioned schema tags are refused in current prose, after the
+  agent gate's run left one stale in a skill.
+- Not added: a programmatic replay API in `glyphwright.api`. The CLI is the
+  surface the gate and the skills use; nothing asked for more.
+
+### Gate record
+
+- **CI, item 3:** every leg green on the draft PR, including the new
+  quickstart job on Windows, macOS, and Linux (item 1, mechanical half).
+- **Agent, item 2:** a fresh subagent in a clean clone of this branch,
+  given only the four tasks, passed all four. It wrote a two-area pack from
+  scratch and got `entities.toml:16: entity 'stairs-up': portal leads into a
+  wall: attic:0,0` for a broken portal. It played the pack through JSONL
+  across both areas, recorded and replayed it (`recording verified: 3 steps,
+  turn 3`), and showed the divergence, rejection, pack, and rules verdicts.
+  It added a recall item, a new `Recalled` event, and tests, and the check
+  passed. It needed source code only for the engine task, as expected. It
+  reported nine shortfalls in the guidance; all are fixed in the two commits
+  after the CI job.
+- **Owner, item 1:** pending.
 
 ## Decisions
 
@@ -97,4 +122,13 @@ Filled in as the slice proceeds.
 
 ## Surprises
 
-None yet.
+- **The pin's advice was wrong in the gate's own case.** Adding a component
+  to `Entity` changes every pack id, so the pin failed on the pack before it
+  reached the events, and advised "only re-record" for a change that also
+  bumped the event tag. The test now replays the steps against the new id to
+  tell the two apart.
+- **The skills held a volatile fact.** The play-a-session skill named
+  versioned schema tags; the agent's change made them stale at once. That is
+  rule A7, now a gate.
+- **The digests do not cover frames.** The first draft of decision 0003 said
+  the pin caught frame changes; it does not, and the goldens do instead.
