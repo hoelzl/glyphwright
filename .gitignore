@@ -1,0 +1,13 @@
+# Agent tooling: shared config is tracked, per-developer overrides are not.
+.claude/settings.local.json
+
+.coverage
+.coverage.*
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+build/
+dist/
+*.egg-info/

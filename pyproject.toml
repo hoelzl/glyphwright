@@ -1,0 +1,63 @@
+[project]
+name = "glyphwright"
+version = "0.1.0.dev0"
+description = "A deterministic, turn-based RPG engine: worlds authored as data, playable by people and coding agents."
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Matthias Hölzl", email = "tc@xantira.com" },
+]
+keywords = ["agents", "game-engine", "rpg", "deterministic"]
+classifiers = [
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Topic :: Games/Entertainment :: Role-Playing",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/hoelzl/glyphwright"
+Repository = "https://github.com/hoelzl/glyphwright"
+Issues = "https://github.com/hoelzl/glyphwright/issues"
+
+[dependency-groups]
+dev = [
+  "mypy>=1.0",
+  "pytest>=8.0",
+  "ruff>=0.11",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.1,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+# A [tool.uv] table stops uv from picking up settings from parent folders.
+# exclude-newer keeps resolution reproducible; move it forward deliberately.
+exclude-newer = "2026-10-14T00:00:00Z"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+files = ["src", "tests", "scripts"]
+mypy_path = "scripts"
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["scripts"]
+addopts = ["--strict-markers"]
