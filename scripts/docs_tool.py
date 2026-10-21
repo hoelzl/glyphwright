@@ -66,7 +66,6 @@ PLANNED: Mapping[str, str] = {
     ".agents/skills/": "created with the first skill",
     ".claude/commands/": "generated once the first skill exists",
     ".claude/settings.json": "created once there are Claude-only settings",
-    "tests/recordings/": "created with the pinned recording later in S5",
 }
 
 #: Top-level directories a backticked repository path may start with.
