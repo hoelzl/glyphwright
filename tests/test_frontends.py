@@ -13,12 +13,15 @@ from glyphwright.api import Engine, reference_pack
 from glyphwright.frontends import jsonl, plain
 from glyphwright.frontends.wire import EVENT_SCHEMA, FRAME_SCHEMA, QUERY_SCHEMA
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
-from glyphwright.kernel.commands import Command, Look, Move, Wait
+from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
 
 commands = st.one_of(
     st.sampled_from(("north", "east", "south", "west")).map(Move),
     st.just(Look()),
     st.just(Wait()),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Take),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Use),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Equip),
 )
 
 

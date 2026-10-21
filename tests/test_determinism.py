@@ -12,7 +12,7 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, StepResult, reference_pack
 from glyphwright.content.pack import ContentPack
 from glyphwright.frontends.wire import encode_frame
-from glyphwright.kernel.commands import Command, Look, Move, Wait
+from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
 from glyphwright.world.entities import Actor, Entity, Position
 from glyphwright.world.grid import GridSpace
 
@@ -22,6 +22,9 @@ commands = st.one_of(
     st.sampled_from(_EXITS).map(Move),
     st.just(Look()),
     st.just(Wait()),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Take),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Use),
+    st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Equip),
 )
 
 

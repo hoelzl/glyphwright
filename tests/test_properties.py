@@ -11,7 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from glyphwright.api import Engine, decode_command, reference_pack
-from glyphwright.kernel.commands import Command, CommandGrammar, Move
+from glyphwright.kernel.commands import Command, CommandGrammar, Move, Take
 from glyphwright.kernel.events import Event, Moved
 from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
 from glyphwright.world.grid import WALL, GridSpace
@@ -50,6 +50,27 @@ def _check_step(
     for event in events:
         if isinstance(event, Moved) and event.actor == PLAYER:
             assert event.destination == at
+    _check_items(after)
+
+
+def _check_items(state: WorldState) -> None:
+    """Items are conserved: on the ground, or carried by exactly one actor."""
+    holders: dict[str, list[str]] = {}
+    for entity in state.entities.values():
+        if entity.actor is not None:
+            assert 0 <= entity.actor.hp <= entity.actor.max_hp, entity.id
+        for item_id in entity.carries():
+            holders.setdefault(item_id, []).append(entity.id)
+            assert state.entity(item_id).at() is None, (
+                f"{item_id} is carried and placed"
+            )
+        worn = entity.equipment.equipped_items() if entity.equipment else ()
+        assert set(worn) <= set(entity.carries()), f"{entity.id} wears what it lacks"
+    for entity in state.entities.values():
+        if entity.item is not None:
+            placed = entity.at() is not None
+            assert placed != (entity.id in holders), entity.id
+            assert len(holders.get(entity.id, [])) <= 1, entity.id
 
 
 def _walk(engine: Engine, choices: list[int]) -> None:
@@ -95,6 +116,27 @@ def _at_the_hole(seed: int) -> Engine:
 @given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=40))
 def test_walks_through_the_portals_keep_every_invariant(choices: list[int]) -> None:
     _walk(_at_the_hole(seed=6), choices)
+
+
+def _with_the_items(seed: int) -> Engine:
+    """An engine whose player has taken the potion and the sword."""
+    engine = Engine.new(reference_pack(), seed=seed)
+    script = (
+        [Move("east")] * 2
+        + [Take("potion-minor")]
+        + [Move("east")] * 3
+        + [Move("south")] * 2
+        + [Take("iron-sword")]
+    )
+    for command in script:
+        assert engine.step(command).accepted, command
+    return engine
+
+
+@settings(max_examples=40, deadline=None)
+@given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=30))
+def test_walks_with_items_keep_every_invariant(choices: list[int]) -> None:
+    _walk(_with_the_items(seed=7), choices)
 
 
 def test_down_then_up_returns_to_the_hole() -> None:
