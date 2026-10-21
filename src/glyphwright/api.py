@@ -177,7 +177,7 @@ class Engine:
         return _query(self._state, path)
 
     def fingerprint(self) -> RunFingerprint:
-        """Engine version, pack id, seed, and turn."""
+        """Engine version, rules revision, pack id, seed, and turn."""
         return RunFingerprint.create(
             pack=self._pack_id, seed=self._seed, turn=self._state.turn
         )

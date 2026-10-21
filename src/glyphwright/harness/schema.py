@@ -74,6 +74,7 @@ def session_schema() -> dict[str, Any]:
             {
                 "schema": {"const": SESSION_SCHEMA},
                 "engine": _STRING,
+                "rules": _INTEGER,
                 "pack": _STRING,
                 "seed": _INTEGER,
                 "harness": {"type": "boolean"},
