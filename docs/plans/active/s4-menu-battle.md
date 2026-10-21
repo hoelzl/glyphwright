@@ -34,7 +34,7 @@ Ported from
 | Combat | `strike` and initiative through the stat pipeline | abilities and `cast` (deferred) |
 | Modes | `battle` with `attack`, `use`, `flee`, `look`; exploration offers only `look` after defeat | skirmish `attack` in exploration (owner decision, below) |
 | Frames | a menu viewport naming the combatants (`frame/3`) | the tactics arena (deferred) |
-| Harness | `world.initiative` | none |
+| Harness | the `world.initiative` query path | none |
 | Content | `ai` on the four hostiles, with v0's stats | `perks`, `abilities`, `arena` (deferred) |
 
 ## Defects fixed in the port
@@ -60,7 +60,7 @@ resumes dialogue or lockpicking) stays in v0 with those modes.
 - [ ] The scheduler inside `step`: wake, chase, engage, battle turns, outcome
 - [ ] The battle mode; `attack` and `flee` in the verb table; defeat in exploration
 - [ ] Menu viewport in frames and the plain transcript; `frame/3`
-- [ ] `world.initiative` query; `query/3`
+- [ ] `world.initiative` query (a new path is no new shape, so `query/2` stays)
 - [ ] Battle walks and a defeat-seeking walk; battle golden
 - [ ] Kernel, content-pack, and authoring pages; README
 - [ ] Owner review of the S4 pull request

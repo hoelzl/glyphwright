@@ -22,6 +22,7 @@ PATHS: tuple[tuple[str, str], ...] = (
     ("world.turn", "the current turn"),
     ("world.mode", "the active mode"),
     ("world.entities", "every entity id, sorted"),
+    ("world.initiative", "the battle's initiative order; empty outside a battle"),
     ("<id>.hp", "an actor's hp as [current, maximum]"),
     ("<id>.position", "where the entity stands, or null"),
     ("<id>.inventory", "the item ids it carries, in the order taken"),
@@ -102,6 +103,8 @@ def query(state: WorldState, path: str) -> QueryResult:
             return QueryResult(path=path, value=state.mode)
         case ["world", "entities"]:
             return QueryResult(path=path, value=sorted(state.entities))
+        case ["world", "initiative"]:
+            return QueryResult(path=path, value=list(state.initiative))
         case [entity_id, *rest] if rest and entity_id != "world":
             return _entity_query(state, path, [entity_id, *rest])
         case _:
