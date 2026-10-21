@@ -10,10 +10,12 @@ import argparse
 import io
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TextIO
 
 from glyphwright.api import Engine, PackError, load_pack, reference_pack
 from glyphwright.frontends import jsonl, plain
+from glyphwright.harness.recording import RecordingEngine, replay
 
 DEFAULT_SEED = 424242
 
@@ -49,7 +51,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--seed",
         type=int,
-        default=DEFAULT_SEED,
+        default=None,
         help=f"run seed, recorded in the fingerprint (default: {DEFAULT_SEED})",
     )
     parser.add_argument(
@@ -62,16 +64,68 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="enable the introspection meta channel (:query, :seed, :frame)",
     )
+    parser.add_argument(
+        "--record",
+        type=Path,
+        default=None,
+        help="write the session's recording to this new file",
+    )
+    parser.add_argument(
+        "--replay",
+        type=Path,
+        default=None,
+        help="verify a recording against the pack instead of playing",
+    )
     args = parser.parse_args(argv)
+    # v0 finding F7: replay must not depend on frontend checks it never uses.
+    if args.replay is not None and args.record is not None:
+        parser.error("--replay verifies an existing recording; it cannot --record")
+    if args.replay is not None and args.seed is not None:
+        parser.error("--replay takes its seed from the recording's header")
+    seed = DEFAULT_SEED if args.seed is None else args.seed
 
     try:
         pack = reference_pack() if args.pack is None else load_pack(args.pack)
     except PackError as error:
         # The located diagnostic, as argparse reports any other bad argument.
         parser.exit(2, f"glyphwright: {error}\n")
-    engine = Engine.new(pack, seed=args.seed)
-    stdin = _utf8(sys.stdin, reading=True)
     stdout = _utf8(sys.stdout, reading=False)
+    if args.replay is not None:
+        try:
+            with args.replay.open(encoding="utf-8") as source:
+                outcome = replay(pack, source)
+        except OSError as error:
+            parser.exit(2, f"glyphwright: cannot read recording: {error}\n")
+        if outcome.ok:
+            assert outcome.engine is not None
+            turn = outcome.engine.fingerprint().turn
+            stdout.write(f"recording verified: {outcome.steps} steps, turn {turn}\n")
+            return 0
+        stdout.write(
+            f"recording diverged after {outcome.steps} steps: {outcome.problem}\n"
+        )
+        return 1
+
+    stdin = _utf8(sys.stdin, reading=True)
+    if args.record is None:
+        return _play(Engine.new(pack, seed=seed), args, stdin, stdout)
+    try:
+        # A recording is a run from turn 0: never append to or replace one.
+        sink = args.record.open("x", encoding="utf-8", newline="\n")
+    except FileExistsError:
+        parser.exit(2, f"glyphwright: refusing to overwrite {args.record}\n")
+    except OSError as error:
+        parser.exit(2, f"glyphwright: cannot write recording: {error}\n")
+    with sink:
+        engine = RecordingEngine.recording(
+            pack, seed=seed, sink=sink, harness=args.harness
+        )
+        return _play(engine, args, stdin, stdout)
+
+
+def _play(
+    engine: Engine, args: argparse.Namespace, stdin: TextIO, stdout: TextIO
+) -> int:
     if args.frontend == "jsonl":
         return jsonl.run_session(engine, stdin, stdout, harness=args.harness)
     return plain.run_session(engine, stdin, stdout, harness=args.harness)
