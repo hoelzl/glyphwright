@@ -70,7 +70,16 @@ PLANNED: Mapping[str, str] = {
 }
 
 #: Top-level directories a backticked repository path may start with.
-REPO_ROOTS = ("src/", "tests/", "scripts/", "docs/", ".agents/", ".claude/", ".github/")
+REPO_ROOTS = (
+    "src/",
+    "tests/",
+    "scripts/",
+    "schemas/",
+    "docs/",
+    ".agents/",
+    ".claude/",
+    ".github/",
+)
 #: Dot-directories whose Markdown is checked.
 VISIBLE_DOT_DIRECTORIES = frozenset({".agents", ".claude", ".github"})
 
