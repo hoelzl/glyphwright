@@ -1,0 +1,93 @@
+[[entity]]
+id = "player"
+position = "village:1,1"
+blocker = true
+
+[entity.actor]
+name = "Wren"
+hp = 20
+max_hp = 20
+
+[entity.renderable]
+glyph = "@"
+label = "player"
+
+[[entity]]
+id = "goblin-1"
+position = "village:2,3"
+blocker = true
+
+[entity.actor]
+name = "Goblin"
+hp = 6
+max_hp = 6
+
+[entity.renderable]
+glyph = "g"
+label = "goblin"
+
+[[entity]]
+id = "bandit-1"
+position = "village:1,3"
+blocker = true
+
+[entity.actor]
+name = "Bandit"
+hp = 8
+max_hp = 8
+
+[entity.renderable]
+glyph = "b"
+label = "bandit"
+
+[[entity]]
+id = "warren-hole"
+position = "village:7,3"
+
+[entity.renderable]
+glyph = "O"
+label = "hole"
+
+[entity.portal]
+token = "down"
+to = "warren:1,1"
+
+[[entity]]
+id = "warren-exit"
+position = "warren:1,1"
+
+[entity.renderable]
+glyph = "^"
+label = "ladder"
+
+[entity.portal]
+token = "up"
+to = "village:7,3"
+
+[[entity]]
+id = "marauder-1"
+position = "warren:3,1"
+blocker = true
+
+[entity.actor]
+name = "Marauder"
+hp = 9
+max_hp = 9
+
+[entity.renderable]
+glyph = "M"
+label = "marauder"
+
+[[entity]]
+id = "hexer-1"
+position = "warren:5,2"
+blocker = true
+
+[entity.actor]
+name = "Hexer"
+hp = 7
+max_hp = 7
+
+[entity.renderable]
+glyph = "H"
+label = "hexer"

@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -88,3 +89,32 @@ def test_help_is_available_without_playing() -> None:
     result = _run(["--help"], b"")
     assert result.returncode == 0
     assert b"--frontend" in result.stdout
+
+
+def _closet(root: Path, *, hp: int = 5) -> Path:
+    (root / "pack.toml").write_text('name = "closet"\n', encoding="utf-8")
+    (root / "areas.toml").write_text(
+        '[[grid]]\narea = "closet"\nrows = """\n...\n"""\n', encoding="utf-8"
+    )
+    (root / "entities.toml").write_text(
+        '[[entity]]\nid = "player"\nposition = "closet:0,0"\n\n'
+        f"[entity.actor]\nname = 'Mote'\nhp = {hp}\nmax_hp = 5\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+def test_an_external_pack_plays_over_the_cli(tmp_path: Path) -> None:
+    result = _run(["--pack", str(_closet(tmp_path))], b"move east\nquit\n")
+    assert result.returncode == 0
+    assert b"== turn 1 | exploration | closet ==" in result.stdout
+
+
+def test_a_broken_pack_fails_with_a_located_diagnostic(tmp_path: Path) -> None:
+    result = _run(["--pack", str(_closet(tmp_path, hp=9))], b"")
+    assert result.returncode == 2
+    assert result.stdout == b""
+    message = result.stderr.decode("utf-8").strip()
+    assert message == (
+        "glyphwright: entities.toml:1: entity 'player': hp 9 is outside 0..5"
+    )

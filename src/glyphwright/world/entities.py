@@ -47,6 +47,18 @@ class Renderable:
 
 
 @dataclass(frozen=True, slots=True)
+class Portal:
+    """A traversable link to a position, usually in another area.
+
+    A portal entity stands at a position and adds one exit token there. Its
+    way back is a second portal, authored at the destination.
+    """
+
+    token: str
+    to: PosId
+
+
+@dataclass(frozen=True, slots=True)
 class Entity:
     """A stable id plus the components it carries."""
 
@@ -55,6 +67,7 @@ class Entity:
     actor: Actor | None = None
     blocker: Blocker | None = None
     renderable: Renderable | None = None
+    portal: Portal | None = None
 
     def at(self) -> PosId | None:
         return self.position.at if self.position is not None else None

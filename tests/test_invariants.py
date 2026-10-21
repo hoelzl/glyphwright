@@ -28,6 +28,7 @@ _AMBIENT_MODULES = frozenset(
     {
         "asyncio",
         "datetime",
+        "importlib",
         "io",
         "os",
         "pathlib",

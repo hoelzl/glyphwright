@@ -6,8 +6,8 @@ import dataclasses
 
 import pytest
 
+from glyphwright.api import reference_pack
 from glyphwright.content.pack import ContentPack
-from glyphwright.content.reference import reference_pack
 from glyphwright.world.entities import Actor, Entity, Position
 
 
@@ -25,13 +25,13 @@ def _goblin(**changes: object) -> Entity:
 
 def test_the_reference_pack_loads() -> None:
     pack = reference_pack()
-    assert [space.area for space in pack.areas] == ["village"]
-    assert {entity.id for entity in pack.entities} == {"player", "goblin-1"}
+    assert [space.area for space in pack.areas] == ["village", "warren"]
+    assert {entity.id for entity in pack.entities} >= {"player", "warren-hole"}
 
 
 def test_a_duplicate_entity_id_is_rejected() -> None:
     # v0 finding L1.
-    with pytest.raises(ValueError, match="unique.*goblin-1"):
+    with pytest.raises(ValueError, match="goblin-1.*defined twice"):
         _with_entities(_goblin())
 
 

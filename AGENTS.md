@@ -56,6 +56,8 @@ in the slice that ports the code it governs.
 | Goals, scope, slices, working rules | [`docs/project-brief.md`](docs/project-brief.md) |
 | The current slice | the plan in `docs/plans/active/` |
 | Change the kernel, a mode, or an event | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |
+| Change the loader or add a component | [`docs/knowledge/content-packs.md`](docs/knowledge/content-packs.md) |
+| Write or debug a content pack | [`docs/authoring/`](docs/authoring/README.md) |
 | Why the repository is laid out as it is | [`docs/decisions/`](docs/decisions/README.md) |
 | Gates, commits, documentation rules | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | How v0 did it | [glyphwright-v0 at `3ecc396`](https://github.com/hoelzl/glyphwright-v0/tree/3ecc396) |

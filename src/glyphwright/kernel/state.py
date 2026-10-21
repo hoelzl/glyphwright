@@ -67,12 +67,18 @@ class WorldState:
         return self.areas[at.area]
 
     def exits_from(self, pos: PosId) -> dict[ExitToken, PosId]:
-        """The movement graph out of ``pos``.
+        """The movement graph out of ``pos``: the space's exits plus any portal
+        standing there.
 
-        Everything that moves reads exits through here, so a later exit source
-        (a portal standing on a tile) reaches every mover at once.
+        Everything that moves reads exits through here, so a door the player
+        can use is a door every mover can use. A portal token never shadows a
+        geometric exit: content validation refuses that at load.
         """
-        return dict(self.areas[pos.area].exits(pos))
+        merged = dict(self.areas[pos.area].exits(pos))
+        for entity in self.entities_at(pos):
+            if entity.portal is not None:
+                merged[entity.portal.token] = entity.portal.to
+        return merged
 
     def with_entity(self, entity: Entity) -> WorldState:
         entities = dict(self.entities)

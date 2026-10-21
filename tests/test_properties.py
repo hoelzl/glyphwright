@@ -11,7 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from glyphwright.api import Engine, decode_command, reference_pack
-from glyphwright.kernel.commands import Command, CommandGrammar
+from glyphwright.kernel.commands import Command, CommandGrammar, Move
 from glyphwright.kernel.events import Event, Moved
 from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
 from glyphwright.world.grid import WALL, GridSpace
@@ -76,15 +76,30 @@ def test_grammar_walks_keep_every_invariant_at_every_step(
     _walk(Engine.new(reference_pack(), seed=seed), choices)
 
 
-@settings(max_examples=30, deadline=None)
+_TO_THE_HOLE = ("east",) * 6 + ("south",) * 2
+
+
+def _at_the_hole(seed: int) -> Engine:
+    """An engine whose player stands on the village's hole down to the warren.
+
+    Random walks from the start rarely get this far, so portal walks start here.
+    """
+    engine = Engine.new(reference_pack(), seed=seed)
+    for token in _TO_THE_HOLE:
+        assert engine.step(Move(token)).accepted
+    assert "down" in engine.frame().commands.domains("move")[0]
+    return engine
+
+
+@settings(max_examples=40, deadline=None)
 @given(choices=st.lists(st.integers(0, 99), min_size=1, max_size=40))
-def test_the_player_reaches_only_floor_tiles(choices: list[int]) -> None:
-    engine = Engine.new(reference_pack(), seed=5)
-    visited = set()
-    for choice in choices:
-        options = _options(engine.frame().commands)
-        engine.step(options[choice % len(options)])
-        visited.add(engine._state.entity(PLAYER).at())
-    village = engine._state.areas["village"]
-    assert isinstance(village, GridSpace)
-    assert all(pos is not None and village.terrain(pos) == "." for pos in visited)
+def test_walks_through_the_portals_keep_every_invariant(choices: list[int]) -> None:
+    _walk(_at_the_hole(seed=6), choices)
+
+
+def test_down_then_up_returns_to_the_hole() -> None:
+    engine = _at_the_hole(seed=1)
+    hole = engine._state.entity(PLAYER).at()
+    assert engine.step(Move("down")).frame.viewport.area == "warren"
+    assert engine.step(Move("up")).frame.viewport.area == "village"
+    assert engine._state.entity(PLAYER).at() == hole

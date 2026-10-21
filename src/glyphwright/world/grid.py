@@ -84,7 +84,11 @@ class GridSpace:
             x, y = coords(pos)
         except ValueError:
             return False
-        return 0 <= x < self.width and 0 <= y < self.height
+        # Only the canonical spelling names a tile: " 1,1" and "01,1" parse to
+        # the same numbers but never compare equal to a real position
+        # (v2 finding N1).
+        canonical = pos.local == _local(x, y)
+        return canonical and 0 <= x < self.width and 0 <= y < self.height
 
     def terrain(self, pos: PosId) -> str:
         x, y = coords(pos)

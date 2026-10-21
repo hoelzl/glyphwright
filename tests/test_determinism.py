@@ -102,7 +102,7 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     assert (
         pack.pack_id
-        == "pin@sha256:098e4116961680cae20bc94475958229004e1464ea4799cd75bb4a3491c31873"
+        == "pin@sha256:fa4e171eae07985c49083c87679ca7afc1f340708af22d6036bf3e8428dd9c0b"
     )
 
 
@@ -111,7 +111,7 @@ def test_content_changes_change_the_pack_id() -> None:
     altered_map = "#########\n#.......#\n#..##..##\n#.......#\n#########"
     altered = ContentPack(
         name=pack.name,
-        areas=(GridSpace.from_text("village", altered_map),),
+        areas=(GridSpace.from_text("village", altered_map), *pack.areas[1:]),
         entities=pack.entities,
     )
     assert altered.pack_id != pack.pack_id, "a content change must invalidate baselines"

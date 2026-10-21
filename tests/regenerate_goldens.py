@@ -25,8 +25,17 @@ def _plain_village() -> str:
     return plain.render(frame) + "\n"
 
 
+def _plain_warren() -> str:
+    engine = Engine.new(reference_pack(), seed=424242)
+    for token in ("east",) * 6 + ("south",) * 2:
+        engine.step(Move(token))
+    frame = engine.step(Move("down")).frame
+    return plain.render(frame) + "\n"
+
+
 GOLDENS: dict[str, Callable[[], str]] = {
     "plain_village": _plain_village,
+    "plain_warren": _plain_warren,
 }
 
 

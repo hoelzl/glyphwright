@@ -12,7 +12,7 @@ import sys
 from collections.abc import Sequence
 from typing import TextIO
 
-from glyphwright.api import Engine, reference_pack
+from glyphwright.api import Engine, PackError, load_pack, reference_pack
 from glyphwright.frontends import jsonl, plain
 
 DEFAULT_SEED = 424242
@@ -53,13 +53,23 @@ def main(argv: Sequence[str] | None = None) -> int:
         help=f"run seed, recorded in the fingerprint (default: {DEFAULT_SEED})",
     )
     parser.add_argument(
+        "--pack",
+        default=None,
+        help="directory of a TOML content pack (default: the built-in reference pack)",
+    )
+    parser.add_argument(
         "--harness",
         action="store_true",
         help="enable the introspection meta channel (:seed, :frame)",
     )
     args = parser.parse_args(argv)
 
-    engine = Engine.new(reference_pack(), seed=args.seed)
+    try:
+        pack = reference_pack() if args.pack is None else load_pack(args.pack)
+    except PackError as error:
+        # The located diagnostic, as argparse reports any other bad argument.
+        parser.exit(2, f"glyphwright: {error}\n")
+    engine = Engine.new(pack, seed=args.seed)
     stdin = _utf8(sys.stdin, reading=True)
     stdout = _utf8(sys.stdout, reading=False)
     if args.frontend == "jsonl":
