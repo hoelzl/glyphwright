@@ -17,7 +17,7 @@ that build it. Read it before you plan or start a slice.
 
 ## Decisions already taken
 
-Taken by the owner on 2026-10-20, before the repository existed.
+Taken by the owner, most of them on 2026-10-20, before the repository existed.
 
 - **Fresh repository.** Public, Apache-2.0, named `hoelzl/glyphwright`. The
   first attempt is archived as
@@ -33,6 +33,9 @@ Taken by the owner on 2026-10-20, before the repository existed.
   applying a parent folder's uv settings.
 - **One instruction file and one skills folder for all agent harnesses**:
   [decision 0001](decisions/0001-agent-harness-layout.md).
+- **Portals come with S2** (owner, 2026-10-21). The usability gate has an
+  agent author a two-area pack, which needs a way between areas. Grid portals
+  are small; the room-graph geometry stays deferred.
 - **Day 0 follows the information-architecture rules** taught in the
   course deck that uses this repository as its example. Day 0 starts with an
   initial set of instructions: the invariants and the lessons of v0 and
@@ -88,12 +91,12 @@ of it are in [`AGENTS.md`](../AGENTS.md#invariants).
 | Exploration mode: `move`, `look`, `wait`, with typed rejections and the command grammar | `modes/exploration.py` |
 | Items and stats: `take`/`use`/`equip`, stat pipeline with per-modifier provenance | `world/entities.py`, `effects/stats.py` |
 | Menu battle: mode stack, rolled initiative, `attack`/`use`/`flee`, AI turns inside `step` | `modes/battle.py`, `kernel/scheduler.py` |
-| TOML content packs with located load diagnostics; a reduced reference world | `content/` |
+| TOML content packs with located load diagnostics; a reduced reference world; portals that link grid areas | `content/`, `world/entities.py` (`Portal`) |
 | Session recording and replay, with determinism fingerprints | `harness/recording.py`, `harness/fingerprint.py` |
 | Introspection meta-channel: `:query --explain`, `:seed`, `:frame` | `harness/query.py` |
 | Plain and JSONL frontends; the `glyphwright.api` public surface; committed wire schemas | `frontends/plain.py`, `frontends/jsonl.py`, `api.py`, `schemas/` |
 
-**Deferred until real use asks for them:** rooms and portals, abilities and
+**Deferred until real use asks for them:** rooms (the room-graph geometry), abilities and
 statuses, hooks and perks, resources, field of view and the tactics arena,
 dialogue, the lockpicking minigame, and the full-screen TUI and the GUI.
 
@@ -168,7 +171,7 @@ intended shape.
 |---|---|---|
 | **S0 — day 0** | Repository skeleton, uv project, gates, CI on three operating systems, the `AGENTS.md` map, the documentation map, the stub generator, this brief | The documentation rules pass; owner review before any code is ported |
 | **S1 — walking skeleton** | Kernel, `GridSpace`, exploration, plain and JSONL frontends, `api`, schemas | A playable hard-coded area; kernel knowledge page |
-| **S2 — content packs** | TOML loader with located diagnostics; reduced reference world | Play from a pack; content-pack knowledge page; first author-facing docs |
+| **S2 — content packs** | TOML loader with located diagnostics; portals between grid areas; reduced two-area reference world | Play from a pack; content-pack knowledge page; first author-facing docs |
 | **S3 — items and stats** | Inventory, stat pipeline with provenance, `:query --explain` | Generated command reference |
 | **S4 — menu battle** | Mode stack, scheduler, battle | The core gameplay loop is complete |
 | **S5 — record and replay** | Recording, replay, fingerprints, determinism contract | The usability gate is run and recorded; first course tag |
