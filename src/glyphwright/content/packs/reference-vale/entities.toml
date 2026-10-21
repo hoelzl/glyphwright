@@ -5,8 +5,9 @@ blocker = true
 
 [entity.actor]
 name = "Wren"
-hp = 20
+hp = 17
 max_hp = 20
+stats = { atk = 5, def = 3, spd = 5 }
 
 [entity.renderable]
 glyph = "@"
@@ -91,3 +92,32 @@ max_hp = 7
 [entity.renderable]
 glyph = "H"
 label = "hexer"
+
+[[entity]]
+id = "potion-minor"
+position = "village:3,1"
+
+[entity.item]
+name = "Minor Potion"
+
+[entity.consumable]
+heal = 6
+
+[entity.renderable]
+glyph = "!"
+label = "potion"
+
+[[entity]]
+id = "iron-sword"
+position = "village:6,3"
+
+[entity.item]
+name = "Iron Sword"
+
+[entity.equippable]
+slot = "weapon"
+modifiers = [{ stat = "atk", op = "add", value = 3 }]
+
+[entity.renderable]
+glyph = "/"
+label = "weapon"

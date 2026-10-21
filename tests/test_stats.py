@@ -122,3 +122,16 @@ def test_unequipped_items_do_not_contribute() -> None:
         _hero(inventory=Inventory(items=("blade",))),
     )
     assert derive(state, "hero", "atk").value == 5
+
+
+def test_equipping_the_reference_sword_raises_atk() -> None:
+    from glyphwright.kernel.commands import Equip, Move, Take
+    from glyphwright.kernel.state import PLAYER
+
+    engine = Engine.new(reference_pack(), seed=1)
+    for token in ("east",) * 5 + ("south",) * 2:
+        assert engine.step(Move(token)).accepted
+    assert engine.step(Take("iron-sword")).accepted
+    assert derive(engine._state, PLAYER, "atk").value == 5
+    assert engine.step(Equip("iron-sword")).accepted
+    assert derive(engine._state, PLAYER, "atk").value == 8
