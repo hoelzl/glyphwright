@@ -24,10 +24,14 @@ from glyphwright.content.pack import ContentError, ContentPack
 from glyphwright.world.entities import (
     Actor,
     Blocker,
+    Consumable,
     Entity,
+    Equippable,
+    Item,
     Portal,
     Position,
     Renderable,
+    StatModifier,
 )
 from glyphwright.world.grid import GridSpace
 from glyphwright.world.space import PosId
@@ -44,10 +48,9 @@ _LATER = "is not supported by this engine version"
 _LATER_FILES = frozenset({"abilities.toml", "presentation.toml", "tileset.toml"})
 _LATER_AREA_SECTIONS = frozenset({"rooms"})
 _LATER_GRID_KEYS = frozenset({"fov"})
-_LATER_COMPONENTS = frozenset(
-    {"item", "consumable", "equippable", "ai", "openable", "dialogue"}
-)
-_LATER_ACTOR_KEYS = frozenset({"mp", "max_mp", "stats", "abilities", "perks"})
+_LATER_COMPONENTS = frozenset({"ai", "openable", "dialogue"})
+_LATER_ACTOR_KEYS = frozenset({"mp", "max_mp", "abilities", "perks"})
+_LATER_CONSUMABLE_KEYS = frozenset({"mana"})
 
 Spec = Mapping[str, tuple[bool, type | None]]
 
@@ -60,10 +63,22 @@ ENTITY_SPEC: Spec = {
     "actor": (False, dict),
     "renderable": (False, dict),
     "portal": (False, dict),
+    "item": (False, dict),
+    "consumable": (False, dict),
+    "equippable": (False, dict),
 }
-ACTOR_SPEC: Spec = {"name": (True, str), "hp": (True, int), "max_hp": (True, int)}
+ACTOR_SPEC: Spec = {
+    "name": (True, str),
+    "hp": (True, int),
+    "max_hp": (True, int),
+    "stats": (False, dict),
+}
 RENDERABLE_SPEC: Spec = {"glyph": (True, str), "label": (True, str)}
 PORTAL_SPEC: Spec = {"token": (True, str), "to": (True, str)}
+ITEM_SPEC: Spec = {"name": (True, str)}
+CONSUMABLE_SPEC: Spec = {"heal": (True, int)}
+EQUIPPABLE_SPEC: Spec = {"slot": (True, str), "modifiers": (False, list)}
+MODIFIER_SPEC: Spec = {"stat": (True, str), "op": (True, str), "value": (True, int)}
 
 
 class PackError(ValueError):
@@ -266,9 +281,28 @@ def _entities(text: str) -> tuple[list[Entity], list[int | None]]:
 
 def _entity(located: _Located, table: Mapping[str, Any]) -> Entity:
     fields = located.take(table, ENTITY_SPEC, _LATER_COMPONENTS)
-    actor = renderable = portal = None
+    actor = renderable = portal = item = consumable = equippable = None
     if "actor" in fields:
-        actor = Actor(**located.take(fields["actor"], ACTOR_SPEC, _LATER_ACTOR_KEYS))
+        actor_fields = located.take(fields["actor"], ACTOR_SPEC, _LATER_ACTOR_KEYS)
+        stats = _stats(located, actor_fields.pop("stats", {}))
+        actor = Actor(**actor_fields, base_stats=stats)
+    if "item" in fields:
+        item = Item(**located.take(fields["item"], ITEM_SPEC, frozenset()))
+    if "consumable" in fields:
+        consumable = Consumable(
+            **located.take(
+                fields["consumable"], CONSUMABLE_SPEC, _LATER_CONSUMABLE_KEYS
+            )
+        )
+    if "equippable" in fields:
+        equippable_fields = located.take(
+            fields["equippable"], EQUIPPABLE_SPEC, frozenset()
+        )
+        modifiers = tuple(
+            _modifier(located, entry)
+            for entry in equippable_fields.get("modifiers", [])
+        )
+        equippable = Equippable(slot=equippable_fields["slot"], modifiers=modifiers)
     if "renderable" in fields:
         renderable = Renderable(
             **located.take(fields["renderable"], RENDERABLE_SPEC, frozenset())
@@ -287,7 +321,28 @@ def _entity(located: _Located, table: Mapping[str, Any]) -> Entity:
         blocker=Blocker() if fields.get("blocker") else None,
         renderable=renderable,
         portal=portal,
+        item=item,
+        consumable=consumable,
+        equippable=equippable,
     )
+
+
+def _stats(located: _Located, table: Mapping[str, Any]) -> tuple[tuple[str, int], ...]:
+    """An actor's stats table: stat names to integers, sorted by name."""
+    for stat, value in table.items():
+        if not _is(value, int):
+            raise located.fail(f"stat {stat!r} must be an integer, got {value!r}")
+    return tuple(sorted(table.items()))
+
+
+def _modifier(located: _Located, entry: Any) -> StatModifier:
+    if not isinstance(entry, dict):
+        raise located.fail("each modifier must be a table: { stat, op, value }")
+    fields = located.take(entry, MODIFIER_SPEC, frozenset())
+    try:
+        return StatModifier(**fields)
+    except ValueError as error:
+        raise located.fail(str(error)) from error
 
 
 def parse_pack(sources: Mapping[str, str]) -> ContentPack:

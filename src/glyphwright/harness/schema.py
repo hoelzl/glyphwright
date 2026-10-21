@@ -96,6 +96,9 @@ def frame_schema() -> dict[str, Any]:
         }
     )
     actor = _object({"id": _STRING, "name": _STRING, "hp": _PAIR, "at": _STRING})
+    item = _object(
+        {"id": _STRING, "name": _STRING, "slot": _STRING}, required=["id", "name"]
+    )
     commands = _object(
         {"verbs": {"type": "object", "additionalProperties": _array(_array(_STRING))}}
     )
@@ -110,6 +113,7 @@ def frame_schema() -> dict[str, Any]:
                 "viewport": viewport,
                 "actors": _array(actor),
                 "messages": _array(_STRING),
+                "inventory": _array(item),
                 "prompt": _object({"kind": _STRING}),
                 "commands": commands,
             }
@@ -134,6 +138,13 @@ _EVENT_FIELDS: dict[str, tuple[dict[str, Any], list[str] | None]] = {
         None,
     ),
     "TurnAdvanced": ({"turn_now": _INTEGER, "rng": _STRING}, ["turn_now"]),
+    "ItemAcquired": ({"actor": _STRING, "item": _STRING, "origin": _STRING}, None),
+    "ItemUsed": ({"actor": _STRING, "item": _STRING, "target": _STRING}, None),
+    "ItemEquipped": (
+        {"actor": _STRING, "item": _STRING, "slot": _STRING, "replaced": _STRING},
+        ["actor", "item", "slot"],
+    ),
+    "Healed": ({"target": _STRING, "amount": _INTEGER, "source": _STRING}, None),
 }
 
 
@@ -176,6 +187,16 @@ def query_schema() -> dict[str, Any]:
                 "schema": {"const": QUERY_SCHEMA},
                 "path": _STRING,
                 "value": {},
+                "explanation": _array(
+                    _object(
+                        {
+                            "source": _STRING,
+                            "op": {"enum": ["base", "add", "mul", "clamp"]},
+                            "value": _INTEGER,
+                            "running": _INTEGER,
+                        }
+                    )
+                ),
                 "error": _STRING,
             },
             required=["schema", "path"],

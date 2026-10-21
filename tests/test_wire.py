@@ -29,9 +29,11 @@ from glyphwright.kernel.commands import Look, Move, Wait
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
 
 
-def _validate(payload: dict[str, Any], filename: str) -> None:
+def _validate(payload: dict[str, Any]) -> None:
+    """Validate a payload against the schema its own tag names."""
     # v0 finding H10: v0's hand-rolled check looked only at top-level fields.
-    Draft202012Validator(all_schemas()[filename]).validate(payload)
+    schemas = {schema["$id"]: schema for schema in all_schemas().values()}
+    Draft202012Validator(schemas[payload["schema"]]).validate(payload)
 
 
 @pytest.mark.parametrize("filename", sorted(all_schemas()))
@@ -54,7 +56,7 @@ def test_every_wire_schema_is_committed() -> None:
 
 def test_a_real_frame_validates() -> None:
     engine = Engine.new(reference_pack(), seed=1)
-    _validate(encode_frame(engine.frame()), "glyphwright.frame.v1.json")
+    _validate(encode_frame(engine.frame()))
 
 
 def test_real_events_validate() -> None:
@@ -63,10 +65,7 @@ def test_real_events_validate() -> None:
     for command in (Move("east"), Move("north"), Wait()):
         result = engine.step(command)
         for event in result.events:
-            _validate(
-                encode_event(event, turn=result.frame.turn),
-                "glyphwright.event.v1.json",
-            )
+            _validate(encode_event(event, turn=result.frame.turn))
             seen.add(event.type)
     assert seen == {"Moved", "MoveBlocked", "TurnAdvanced"}
 
@@ -76,22 +75,19 @@ def test_an_event_with_another_types_field_is_invalid() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     moved = encode_event(engine.step(Move("east")).events[0], turn=1)
     with pytest.raises(ValidationError):
-        _validate(moved | {"reason": "wall"}, "glyphwright.event.v1.json")
+        _validate(moved | {"reason": "wall"})
 
 
 def test_a_real_rejection_validates() -> None:
     engine = Engine.new(reference_pack(), seed=1)
     result = engine.step(Move("up"))
     assert result.rejection is not None
-    _validate(
-        encode_rejection(result.rejection, turn=result.frame.turn),
-        "glyphwright.rejection.v1.json",
-    )
+    _validate(encode_rejection(result.rejection, turn=result.frame.turn))
 
 
 def test_the_session_header_validates() -> None:
     engine = Engine.new(reference_pack(), seed=7)
-    _validate(engine.fingerprint().header(harness=True), "glyphwright.session.v1.json")
+    _validate(engine.fingerprint().header(harness=True))
 
 
 def test_frames_and_events_carry_their_schema_tag() -> None:
@@ -144,3 +140,30 @@ def test_non_commands_decode_to_none(text: str) -> None:
 @pytest.mark.parametrize("command", [Move("east"), Look(), Wait()])
 def test_encoding_and_decoding_round_trip(command: object) -> None:
     assert decode_command(encode_command(command)) == command  # type: ignore[arg-type]
+
+
+def test_every_command_type_has_one_verb_spec() -> None:
+    from typing import get_args
+
+    from glyphwright.frontends.wire import VERB_SPECS, VERBS
+    from glyphwright.kernel.commands import Command
+
+    assert len(VERB_SPECS) == len(VERBS), "a verb is described twice"
+    built = {spec.build for spec in VERBS}
+    assert built == set(get_args(Command))
+
+
+def test_every_mode_verb_is_in_the_verb_table() -> None:
+    from glyphwright.frontends.wire import VERB_SPECS
+    from glyphwright.modes import _MODES
+
+    for mode in _MODES.values():
+        assert set(VERB_SPECS) >= mode.VERBS, mode.NAME
+
+
+def test_verbs_with_arguments_have_a_rejection_vocabulary() -> None:
+    from glyphwright.frontends.wire import VERBS
+
+    for spec in VERBS:
+        if spec.arguments:
+            assert spec.reason and spec.options_hint and spec.empty_hint, spec.verb

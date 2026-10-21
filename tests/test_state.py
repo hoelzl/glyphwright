@@ -9,7 +9,15 @@ import pytest
 from glyphwright.kernel.events import MoveBlocked, Moved, TurnAdvanced
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
-from glyphwright.world.entities import Actor, Blocker, Entity, Position, Renderable
+from glyphwright.world.entities import (
+    Actor,
+    Blocker,
+    Entity,
+    Equipment,
+    Position,
+    Renderable,
+    StatModifier,
+)
 from glyphwright.world.grid import GridSpace, coords
 from glyphwright.world.space import PosId, Space
 
@@ -134,3 +142,83 @@ def test_folding_does_not_mutate_its_input(state: WorldState) -> None:
     )
     fold(state, (moved,))
     assert state.entity(PLAYER).at() == before
+
+
+def test_equipment_keeps_one_item_per_slot_sorted_by_slot() -> None:
+    worn = Equipment().with_slot("weapon", "sword").with_slot("head", "cap")
+    assert worn.slots == (("head", "cap"), ("weapon", "sword"))
+    assert worn.with_slot("weapon", "axe").in_slot("weapon") == "axe"
+    assert worn.equipped_items() == ("cap", "sword")
+
+
+@pytest.mark.parametrize(("op", "value"), [("sub", 1), ("mul", -50)])
+def test_a_modifier_rejects_unknown_ops_and_negative_percentages(
+    op: str, value: int
+) -> None:
+    with pytest.raises(ValueError):
+        StatModifier(stat="atk", op=op, value=value)
+
+
+def test_an_actor_reads_its_base_stats_with_zero_as_default() -> None:
+    actor = Actor(name="Wren", hp=1, max_hp=1, base_stats=(("atk", 5),))
+    assert (actor.base_stat("atk"), actor.base_stat("def")) == (5, 0)
+
+
+def _with_potion(state: WorldState) -> WorldState:
+    from glyphwright.world.entities import Consumable, Item
+
+    potion = Entity(
+        id="potion",
+        position=Position(at=ROOM.pos(2, 1)),
+        item=Item(name="Potion"),
+        consumable=Consumable(heal=3),
+    )
+    return state.with_entity(potion)
+
+
+def test_taking_moves_the_item_into_the_inventory(state: WorldState) -> None:
+    from glyphwright.kernel.events import ItemAcquired
+
+    state = _with_potion(state)
+    taken = fold(
+        state, (ItemAcquired(actor=PLAYER, item="potion", origin=ROOM.pos(2, 1)),)
+    )
+    assert taken.entity("potion").at() is None
+    assert taken.entity(PLAYER).carries() == ("potion",)
+
+
+def test_using_destroys_the_item_and_clears_its_slot(state: WorldState) -> None:
+    from glyphwright.kernel.events import ItemAcquired, ItemEquipped, ItemUsed
+
+    state = fold(
+        _with_potion(state),
+        (
+            ItemAcquired(actor=PLAYER, item="potion", origin=ROOM.pos(2, 1)),
+            ItemEquipped(actor=PLAYER, item="potion", slot="belt"),
+        ),
+    )
+    used = fold(state, (ItemUsed(actor=PLAYER, item="potion", target=PLAYER),))
+    assert "potion" not in used.entities
+    assert used.entity(PLAYER).carries() == ()
+    assert used.entity(PLAYER).equipment == Equipment()
+
+
+def test_healing_is_clamped_to_both_bounds(state: WorldState) -> None:
+    from glyphwright.kernel.events import Healed
+
+    # v0 finding K5: a negative amount drove hp below zero.
+    assert fold(state, (Healed(target=PLAYER, amount=-50, source="x"),)).entity(
+        PLAYER
+    ).actor == Actor(name="Player", hp=0, max_hp=5)
+    assert fold(state, (Healed(target=PLAYER, amount=99, source="x"),)).entity(
+        PLAYER
+    ).actor == Actor(name="Player", hp=5, max_hp=5)
+
+
+def test_healing_something_that_is_not_an_actor_is_a_hard_error(
+    state: WorldState,
+) -> None:
+    from glyphwright.kernel.events import Healed
+
+    with pytest.raises(ValueError, match="not an actor"):
+        fold(_with_potion(state), (Healed(target="potion", amount=1, source="x"),))

@@ -19,12 +19,13 @@ from typing import TextIO
 from glyphwright.api import Engine
 from glyphwright.frames.frame import SemanticFrame, flatten
 from glyphwright.frontends.jsonl import safe_echo
-from glyphwright.frontends.wire import decode_command
+from glyphwright.frontends.wire import VERB_SPECS, decode_command
 from glyphwright.harness import meta
 from glyphwright.kernel.state import PLAYER
 
 _DELIMITER = "=="
 _SEPARATOR = " | "
+_CARRYING = "[carrying "
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +42,7 @@ class PlainProjection:
     tiles: tuple[str, ...]
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
+    carrying: tuple[str, ...] = ()
 
 
 def project(frame: SemanticFrame) -> PlainProjection:
@@ -53,6 +55,10 @@ def project(frame: SemanticFrame) -> PlainProjection:
         tiles=flatten(frame.viewport),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
+        carrying=tuple(
+            item.id if item.slot is None else f"{item.id} ({item.slot})"
+            for item in frame.inventory
+        ),
     )
 
 
@@ -63,6 +69,9 @@ def render(frame: SemanticFrame) -> str:
     lines = [f"{_DELIMITER} {header} {_DELIMITER}"]
     lines.extend(view.tiles)
     lines.extend(view.messages)
+    if view.carrying:
+        # Ids hold no whitespace, so ", " and " (" cannot occur inside one.
+        lines.append(f"{_CARRYING}{', '.join(view.carrying)}]")
     if view.hp is not None:
         lines.append(f"[hp {view.hp[0]}/{view.hp[1]}]")
     return "\n".join(lines)
@@ -91,6 +100,10 @@ def parse(text: str) -> PlainProjection:
         )
         hp = (int(current), int(maximum))
         body = body[:-1]
+    carrying: tuple[str, ...] = ()
+    if body and body[-1].startswith(_CARRYING):
+        carrying = tuple(body[-1].removeprefix(_CARRYING).removesuffix("]").split(", "))
+        body = body[:-1]
 
     # Tiles are the leading run of space-free lines: content-independent, so
     # a pack may use any glyph. Message templates always contain spaces.
@@ -106,11 +119,11 @@ def parse(text: str) -> PlainProjection:
         tiles=tiles,
         messages=tuple(body[len(tiles) :]),
         hp=hp,
+        carrying=carrying,
     )
 
 
 _PROMPT = "> "
-_PLACEHOLDERS = {"move": "<exit>"}
 
 
 def help_line(frame: SemanticFrame) -> str:
@@ -119,10 +132,7 @@ def help_line(frame: SemanticFrame) -> str:
     Derived from the grammar rather than hand-written, so the help can never
     drift from what the engine actually accepts.
     """
-    verbs = [
-        f"{verb} {_PLACEHOLDERS[verb]}" if verb in _PLACEHOLDERS else verb
-        for verb in frame.commands.verb_names()
-    ]
+    verbs = [VERB_SPECS[verb].usage() for verb in frame.commands.verb_names()]
     return "commands: " + " | ".join((*verbs, "quit")) + "\n"
 
 

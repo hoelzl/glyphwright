@@ -23,6 +23,7 @@ from glyphwright.content.loader import PackError, parse_pack
 from glyphwright.content.pack import ContentPack
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.frontends.wire import (
+    VERB_SPECS,
     decode_command,
     encode_command,
     encode_event,
@@ -30,6 +31,8 @@ from glyphwright.frontends.wire import (
     encode_rejection,
 )
 from glyphwright.harness.fingerprint import RunFingerprint
+from glyphwright.harness.query import QueryResult
+from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
@@ -53,6 +56,7 @@ __all__ = [
     "Look",
     "Move",
     "PackError",
+    "QueryResult",
     "Rejected",
     "RunFingerprint",
     "SemanticFrame",
@@ -164,6 +168,14 @@ class Engine:
         """The current frame. Does not advance the turn."""
         return modes.active(self._state).view(self._state, ())
 
+    def query(self, path: str) -> QueryResult:
+        """Read world state by a stable path. The turn does not pass.
+
+        An unknown path is an error value, not an exception. Stat queries
+        carry their full derivation.
+        """
+        return _query(self._state, path)
+
     def fingerprint(self) -> RunFingerprint:
         """Engine version, pack id, seed, and turn."""
         return RunFingerprint.create(
@@ -199,15 +211,15 @@ class Engine:
                     f"try: {', '.join(grammar.verb_names())}"
                 ),
             )
-        vocabulary = _REJECTIONS.get(command.verb)
+        spec = VERB_SPECS.get(command.verb)
         if command.verb not in grammar.verb_names():
-            if vocabulary is not None and command.args():
+            if spec is not None and spec.reason is not None and command.args():
                 # A real verb whose domain is empty right now: reject in its
                 # own vocabulary, not as an unknown word.
                 return Rejected(
                     command=encode_command(command),
-                    reason=vocabulary.reason,
-                    hint=vocabulary.empty_hint,
+                    reason=spec.reason,
+                    hint=spec.empty_hint or "",
                 )
             return Rejected(
                 command=encode_command(command),
@@ -217,30 +229,15 @@ class Engine:
         domains = grammar.domains(command.verb)
         for argument, domain in zip(command.args(), domains, strict=True):
             if argument not in domain:
-                assert vocabulary is not None, "verbs with arguments have vocabulary"
+                assert spec is not None and spec.reason is not None, (
+                    "verbs with arguments have a rejection reason"
+                )
+                hint = (
+                    f"{spec.options_hint}: {', '.join(domain)}"
+                    if domain
+                    else spec.empty_hint or ""
+                )
                 return Rejected(
-                    command=encode_command(command),
-                    reason=vocabulary.reason,
-                    hint=vocabulary.hint(domain),
+                    command=encode_command(command), reason=spec.reason, hint=hint
                 )
         return None
-
-
-@dataclass(frozen=True, slots=True)
-class _RejectionVocabulary:
-    reason: str
-    options_hint: str
-    empty_hint: str
-
-    def hint(self, domain: tuple[str, ...]) -> str:
-        if not domain:
-            return self.empty_hint
-        return f"{self.options_hint}: {', '.join(domain)}"
-
-
-# One entry per verb that takes arguments; later slices add theirs.
-_REJECTIONS: dict[str, _RejectionVocabulary] = {
-    "move": _RejectionVocabulary(
-        "no_such_exit", "exits here", "there are no exits here"
-    ),
-}

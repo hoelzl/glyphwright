@@ -1,8 +1,8 @@
 # The kernel
 
 How a turn is computed: the world state, commands and events, the step
-function, modes, and rejections, plus the checklist for adding a command or an
-event. Read it before you change anything under `src/glyphwright/kernel/` or
+function, modes, items, and stats, plus the checklist for adding a command or
+an event. Read it before you change anything under `src/glyphwright/kernel/` or
 `src/glyphwright/modes/`.
 
 ## Contents
@@ -12,6 +12,7 @@ event. Read it before you change anything under `src/glyphwright/kernel/` or
 - [Space and entities](#space-and-entities)
 - [The step contract](#the-step-contract)
 - [Modes and the grammar](#modes-and-the-grammar)
+- [Items and stats](#items-and-stats)
 - [Rejections](#rejections)
 - [Adding a command or an event](#adding-a-command-or-an-event)
 
@@ -40,7 +41,8 @@ add fields with defaults, so existing constructions keep working.
   neighbours, walls included: exits are topology, and `blocked_reason` says
   `wall`, `occupied`, or `edge` when a move fails.
 - **`Entity`** is an id plus optional components: `position`, `actor`,
-  `blocker`, `renderable`, `portal`.
+  `blocker`, `renderable`, `portal`, and the item parts `item`, `consumable`,
+  `equippable`, `inventory`, `equipment`.
 - **Movement reads exits through `WorldState.exits_from`**: the space's exits
   plus the token of any portal standing on the tile, so a portal works for
   every mover. A portal may lead into another area; `move_player` then checks
@@ -67,19 +69,28 @@ returns is carried in every frame. It advertises a verb only when a command
 can be formed from it, and each verb has one argument domain per argument, so
 a harness can generate every valid command without knowing the rules.
 
+Domains come in two kinds. `move` offers every exit, walls included, because
+exits are topology and a failed move says why. Item verbs offer only what the
+command would work on, because a pointless `use` would destroy an item for
+nothing.
+
+## Items and stats
+
+- **Carrying:** `ItemAcquired` moves an item off the map into the actor's
+  `inventory`; `ItemUsed` removes it from the world. A worn item stays in the
+  inventory, and `equipment` only records its slot.
+- **Stats:** `derive` in `src/glyphwright/effects/stats.py` resolves a stat as
+  the actor's base value, then every additive modifier, then every
+  multiplicative one, then a clamp at zero. Each step records its source and
+  the running value, which `:query <id>.stats.<stat> --explain` returns.
+- **Frames** carry the player's inventory, so the evidence says what is
+  carried without a query.
+
 ## Rejections
 
 Invalid input never raises; it becomes a `Rejected` value or a rejection
-payload with a reason and a hint. The engine's reasons:
-
-| Reason | When |
-|---|---|
-| `wrong_mode` | the verb exists, but not in the active mode |
-| `unknown_verb` | no mode knows the verb |
-| `no_such_exit` | `move` names an exit that is not here |
-
-The frontends add `unparsable` (not a command at all), `harness_disabled` (a
-meta command without `--harness`), and `unknown_meta`.
+payload with a reason and a hint. Every reason and its hint is listed in the
+generated [command reference](commands.md#rejections).
 
 ## Adding a command or an event
 
@@ -94,7 +105,8 @@ A new event type touches six places, and the type checker catches a missed
 6. a bumped `EVENT_SCHEMA` tag, then regenerate the schemas
    (`uv run python -m glyphwright.harness.schema`), per decision 0002.
 
-A new command needs its dataclass in the `Command` union, a case in
-`decode_command`, a handler arm and grammar entry in its mode, and a
-rejection vocabulary entry in `src/glyphwright/api.py` if it takes
-arguments.
+A new command needs its dataclass in the `Command` union, one `VerbSpec` row
+in `VERBS` in `src/glyphwright/frontends/wire.py` (the decoder, the help
+line, the rejections, and the command reference all read it), and a handler
+arm and grammar entry in its mode. Then regenerate the command reference with
+`uv run python -m glyphwright.harness.reference`; a test fails until you do.

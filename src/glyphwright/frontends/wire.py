@@ -8,23 +8,37 @@ silently. Widening a closed shape bumps its tag (decision 0002).
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, assert_never
 
 from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
+    Equip,
     Look,
     Move,
     Rejected,
+    Take,
+    Use,
     Wait,
 )
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 
-FRAME_SCHEMA = "glyphwright.frame/1"
-EVENT_SCHEMA = "glyphwright.event/1"
+FRAME_SCHEMA = "glyphwright.frame/2"
+EVENT_SCHEMA = "glyphwright.event/2"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
-QUERY_SCHEMA = "glyphwright.query/1"
+QUERY_SCHEMA = "glyphwright.query/2"
 
 
 def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
@@ -63,6 +77,11 @@ def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
             for actor in frame.actors
         ],
         "messages": list(frame.messages),
+        "inventory": [
+            {"id": item.id, "name": item.name}
+            | ({"slot": item.slot} if item.slot is not None else {})
+            for item in frame.inventory
+        ],
         "prompt": {"kind": frame.prompt.kind},
         "commands": encode_grammar(frame.commands),
     }
@@ -107,6 +126,28 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"turn_now": event.turn}
             if event.rng is not None:
                 payload |= {"rng": event.rng}
+        case ItemAcquired():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "origin": str(event.origin),
+            }
+        case ItemUsed():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "target": event.target,
+            }
+        case ItemEquipped():
+            payload |= {"actor": event.actor, "item": event.item, "slot": event.slot}
+            if event.replaced is not None:
+                payload |= {"replaced": event.replaced}
+        case Healed():
+            payload |= {
+                "target": event.target,
+                "amount": event.amount,
+                "source": event.source,
+            }
         case _:
             assert_never(event)
     return payload
@@ -131,6 +172,97 @@ def canonical_json(payload: object) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
+@dataclass(frozen=True, slots=True)
+class VerbSpec:
+    """Everything the command language says about one verb.
+
+    The decoder, the plain frontend's help, the API's rejection vocabulary,
+    and the generated command reference all read this table, so a verb is
+    described once.
+    """
+
+    verb: str
+    build: Callable[..., Command]
+    arguments: tuple[str, ...]
+    summary: str
+    spends_turn: bool
+    events: tuple[str, ...]
+    reason: str | None = None
+    options_hint: str | None = None
+    empty_hint: str | None = None
+
+    def usage(self) -> str:
+        """The verb with a placeholder per argument, such as ``move <exit>``."""
+        return " ".join((self.verb, *(f"<{name}>" for name in self.arguments)))
+
+
+VERBS: tuple[VerbSpec, ...] = (
+    VerbSpec(
+        "move",
+        Move,
+        ("exit",),
+        "Walk through an exit or a portal.",
+        spends_turn=True,
+        events=("Moved", "MoveBlocked", "TurnAdvanced"),
+        reason="no_such_exit",
+        options_hint="exits here",
+        empty_hint="there are no exits here",
+    ),
+    VerbSpec(
+        "look",
+        Look,
+        (),
+        "Look around again; the turn does not pass.",
+        spends_turn=False,
+        events=(),
+    ),
+    VerbSpec(
+        "wait",
+        Wait,
+        (),
+        "Let one turn pass.",
+        spends_turn=True,
+        events=("TurnAdvanced",),
+    ),
+    VerbSpec(
+        "take",
+        Take,
+        ("item",),
+        "Pick up an item lying where you stand.",
+        spends_turn=True,
+        events=("ItemAcquired", "TurnAdvanced"),
+        reason="not_here",
+        options_hint="you can take",
+        empty_hint="there is nothing here to take",
+    ),
+    VerbSpec(
+        "use",
+        Use,
+        ("item",),
+        "Use a carried consumable on yourself; offered only when it would help.",
+        spends_turn=True,
+        events=("ItemUsed", "Healed", "TurnAdvanced"),
+        reason="not_usable",
+        options_hint="you can use",
+        # v2 finding N11: v0 said "you are carrying nothing usable" even when
+        # the player carried a potion at full hp.
+        empty_hint="nothing you carry would have an effect now",
+    ),
+    VerbSpec(
+        "equip",
+        Equip,
+        ("item",),
+        "Wear a carried item in its slot, replacing what was there.",
+        spends_turn=True,
+        events=("ItemEquipped", "TurnAdvanced"),
+        reason="not_equippable",
+        options_hint="you can equip",
+        empty_hint="you are carrying nothing to equip",
+    ),
+)
+VERB_SPECS: dict[str, VerbSpec] = {spec.verb: spec for spec in VERBS}
+
+
 def encode_command(command: Command) -> str:
     """Write one command in the command language.
 
@@ -143,11 +275,10 @@ def encode_command(command: Command) -> str:
 def decode_command(text: str) -> Command | None:
     """Parse one line of the command language. ``None`` if it is not one."""
     match text.strip().split():
-        case ["move", token]:
-            return Move(exit=token)
-        case ["look"]:
-            return Look()
-        case ["wait"]:
-            return Wait()
+        case [verb, *arguments] if verb in VERB_SPECS:
+            spec = VERB_SPECS[verb]
+            if len(arguments) == len(spec.arguments):
+                return spec.build(*arguments)
+            return None
         case _:
             return None

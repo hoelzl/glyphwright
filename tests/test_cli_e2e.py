@@ -14,6 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from glyphwright.frontends.wire import EVENT_SCHEMA, FRAME_SCHEMA
+from glyphwright.harness.fingerprint import SESSION_SCHEMA
+
 pytestmark = pytest.mark.e2e
 
 _SCRIPT = [sys.executable, "-m", "glyphwright.cli"]
@@ -50,7 +53,7 @@ def test_the_plain_frontend_is_deterministic_across_processes() -> None:
 
 def test_the_jsonl_frontend_opens_with_a_session_header() -> None:
     header = _lines(_run(["--frontend", "jsonl", "--harness"], b"quit\n"))[0]
-    assert header["schema"] == "glyphwright.session/1"
+    assert header["schema"] == SESSION_SCHEMA
     assert header["harness"] is True
     assert header["seed"] == 424242
     assert str(header["pack"]).startswith("reference-vale@sha256:")
@@ -61,9 +64,9 @@ def test_the_jsonl_frontend_emits_events_then_a_frame() -> None:
         line["schema"]
         for line in _lines(_run(["--frontend", "jsonl"], b"move east\nquit\n"))
     ]
-    assert schemas[0] == "glyphwright.session/1"
-    assert "glyphwright.event/1" in schemas
-    assert schemas[-1] == "glyphwright.frame/1"
+    assert schemas[0] == SESSION_SCHEMA
+    assert EVENT_SCHEMA in schemas
+    assert schemas[-1] == FRAME_SCHEMA
 
 
 def test_invalid_utf8_on_stdin_is_escaped_not_echoed() -> None:

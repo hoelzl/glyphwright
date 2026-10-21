@@ -12,9 +12,18 @@ from dataclasses import dataclass, replace
 from types import MappingProxyType
 from typing import assert_never
 
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 from glyphwright.kernel.rng import Rng
-from glyphwright.world.entities import Entity, Position
+from glyphwright.world.entities import Entity, Equipment, Inventory, Position
 from glyphwright.world.space import EntityId, ExitToken, PosId, Space
 
 PLAYER: EntityId = "player"
@@ -85,6 +94,11 @@ class WorldState:
         entities[entity.id] = entity
         return replace(self, entities=entities)
 
+    def without_entity(self, entity_id: EntityId) -> WorldState:
+        entities = dict(self.entities)
+        del entities[entity_id]
+        return replace(self, entities=entities)
+
 
 def apply(state: WorldState, event: Event) -> WorldState:
     """Fold one event into a state.
@@ -104,6 +118,39 @@ def apply(state: WorldState, event: Event) -> WorldState:
             if event.rng is not None:
                 return replace(state, turn=event.turn, rng=Rng.decode(event.rng))
             return replace(state, turn=event.turn)
+        case ItemAcquired():
+            item = replace(state.entity(event.item), position=None)
+            actor = state.entity(event.actor)
+            carried = (*actor.carries(), event.item)
+            actor = replace(actor, inventory=Inventory(items=carried))
+            return state.with_entity(item).with_entity(actor)
+        case ItemUsed():
+            actor = state.entity(event.actor)
+            kept = tuple(i for i in actor.carries() if i != event.item)
+            actor = replace(actor, inventory=Inventory(items=kept))
+            if actor.equipment is not None:
+                # A consumed item must not leave a dangling slot reference.
+                slots = tuple(
+                    pair for pair in actor.equipment.slots if pair[1] != event.item
+                )
+                actor = replace(actor, equipment=Equipment(slots=slots))
+            return state.with_entity(actor).without_entity(event.item)
+        case ItemEquipped():
+            actor = state.entity(event.actor)
+            worn = actor.equipment or Equipment()
+            return state.with_entity(
+                replace(actor, equipment=worn.with_slot(event.slot, event.item))
+            )
+        case Healed():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"Healed target {event.target} is not an actor")
+            # v0 finding K5: without the lower clamp, a negative amount drove hp
+            # below zero. Content refuses such amounts; the fold is safe anyway.
+            hp = min(max(target.actor.hp + event.amount, 0), target.actor.max_hp)
+            return state.with_entity(
+                replace(target, actor=replace(target.actor, hp=hp))
+            )
         case _:
             assert_never(event)
 

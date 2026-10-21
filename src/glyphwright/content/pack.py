@@ -47,6 +47,17 @@ def _word(subject: Subject, label: str, value: str) -> None:
         )
 
 
+def _name(subject: Subject, label: str, value: str) -> None:
+    """Stat names and slots appear in :query paths, which split on '.'."""
+    _word(subject, label, value)
+    if "." in value:
+        # v2 finding N12.
+        raise ContentError(subject, f"{label} {value!r} may not contain '.'")
+
+
+RESERVED_ID = "world"
+
+
 @dataclass(frozen=True, slots=True)
 class ContentPack:
     """Validated content plus the hash that identifies it.
@@ -64,6 +75,7 @@ class ContentPack:
         self._check_entities()
         self._check_placement()
         self._check_portals()
+        self._check_items()
 
     def _check_areas(self) -> None:
         seen: set[str] = set()
@@ -82,6 +94,10 @@ class ContentPack:
         labels: dict[str, str] = {}
         for entity in self.entities:
             _word(("entity", entity.id), "entity id", entity.id)
+            if "." in entity.id or entity.id == RESERVED_ID:
+                # v2 finding N8: :query splits paths on '.', and 'world' names
+                # the world itself, so such an entity could never be queried.
+                raise _entity(entity, f"ids may not contain '.' or be {RESERVED_ID!r}")
             if entity.id in seen:
                 # v0 finding L1: a duplicate id silently replaced the earlier one.
                 raise _entity(entity, "is defined twice; entity ids must be unique")
@@ -165,6 +181,31 @@ class ContentPack:
                     entity, f"another portal at {at} already claims {portal.token!r}"
                 )
             claimed.add((at, portal.token))
+
+    def _check_items(self) -> None:
+        for entity in self.entities:
+            subject = ("entity", entity.id)
+            if entity.actor is not None:
+                for stat, _ in entity.actor.base_stats:
+                    _name(subject, "stat name", stat)
+            if (entity.consumable or entity.equippable) and entity.item is None:
+                # v2 finding N7: only items can be carried and used.
+                raise _entity(entity, "a consumable or equippable must be an item")
+            if entity.item is not None:
+                if entity.at() is None:
+                    raise _entity(entity, "an item must have a position")
+                if entity.actor or entity.blocker or entity.portal:
+                    # v2 finding N7: taking one would corrupt the world.
+                    raise _entity(
+                        entity, "an item cannot be an actor, a blocker, or a portal"
+                    )
+            if entity.consumable is not None and entity.consumable.heal < 1:
+                # v0 finding K5: a negative heal drove hp below zero.
+                raise _entity(entity, "a consumable must heal at least 1 hp")
+            if entity.equippable is not None:
+                _name(subject, "slot", entity.equippable.slot)
+                for modifier in entity.equippable.modifiers:
+                    _name(subject, "stat name", modifier.stat)
 
     @property
     def pack_id(self) -> str:

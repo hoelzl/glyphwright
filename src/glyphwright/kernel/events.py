@@ -54,4 +54,59 @@ class TurnAdvanced:
     type: str = "TurnAdvanced"
 
 
-Event = Moved | MoveBlocked | TurnAdvanced
+@dataclass(frozen=True, slots=True)
+class ItemAcquired:
+    """An actor picked an item up off the ground."""
+
+    actor: EntityId
+    item: EntityId
+    origin: PosId
+
+    type: str = "ItemAcquired"
+
+
+@dataclass(frozen=True, slots=True)
+class ItemUsed:
+    """An actor used a carried consumable on a target; the item is gone."""
+
+    actor: EntityId
+    item: EntityId
+    target: EntityId
+
+    type: str = "ItemUsed"
+
+
+@dataclass(frozen=True, slots=True)
+class ItemEquipped:
+    """An actor filled an equipment slot, possibly displacing what was there.
+
+    A displaced item stays in the inventory it never left; ``replaced`` is
+    evidence of the swap, not a second state change.
+    """
+
+    actor: EntityId
+    item: EntityId
+    slot: str
+    replaced: EntityId | None = None
+
+    type: str = "ItemEquipped"
+
+
+@dataclass(frozen=True, slots=True)
+class Healed:
+    """A target recovered hit points.
+
+    ``amount`` is what actually landed after clamping to ``max_hp``, because
+    events are evidence of what happened, not of what was attempted.
+    """
+
+    target: EntityId
+    amount: int
+    source: EntityId
+
+    type: str = "Healed"
+
+
+Event = (
+    Moved | MoveBlocked | TurnAdvanced | ItemAcquired | ItemUsed | ItemEquipped | Healed
+)

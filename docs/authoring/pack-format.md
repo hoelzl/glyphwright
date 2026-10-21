@@ -40,7 +40,7 @@ One `[[entity]]` table per entity. An entity is an id plus optional parts.
 
 | Key | Type | Required | Meaning |
 |---|---|---|---|
-| `id` | string | yes | unique, one word; the id `player` is the protagonist |
+| `id` | string | yes | unique, one word without `.`; not `world`; the id `player` is the protagonist |
 | `position` | string | no | where it stands: `area:x,y`, for example `village:1,1` |
 | `blocker` | boolean | no | `true` if nothing else may enter its tile |
 
@@ -51,6 +51,7 @@ One `[[entity]]` table per entity. An entity is an id plus optional parts.
 | `name` | string | yes | display name |
 | `hp` | integer | yes | current hit points, from 0 to `max_hp` |
 | `max_hp` | integer | yes | maximum hit points |
+| `stats` | table | no | base stats, such as `{ atk = 5, def = 3 }`; names are one word without `.` |
 
 **`renderable`** (`[entity.renderable]`): how the entity is drawn.
 
@@ -66,6 +67,36 @@ One `[[entity]]` table per entity. An entity is an id plus optional parts.
 | `token` | string | yes | the word after `move`, such as `down` |
 | `to` | string | yes | the destination, `area:x,y` |
 
+**`item`** (`[entity.item]`): something the player can take.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `name` | string | yes | display name |
+
+**`consumable`** (`[entity.consumable]`): an item used up by `use`.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `heal` | integer | yes | hit points restored, at least 1 |
+
+**`equippable`** (`[entity.equippable]`): an item worn with `equip`.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `slot` | string | yes | the slot it fills, such as `weapon`; one word without `.` |
+| `modifiers` | array of tables | no | what it does to stats while worn |
+
+Each entry of `modifiers` is a table:
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `stat` | string | yes | the stat it changes |
+| `op` | string | yes | `add` adds `value`; `mul` multiplies by `value` percent |
+| `value` | integer | yes | the amount; a `mul` value is 0 or more (150 means +50%) |
+
+All `add` modifiers apply before any `mul` one, and a stat never drops below
+zero.
+
 ## Rules across the pack
 
 - There is exactly one entity with id `player`, and it has an actor and a
@@ -76,6 +107,8 @@ One `[[entity]]` table per entity. An entity is an id plus optional parts.
 - One glyph has one label across the pack.
 - A portal stands somewhere, is neither an actor nor a blocker, leads to a
   floor tile, and its token is not already an exit of its tile.
+- A `consumable` or `equippable` entity is also an `item`. An item has a
+  position and is not an actor, a blocker, or a portal.
 
 ## Not supported yet
 
@@ -84,6 +117,6 @@ fails with "is not supported by this engine version":
 
 - the files `abilities.toml`, `presentation.toml`, and `tileset.toml`;
 - `rooms` areas (`[[rooms]]`) and the grid key `fov`;
-- the entity parts `item`, `consumable`, `equippable`, `ai`, `openable`, and
-  `dialogue`;
-- the actor keys `mp`, `max_mp`, `stats`, `abilities`, and `perks`.
+- the entity parts `ai`, `openable`, and `dialogue`;
+- the actor keys `mp`, `max_mp`, `abilities`, and `perks`;
+- the consumable key `mana`.

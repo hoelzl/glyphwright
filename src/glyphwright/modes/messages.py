@@ -8,7 +8,16 @@ from __future__ import annotations
 
 from typing import assert_never
 
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 from glyphwright.kernel.state import PLAYER
 
 
@@ -25,6 +34,25 @@ def describe(event: Event) -> str:
             return f"Something blocks the way {event.exit}."
         case MoveBlocked():
             return f"You cannot go {event.exit} from here."
+        case ItemAcquired(actor=actor) if actor == PLAYER:
+            return f"You take {event.item}."
+        case ItemAcquired():
+            return f"{event.actor} takes {event.item}."
+        case ItemUsed(actor=actor) if actor == PLAYER:
+            return f"You use {event.item}."
+        case ItemUsed():
+            return f"{event.actor} uses {event.item}."
+        case ItemEquipped(actor=actor, replaced=None) if actor == PLAYER:
+            return f"You equip {event.item}."
+        case ItemEquipped(actor=actor) if actor == PLAYER:
+            return f"You equip {event.item}, putting away {event.replaced}."
+        case ItemEquipped():
+            return f"{event.actor} equips {event.item}."
+        case Healed(target=target) if target == PLAYER:
+            return f"You recover {event.amount} hp."
+        case Healed():
+            # v2 finding N10: v0 said "You" whoever was healed.
+            return f"{event.target} recovers {event.amount} hp."
         case TurnAdvanced():
             return ""
         case _:
