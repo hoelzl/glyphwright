@@ -145,3 +145,42 @@ def test_item_commands_out_of_reach_are_rejected_in_their_own_words(
     rejection = _engine().step(command).rejection
     assert rejection is not None
     assert (rejection.reason, rejection.hint) == (reason, hint)
+
+
+def test_every_frame_lists_what_the_player_carries() -> None:
+    # v2 finding N13: v0's frames never said what the player carries.
+    from glyphwright.frames.frame import ItemSummary
+
+    engine = _engine()
+    assert engine.frame().inventory == ()
+    engine.step(Take("potion"))
+    engine.step(Move("east"))
+    engine.step(Take("sword"))
+    frame = engine.step(Equip("sword")).frame
+    assert frame.inventory == (
+        ItemSummary(id="potion", name="Potion"),
+        ItemSummary(id="sword", name="Sword", slot="weapon"),
+    )
+
+
+def test_the_inventory_is_on_the_wire_and_in_the_transcript() -> None:
+    from jsonschema import Draft202012Validator
+
+    from glyphwright.frontends import plain
+    from glyphwright.frontends.wire import encode_frame
+    from glyphwright.harness.schema import frame_schema
+
+    engine = _engine()
+    engine.step(Take("potion"))
+    engine.step(Move("east"))
+    engine.step(Take("sword"))
+    frame = engine.step(Equip("sword")).frame
+    encoded = encode_frame(frame)
+    Draft202012Validator(frame_schema()).validate(encoded)
+    assert encoded["inventory"] == [
+        {"id": "potion", "name": "Potion"},
+        {"id": "sword", "name": "Sword", "slot": "weapon"},
+    ]
+    text = plain.render(frame)
+    assert text.splitlines()[-2] == "[carrying potion, sword (weapon)]"
+    assert plain.parse(text) == plain.project(frame)

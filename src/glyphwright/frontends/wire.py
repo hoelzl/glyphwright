@@ -35,7 +35,7 @@ from glyphwright.kernel.events import (
     TurnAdvanced,
 )
 
-FRAME_SCHEMA = "glyphwright.frame/1"
+FRAME_SCHEMA = "glyphwright.frame/2"
 EVENT_SCHEMA = "glyphwright.event/2"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/2"
@@ -77,6 +77,11 @@ def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
             for actor in frame.actors
         ],
         "messages": list(frame.messages),
+        "inventory": [
+            {"id": item.id, "name": item.name}
+            | ({"slot": item.slot} if item.slot is not None else {})
+            for item in frame.inventory
+        ],
         "prompt": {"kind": frame.prompt.kind},
         "commands": encode_grammar(frame.commands),
     }

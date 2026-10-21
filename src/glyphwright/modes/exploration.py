@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from glyphwright.frames.frame import (
     ActorSummary,
+    ItemSummary,
     PromptSpec,
     SemanticFrame,
     Viewport,
@@ -142,7 +143,24 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         ),
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
+        inventory=carried(state),
     )
+
+
+def carried(state: WorldState) -> tuple[ItemSummary, ...]:
+    """The player's items in the order taken, each with its slot if worn."""
+    player = state.entity(PLAYER)
+    worn = (
+        {item: slot for slot, item in player.equipment.slots}
+        if player.equipment
+        else {}
+    )
+    summaries = []
+    for item_id in player.carries():
+        item = state.entity(item_id).item
+        name = item.name if item is not None else item_id
+        summaries.append(ItemSummary(id=item_id, name=name, slot=worn.get(item_id)))
+    return tuple(summaries)
 
 
 def _actors(state: WorldState) -> tuple[ActorSummary, ...]:

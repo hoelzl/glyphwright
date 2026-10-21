@@ -44,6 +44,15 @@ class ActorSummary:
 
 
 @dataclass(frozen=True, slots=True)
+class ItemSummary:
+    """An item the player carries; ``slot`` is set while it is worn."""
+
+    id: EntityId
+    name: str
+    slot: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Cell:
     """One grid position's compositing tiers.
 
@@ -111,3 +120,5 @@ class SemanticFrame:
     messages: tuple[str, ...]
     prompt: PromptSpec
     commands: CommandGrammar
+    # v2 finding N13: v0's frames never said what the player carries.
+    inventory: tuple[ItemSummary, ...] = ()

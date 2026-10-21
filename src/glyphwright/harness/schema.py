@@ -96,6 +96,9 @@ def frame_schema() -> dict[str, Any]:
         }
     )
     actor = _object({"id": _STRING, "name": _STRING, "hp": _PAIR, "at": _STRING})
+    item = _object(
+        {"id": _STRING, "name": _STRING, "slot": _STRING}, required=["id", "name"]
+    )
     commands = _object(
         {"verbs": {"type": "object", "additionalProperties": _array(_array(_STRING))}}
     )
@@ -110,6 +113,7 @@ def frame_schema() -> dict[str, Any]:
                 "viewport": viewport,
                 "actors": _array(actor),
                 "messages": _array(_STRING),
+                "inventory": _array(item),
                 "prompt": _object({"kind": _STRING}),
                 "commands": commands,
             }
