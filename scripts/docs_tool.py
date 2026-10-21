@@ -66,7 +66,7 @@ PLANNED: Mapping[str, str] = {
     ".agents/skills/": "created with the first skill",
     ".claude/commands/": "generated once the first skill exists",
     "docs/knowledge/": "created by the slice that ports the first subsystem",
-    "docs/plans/completed/": "created when the first plan completes",
+    "docs/plans/active/": "empty between slices; the next slice adds its plan",
     ".claude/settings.json": "created once there are Claude-only settings",
 }
 
@@ -477,6 +477,17 @@ def check_references(root: Path, path: Path) -> list[Problem]:
     return problems
 
 
+def has_content(path: Path) -> bool:
+    """Return whether *path* is a file or a folder holding a file.
+
+    Git does not track empty folders, so an empty folder exists only on the
+    machine that left it behind and must not count.
+    """
+    if path.is_file():
+        return True
+    return path.is_dir() and any(child.is_file() for child in path.rglob("*"))
+
+
 def check_planned(root: Path) -> list[Problem]:
     return [
         Problem(
@@ -486,7 +497,7 @@ def check_planned(root: Path) -> list[Problem]:
             f"remove `{path}` from PLANNED",
         )
         for path in PLANNED
-        if (root / path).exists()
+        if has_content(root / path)
     ]
 
 

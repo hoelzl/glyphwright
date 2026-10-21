@@ -32,8 +32,8 @@ code is ported before it.
 - [x] CI on three operating systems and three Python versions
 - [x] `scripts/probe_claude_stubs.py` and the inline fallback for the stubs
   (owner request during review)
-- [ ] Owner review of the S0 pull request
-- [ ] Tag `day-0`; move this plan to `docs/plans/completed/`
+- [x] Owner review of the S0 pull request (merged as #1)
+- [x] Tag `day-0`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
@@ -120,7 +120,7 @@ code is ported before it.
 | One canonical home per fact | The brief links the invariants, working rules, and harness layout | review |
 | Derived files say so | Index blocks and stubs carry a generated header | gate |
 | Code wins over prose | Stated in `CONTRIBUTING.md` | review |
-| Plans are files | This plan, in `active/` | gate |
+| Plans are files | This plan, in `active/` while S0 ran | gate |
 | Decisions get a record | Decision 0001 | review |
 | One check command with fix-it errors | `scripts/check.py`; docs messages name rule and fix | gate |
 | Concise tool output | One line per problem, plus rule and fix | review |

@@ -20,8 +20,17 @@ def index(title: str) -> str:
     )
 
 
+#: The planned paths the tests rely on, independent of the repository's own.
+TEST_PLANNED = {
+    ".agents/skills/": "created by a test",
+    ".claude/commands/": "created by a test",
+    "docs/knowledge/": "created by a test",
+}
+
+
 @pytest.fixture
-def repo(tmp_path: Path) -> Path:
+def repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    monkeypatch.setattr(docs_tool, "PLANNED", TEST_PLANNED)
     write(tmp_path, "AGENTS.md", AGENTS)
     write(tmp_path, "docs/README.md", index("Documentation map"))
     write(tmp_path, "docs/guide.md", "# Guide\n\nHow to do things.\n")
@@ -207,3 +216,8 @@ def test_inline_stub_links_resolve(repo: Path) -> None:
 def test_unknown_stub_mode_is_rejected() -> None:
     with pytest.raises(ValueError, match="unknown stub mode"):
         docs_tool.render_stub("x", "X.", "", "copy")
+
+
+def test_an_empty_planned_folder_still_counts_as_planned(repo: Path) -> None:
+    (repo / "docs/knowledge").mkdir()
+    assert docs_tool.check_planned(repo) == []
