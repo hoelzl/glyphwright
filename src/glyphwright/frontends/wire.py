@@ -8,6 +8,8 @@ silently. Widening a closed shape bumps its tag (decision 0002).
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
+from dataclasses import dataclass
 from typing import Any, assert_never
 
 from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
@@ -162,6 +164,62 @@ def canonical_json(payload: object) -> str:
     return json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
 
+@dataclass(frozen=True, slots=True)
+class VerbSpec:
+    """Everything the command language says about one verb.
+
+    The decoder, the plain frontend's help, the API's rejection vocabulary,
+    and the generated command reference all read this table, so a verb is
+    described once.
+    """
+
+    verb: str
+    build: Callable[..., Command]
+    arguments: tuple[str, ...]
+    summary: str
+    spends_turn: bool
+    events: tuple[str, ...]
+    reason: str | None = None
+    options_hint: str | None = None
+    empty_hint: str | None = None
+
+    def usage(self) -> str:
+        """The verb with a placeholder per argument, such as ``move <exit>``."""
+        return " ".join((self.verb, *(f"<{name}>" for name in self.arguments)))
+
+
+VERBS: tuple[VerbSpec, ...] = (
+    VerbSpec(
+        "move",
+        Move,
+        ("exit",),
+        "Walk through an exit or a portal.",
+        spends_turn=True,
+        events=("Moved", "MoveBlocked", "TurnAdvanced"),
+        reason="no_such_exit",
+        options_hint="exits here",
+        empty_hint="there are no exits here",
+    ),
+    VerbSpec(
+        "look",
+        Look,
+        (),
+        "Look around again; the turn does not pass.",
+        spends_turn=False,
+        events=(),
+    ),
+    VerbSpec(
+        "wait",
+        Wait,
+        (),
+        "Let one turn pass.",
+        spends_turn=True,
+        events=("TurnAdvanced",),
+    ),
+)
+VERB_SPECS: dict[str, VerbSpec] = {spec.verb: spec for spec in VERBS}
+
+
 def encode_command(command: Command) -> str:
     """Write one command in the command language.
 
@@ -174,11 +232,10 @@ def encode_command(command: Command) -> str:
 def decode_command(text: str) -> Command | None:
     """Parse one line of the command language. ``None`` if it is not one."""
     match text.strip().split():
-        case ["move", token]:
-            return Move(exit=token)
-        case ["look"]:
-            return Look()
-        case ["wait"]:
-            return Wait()
+        case [verb, *arguments] if verb in VERB_SPECS:
+            spec = VERB_SPECS[verb]
+            if len(arguments) == len(spec.arguments):
+                return spec.build(*arguments)
+            return None
         case _:
             return None

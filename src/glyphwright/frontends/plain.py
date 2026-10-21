@@ -19,7 +19,7 @@ from typing import TextIO
 from glyphwright.api import Engine
 from glyphwright.frames.frame import SemanticFrame, flatten
 from glyphwright.frontends.jsonl import safe_echo
-from glyphwright.frontends.wire import decode_command
+from glyphwright.frontends.wire import VERB_SPECS, decode_command
 from glyphwright.harness import meta
 from glyphwright.kernel.state import PLAYER
 
@@ -110,7 +110,6 @@ def parse(text: str) -> PlainProjection:
 
 
 _PROMPT = "> "
-_PLACEHOLDERS = {"move": "<exit>"}
 
 
 def help_line(frame: SemanticFrame) -> str:
@@ -119,10 +118,7 @@ def help_line(frame: SemanticFrame) -> str:
     Derived from the grammar rather than hand-written, so the help can never
     drift from what the engine actually accepts.
     """
-    verbs = [
-        f"{verb} {_PLACEHOLDERS[verb]}" if verb in _PLACEHOLDERS else verb
-        for verb in frame.commands.verb_names()
-    ]
+    verbs = [VERB_SPECS[verb].usage() for verb in frame.commands.verb_names()]
     return "commands: " + " | ".join((*verbs, "quit")) + "\n"
 
 

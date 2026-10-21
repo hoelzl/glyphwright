@@ -140,3 +140,30 @@ def test_non_commands_decode_to_none(text: str) -> None:
 @pytest.mark.parametrize("command", [Move("east"), Look(), Wait()])
 def test_encoding_and_decoding_round_trip(command: object) -> None:
     assert decode_command(encode_command(command)) == command  # type: ignore[arg-type]
+
+
+def test_every_command_type_has_one_verb_spec() -> None:
+    from typing import get_args
+
+    from glyphwright.frontends.wire import VERB_SPECS, VERBS
+    from glyphwright.kernel.commands import Command
+
+    assert len(VERB_SPECS) == len(VERBS), "a verb is described twice"
+    built = {spec.build for spec in VERBS}
+    assert built == set(get_args(Command))
+
+
+def test_every_mode_verb_is_in_the_verb_table() -> None:
+    from glyphwright.frontends.wire import VERB_SPECS
+    from glyphwright.modes import _MODES
+
+    for mode in _MODES.values():
+        assert set(VERB_SPECS) >= mode.VERBS, mode.NAME
+
+
+def test_verbs_with_arguments_have_a_rejection_vocabulary() -> None:
+    from glyphwright.frontends.wire import VERBS
+
+    for spec in VERBS:
+        if spec.arguments:
+            assert spec.reason and spec.options_hint and spec.empty_hint, spec.verb
