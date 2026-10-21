@@ -111,7 +111,7 @@ def test_content_changes_change_the_pack_id() -> None:
     altered_map = "#########\n#.......#\n#..##..##\n#.......#\n#########"
     altered = ContentPack(
         name=pack.name,
-        areas=(GridSpace.from_text("village", altered_map),),
+        areas=(GridSpace.from_text("village", altered_map), *pack.areas[1:]),
         entities=pack.entities,
     )
     assert altered.pack_id != pack.pack_id, "a content change must invalidate baselines"

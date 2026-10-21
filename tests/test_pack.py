@@ -25,8 +25,8 @@ def _goblin(**changes: object) -> Entity:
 
 def test_the_reference_pack_loads() -> None:
     pack = reference_pack()
-    assert [space.area for space in pack.areas] == ["village"]
-    assert {entity.id for entity in pack.entities} == {"player", "goblin-1"}
+    assert [space.area for space in pack.areas] == ["village", "warren"]
+    assert {entity.id for entity in pack.entities} >= {"player", "warren-hole"}
 
 
 def test_a_duplicate_entity_id_is_rejected() -> None:

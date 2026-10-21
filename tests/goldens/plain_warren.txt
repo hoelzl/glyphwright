@@ -1,0 +1,7 @@
+== turn 9 | exploration | warren ==
+#######
+#@.M..#
+#....H#
+#######
+You go down.
+[hp 20/20]

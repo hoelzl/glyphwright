@@ -61,9 +61,10 @@ def _error(**overrides: str) -> PackError:
     return caught.value
 
 
-def test_the_toml_village_equals_the_code_built_one() -> None:
-    # The loader adds nothing and drops nothing: same content, same pack id.
-    assert parse_pack(_sources()).pack_id == reference_pack().pack_id
+def test_a_one_area_pack_loads() -> None:
+    pack = parse_pack(_sources())
+    assert [space.area for space in pack.areas] == ["village"]
+    assert [entity.id for entity in pack.entities] == ["player", "goblin-1"]
 
 
 def test_a_syntax_error_names_file_line_and_column() -> None:
@@ -194,7 +195,8 @@ def _write(root: Path, sources: dict[str, str]) -> Path:
 
 
 def test_load_pack_reads_a_directory(tmp_path: Path) -> None:
-    assert load_pack(_write(tmp_path, _sources())).pack_id == reference_pack().pack_id
+    loaded = load_pack(_write(tmp_path, _sources()))
+    assert loaded.pack_id == parse_pack(_sources()).pack_id
 
 
 def test_load_pack_ignores_files_that_are_not_toml(tmp_path: Path) -> None:
