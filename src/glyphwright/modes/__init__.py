@@ -1,0 +1,52 @@
+"""The mode registry: engine control flow is a pushdown automaton of modes.
+
+Every mode implements ``available_commands``, ``handle``, and ``view``; the
+active mode is named by the top of the state's mode stack. Modes are modules
+satisfying the :class:`Mode` protocol structurally. S1 registers exploration;
+battle joins in S4.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol, cast
+
+from glyphwright.modes import exploration
+
+if TYPE_CHECKING:
+    from glyphwright.frames.frame import SemanticFrame
+    from glyphwright.kernel.commands import Command, CommandGrammar
+    from glyphwright.kernel.events import Event
+    from glyphwright.kernel.rng import Rng
+    from glyphwright.kernel.state import WorldState
+
+
+class Mode(Protocol):
+    """What every mode module provides.
+
+    ``VERBS`` classifies *unadvertised* verbs: a verb the current grammar
+    advertises is always valid, whatever this set says; a verb in neither is
+    rejected as ``wrong_mode``. This lets a rejection distinguish "not a thing
+    you do in this mode" from "nothing to do it to right now".
+    """
+
+    NAME: str
+    VERBS: frozenset[str]
+    available_commands: Callable[[WorldState], CommandGrammar]
+    handle: Callable[[WorldState, Command, Rng], tuple[tuple[Event, ...], Rng]]
+    view: Callable[[WorldState, tuple[Event, ...]], SemanticFrame]
+
+
+# Modules satisfy the protocol structurally; the casts are for mypy, which
+# does not narrow ModuleType against Protocols with callable attributes.
+_MODES: dict[str, Mode] = {
+    exploration.NAME: cast(Mode, exploration),
+}
+
+
+def active(state: WorldState) -> Mode:
+    """The module implementing the state's active mode."""
+    try:
+        return _MODES[state.mode]
+    except KeyError as error:
+        raise ValueError(f"unknown mode: {state.mode}") from error

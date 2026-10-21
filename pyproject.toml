@@ -22,6 +22,9 @@ classifiers = [
 ]
 dependencies = []
 
+[project.scripts]
+glyphwright = "glyphwright.cli:main"
+
 [project.urls]
 Homepage = "https://github.com/hoelzl/glyphwright"
 Repository = "https://github.com/hoelzl/glyphwright"
@@ -29,9 +32,12 @@ Issues = "https://github.com/hoelzl/glyphwright/issues"
 
 [dependency-groups]
 dev = [
+  "hypothesis>=6.156.2",
+  "jsonschema>=4.23",
   "mypy>=1.0",
   "pytest>=8.0",
   "ruff>=0.11",
+  "types-jsonschema>=4.23",
 ]
 
 [build-system]
@@ -61,3 +67,4 @@ warn_unreachable = true
 testpaths = ["tests"]
 pythonpath = ["scripts"]
 addopts = ["--strict-markers"]
+markers = ["e2e: runs the installed CLI in a subprocess"]

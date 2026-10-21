@@ -11,8 +11,11 @@ page for a task before you start it; the documentation map is
 rules, types, and tests. Run it before you report a change as done. Each
 documentation failure names the rule and the fix.
 
-`uv run python scripts/docs_tool.py build` regenerates the derived views (the
-docs indexes and the Claude Code command stubs). Never edit them by hand.
+Derived views are never edited by hand; regenerate them instead:
+`uv run python scripts/docs_tool.py build` (docs indexes, Claude Code stubs),
+`uv run python -m glyphwright.harness.schema` (wire schemas), and
+`uv run python tests/regenerate_goldens.py` (golden transcripts, reviewed by
+eye).
 
 ## Invariants
 
@@ -52,6 +55,7 @@ in the slice that ports the code it governs.
 |---|---|
 | Goals, scope, slices, working rules | [`docs/project-brief.md`](docs/project-brief.md) |
 | The current slice | the plan in `docs/plans/active/` |
+| Change the kernel, a mode, or an event | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |
 | Why the repository is laid out as it is | [`docs/decisions/`](docs/decisions/README.md) |
 | Gates, commits, documentation rules | [`CONTRIBUTING.md`](CONTRIBUTING.md) |
 | How v0 did it | [glyphwright-v0 at `3ecc396`](https://github.com/hoelzl/glyphwright-v0/tree/3ecc396) |

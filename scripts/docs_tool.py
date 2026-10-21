@@ -65,13 +65,20 @@ CLAUDE_MD_FALLBACK = "@AGENTS.md"
 PLANNED: Mapping[str, str] = {
     ".agents/skills/": "created with the first skill",
     ".claude/commands/": "generated once the first skill exists",
-    "docs/knowledge/": "created by the slice that ports the first subsystem",
-    "docs/plans/active/": "empty between slices; the next slice adds its plan",
     ".claude/settings.json": "created once there are Claude-only settings",
 }
 
 #: Top-level directories a backticked repository path may start with.
-REPO_ROOTS = ("src/", "tests/", "scripts/", "docs/", ".agents/", ".claude/", ".github/")
+REPO_ROOTS = (
+    "src/",
+    "tests/",
+    "scripts/",
+    "schemas/",
+    "docs/",
+    ".agents/",
+    ".claude/",
+    ".github/",
+)
 #: Dot-directories whose Markdown is checked.
 VISIBLE_DOT_DIRECTORIES = frozenset({".agents", ".claude", ".github"})
 

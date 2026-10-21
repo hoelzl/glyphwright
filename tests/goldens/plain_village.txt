@@ -1,0 +1,8 @@
+== turn 2 | exploration | village ==
+#########
+#.......#
+#.@##...#
+#.g.....#
+#########
+You go south.
+[hp 20/20]

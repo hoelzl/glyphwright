@@ -1,0 +1,104 @@
+"""The public surface is the whole contract an external harness sees."""
+
+from __future__ import annotations
+
+import pytest
+
+from glyphwright import api
+from glyphwright.api import Engine, reference_pack
+from glyphwright.kernel.commands import Look, Move
+
+
+def test_the_api_exports_everything_an_adapter_needs() -> None:
+    # If an adapter must reach past this list, the surface is missing something.
+    for name in ("Engine", "StepResult", "SemanticFrame", "Command", "Rejected"):
+        assert name in api.__all__, name
+
+
+def test_the_api_exports_the_wire_codec() -> None:
+    for name in (
+        "decode_command",
+        "encode_command",
+        "encode_frame",
+        "encode_event",
+        "encode_rejection",
+    ):
+        assert name in api.__all__, name
+    command = api.decode_command("move east")
+    assert command == Move("east")
+    assert api.encode_command(command) == "move east"
+    engine = Engine.new(reference_pack(), seed=1)
+    assert api.encode_frame(engine.frame())["schema"] == "glyphwright.frame/1"
+
+
+def test_every_exported_name_exists() -> None:
+    assert all(hasattr(api, name) for name in api.__all__)
+
+
+def test_a_rejected_command_advances_nothing() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    before = engine.frame()
+    result = engine.step(Move("up"))
+    assert not result.accepted
+    assert result.rejection is not None
+    assert result.rejection.reason == "no_such_exit"
+    assert result.events == ()
+    assert engine.frame() == before
+
+
+def test_a_rejection_carries_an_actionable_hint() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    rejection = engine.step(Move("up")).rejection
+    assert rejection is not None
+    assert rejection.hint == "exits here: east, north, south, west"
+
+
+def test_frame_does_not_advance_the_turn() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    engine.step(Move("east"))
+    assert engine.frame().turn == engine.frame().turn == 1
+
+
+def test_the_frame_always_advertises_a_usable_grammar() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    grammar = engine.frame().commands
+    assert grammar.verb_names() == ("move", "look", "wait")
+    assert grammar.domains("move")[0]
+
+
+def test_each_verb_has_one_domain_per_argument() -> None:
+    # v0 finding K9: nothing tied a verb's arity to its domain count, so a
+    # grammar could advertise a verb no command could be formed from.
+    grammar = Engine.new(reference_pack(), seed=1).frame().commands
+    for verb in grammar.verb_names():
+        domains = grammar.domains(verb)
+        sample = " ".join((verb, *(domain[0] for domain in domains)))
+        command = api.decode_command(sample)
+        assert command is not None, sample
+        assert len(command.args()) == len(domains), verb
+
+
+def test_look_is_accepted_and_costs_nothing() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    result = engine.step(Look())
+    assert result.accepted
+    assert result.frame.turn == 0
+
+
+def test_restore_is_independent_of_the_engine_it_came_from() -> None:
+    engine = Engine.new(reference_pack(), seed=1)
+    snapshot = engine.snapshot()
+    engine.step(Move("east"))
+    assert Engine.restore(snapshot).frame().turn == 0
+    assert engine.frame().turn == 1
+
+
+def test_a_new_run_is_reproducible_from_pack_and_seed() -> None:
+    first = Engine.new(reference_pack(), seed=42).frame()
+    second = Engine.new(reference_pack(), seed=42).frame()
+    assert first == second
+
+
+@pytest.mark.parametrize("seed", [0, 1, 424242, 2**63])
+def test_any_seed_produces_a_usable_run(seed: int) -> None:
+    assert Engine.new(reference_pack(), seed=seed).frame().turn == 0

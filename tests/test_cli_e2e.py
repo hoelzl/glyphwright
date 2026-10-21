@@ -1,0 +1,90 @@
+"""End-to-end proof of the shipped interface, across a process boundary.
+
+These drive the CLI in a subprocess exactly as an agent or a person would, so
+they cover the wiring that in-process tests cannot: argument parsing and the
+UTF-8 stdio setup.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.e2e
+
+_SCRIPT = [sys.executable, "-m", "glyphwright.cli"]
+
+
+def _run(argv: list[str], stdin: bytes) -> subprocess.CompletedProcess[bytes]:
+    # Bytes, not text: the test sees exactly what a consumer of the pipe sees.
+    return subprocess.run(
+        _SCRIPT + argv, input=stdin, capture_output=True, timeout=60, check=False
+    )
+
+
+def _lines(result: subprocess.CompletedProcess[bytes]) -> list[dict[str, object]]:
+    return [json.loads(line) for line in result.stdout.decode("utf-8").splitlines()]
+
+
+def test_the_plain_frontend_plays_a_scripted_session() -> None:
+    result = _run([], b"move east\nmove south\nquit\n")
+    assert result.returncode == 0
+    out = result.stdout.decode("utf-8")
+    assert "== turn 1 | exploration | village ==" in out
+    assert "== turn 2 | exploration | village ==" in out
+    assert "session ended" in out
+
+
+def test_output_uses_unix_newlines_on_every_platform() -> None:
+    assert b"\r\n" not in _run([], b"move east\nquit\n").stdout
+
+
+def test_the_plain_frontend_is_deterministic_across_processes() -> None:
+    script = b"move east\nmove east\nmove south\nquit\n"
+    assert _run([], script).stdout == _run([], script).stdout
+
+
+def test_the_jsonl_frontend_opens_with_a_session_header() -> None:
+    header = _lines(_run(["--frontend", "jsonl", "--harness"], b"quit\n"))[0]
+    assert header["schema"] == "glyphwright.session/1"
+    assert header["harness"] is True
+    assert header["seed"] == 424242
+    assert str(header["pack"]).startswith("reference-vale@sha256:")
+
+
+def test_the_jsonl_frontend_emits_events_then_a_frame() -> None:
+    schemas = [
+        line["schema"]
+        for line in _lines(_run(["--frontend", "jsonl"], b"move east\nquit\n"))
+    ]
+    assert schemas[0] == "glyphwright.session/1"
+    assert "glyphwright.event/1" in schemas
+    assert schemas[-1] == "glyphwright.frame/1"
+
+
+def test_invalid_utf8_on_stdin_is_escaped_not_echoed() -> None:
+    # v0 finding H6, across the real pipe.
+    result = _run(["--frontend", "jsonl"], b"move \xff\nquit\n")
+    assert result.returncode == 0
+    assert _lines(result)[-1]["command"] == "move \\xff"
+
+
+def test_the_seed_is_explicit_and_recorded() -> None:
+    assert (
+        _lines(_run(["--frontend", "jsonl", "--seed", "7"], b"quit\n"))[0]["seed"] == 7
+    )
+
+
+def test_the_same_seed_and_commands_reproduce_across_processes() -> None:
+    argv = ["--frontend", "jsonl", "--seed", "11"]
+    script = b"move east\nmove south\nwait\nquit\n"
+    assert _run(argv, script).stdout == _run(argv, script).stdout
+
+
+def test_help_is_available_without_playing() -> None:
+    result = _run(["--help"], b"")
+    assert result.returncode == 0
+    assert b"--frontend" in result.stdout
