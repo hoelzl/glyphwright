@@ -31,6 +31,8 @@ from glyphwright.frontends.wire import (
     encode_rejection,
 )
 from glyphwright.harness.fingerprint import RunFingerprint
+from glyphwright.harness.query import QueryResult
+from glyphwright.harness.query import query as _query
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
@@ -54,6 +56,7 @@ __all__ = [
     "Look",
     "Move",
     "PackError",
+    "QueryResult",
     "Rejected",
     "RunFingerprint",
     "SemanticFrame",
@@ -164,6 +167,14 @@ class Engine:
     def frame(self) -> SemanticFrame:
         """The current frame. Does not advance the turn."""
         return modes.active(self._state).view(self._state, ())
+
+    def query(self, path: str) -> QueryResult:
+        """Read world state by a stable path. The turn does not pass.
+
+        An unknown path is an error value, not an exception. Stat queries
+        carry their full derivation.
+        """
+        return _query(self._state, path)
 
     def fingerprint(self) -> RunFingerprint:
         """Engine version, pack id, seed, and turn."""

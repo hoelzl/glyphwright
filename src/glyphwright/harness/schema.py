@@ -183,6 +183,16 @@ def query_schema() -> dict[str, Any]:
                 "schema": {"const": QUERY_SCHEMA},
                 "path": _STRING,
                 "value": {},
+                "explanation": _array(
+                    _object(
+                        {
+                            "source": _STRING,
+                            "op": {"enum": ["base", "add", "mul", "clamp"]},
+                            "value": _INTEGER,
+                            "running": _INTEGER,
+                        }
+                    )
+                ),
                 "error": _STRING,
             },
             required=["schema", "path"],

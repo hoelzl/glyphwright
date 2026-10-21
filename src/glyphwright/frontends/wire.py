@@ -38,7 +38,7 @@ from glyphwright.kernel.events import (
 FRAME_SCHEMA = "glyphwright.frame/1"
 EVENT_SCHEMA = "glyphwright.event/2"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
-QUERY_SCHEMA = "glyphwright.query/1"
+QUERY_SCHEMA = "glyphwright.query/2"
 
 
 def _encode_viewport(viewport: Viewport) -> dict[str, Any]:

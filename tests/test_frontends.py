@@ -133,5 +133,5 @@ def test_an_unknown_meta_command_is_rejected_as_data() -> None:
     answer = _jsonl(":dance\nquit\n", harness=True)[-1]
     assert (answer["reason"], answer["hint"]) == (
         "unknown_meta",
-        ":seed | :frame [--json]",
+        ":query <path> [--explain] | :seed | :frame [--json]",
     )
