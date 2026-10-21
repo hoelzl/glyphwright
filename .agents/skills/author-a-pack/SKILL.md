@@ -8,13 +8,13 @@ description: Write or fix a GlyphWright content pack (TOML areas, entities, item
 ## 1. Start from the reference world
 
 A pack is a directory with `pack.toml`, `areas.toml`, and `entities.toml`.
-Copy the reference world and rename it:
+Copy the reference world next to the repository, not into it:
 
 ```bash
-cp -r src/glyphwright/content/packs/reference-vale my-pack
+cp -r src/glyphwright/content/packs/reference-vale ../my-pack
 ```
 
-Set `name` in `my-pack/pack.toml`. Every key, table, and rule is in the
+Set `name` in `../my-pack/pack.toml`, and pass `--pack ../my-pack` below. Every key, table, and rule is in the
 [pack format](../../../docs/authoring/pack-format.md); the guided walkthrough is
 [your first pack](../../../docs/authoring/first-pack.md).
 
@@ -23,7 +23,7 @@ Set `name` in `my-pack/pack.toml`. Every key, table, and rule is in the
 After each change, load the pack:
 
 ```bash
-uv run glyphwright --pack my-pack
+uv run glyphwright --pack ../my-pack
 ```
 
 - **Areas** are grids of `#` and `.`; every row is equally wide.

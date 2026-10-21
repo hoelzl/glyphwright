@@ -13,8 +13,9 @@ uv run glyphwright --pack my-pack --record run.jsonl  # your own pack
 ```
 
 Play as usual, or pipe a script of commands into it; `quit` ends the
-recording. Only accepted commands are recorded. `--record` refuses an
-existing file, so pick a new name.
+recording. Only accepted commands are recorded, and the session ends by
+saying how many steps it recorded: fewer than you sent means some were
+rejected. `--record` refuses an existing file, so pick a new name.
 
 ## 2. Replay it
 
@@ -41,9 +42,9 @@ or another rules revision. Every verdict is listed in
 `tests/test_pinned_recording.py` replays a tour of the reference world. If it
 fails after your change:
 
-- the change altered what existing commands produce on purpose: bump `RULES`
-  in `src/glyphwright/harness/fingerprint.py`, then run
-  `uv run python tests/regenerate_recordings.py`, and commit both;
-- you changed the reference pack: only re-record;
-- neither was intended: the failure names the first diverging step; find out
-  why before you re-record anything.
+- follow the failure's own advice: it says whether to bump `RULES` in
+  `src/glyphwright/harness/fingerprint.py` and re-record, or only re-record
+  with `uv run python tests/regenerate_recordings.py`;
+- a new event type or a bumped event tag always needs the bump;
+- if the change was not meant to alter behaviour, the failure names the first
+  diverging step; find out why before you re-record anything.

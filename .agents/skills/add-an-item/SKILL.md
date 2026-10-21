@@ -54,6 +54,9 @@ uv run python -m glyphwright.harness.reference    # if a command changed
 uv run python scripts/check.py
 ```
 
-If the pinned recording fails, a change altered what existing commands
-produce; [replay and determinism](../../../docs/knowledge/replay-and-determinism.md#the-rules-revision-and-the-pin)
-says when to bump `RULES` and re-record. Done means the check passes.
+A new event bumps `EVENT_SCHEMA`, which changes every recorded digest, so
+also bump `RULES` in `src/glyphwright/harness/fingerprint.py` and run
+`uv run python tests/regenerate_recordings.py`. If the pinned recording fails
+for another reason, its message says what to do;
+[replay and determinism](../../../docs/knowledge/replay-and-determinism.md#the-rules-revision-and-the-pin)
+explains. Done means the check passes.

@@ -32,17 +32,18 @@ Every command, rejection reason, and query path is in the
 
 ## 3. Read the JSONL stream
 
-The first line is the `glyphwright.session/2` header, the second the opening
-frame. Then, for each line you send:
+The first line is the session header, the second the opening frame. Then,
+for each line you send:
 
-- an accepted command: its events (`glyphwright.event/3`), then one frame
-  (`glyphwright.frame/3`);
-- a refused command: one `glyphwright.rejection/1` line with `reason` and
-  `hint`; nothing changed and no turn passed;
+- an accepted command: its events, then one frame;
+- a refused command: one rejection line with `reason` and `hint`; nothing
+  changed and no turn passed;
 - a meta command: one line, a query result or a frame.
 
-Read lines until the next frame or rejection before sending the next command.
-Every line names its schema in `schema`; the schemas are in `schemas/`.
+Every line names its shape and version in `schema`, such as
+`glyphwright.frame/N`; branch on the part before the `/`. The schemas are in
+`schemas/`. Read lines until the next frame or rejection before sending the
+next command.
 
 ## 4. Inspect state
 

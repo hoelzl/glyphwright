@@ -121,7 +121,7 @@ generated [command reference](commands.md#rejections).
 
 ## Adding a command or an event
 
-A new event type touches six places, and the type checker catches a missed
+A new event type touches seven places, and the type checker catches a missed
 `match` arm:
 
 1. the dataclass and the `Event` union in `src/glyphwright/kernel/events.py`;
@@ -130,7 +130,14 @@ A new event type touches six places, and the type checker catches a missed
 4. its encoding in `encode_event` in `src/glyphwright/frontends/wire.py`;
 5. its fields in `_EVENT_FIELDS` in `src/glyphwright/harness/schema.py`;
 6. a bumped `EVENT_SCHEMA` tag, then regenerate the schemas
-   (`uv run python -m glyphwright.harness.schema`), per decision 0002.
+   (`uv run python -m glyphwright.harness.schema`), per decision 0002;
+7. a sample of it in `SAMPLES` in `tests/test_combat_events.py`, which
+   checks that every event type validates on the wire.
+
+A bumped event tag changes every recorded digest, so it is a behaviour change:
+bump `RULES` and re-record the pin, as
+[replay and determinism](replay-and-determinism.md#the-rules-revision-and-the-pin)
+describes.
 
 A new command needs its dataclass in the `Command` union, one `VerbSpec` row
 in `VERBS` in `src/glyphwright/frontends/wire.py` (the decoder, the help

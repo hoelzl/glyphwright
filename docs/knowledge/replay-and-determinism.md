@@ -43,9 +43,9 @@ you pass with `--pack`, or the reference pack. It refuses `--seed` and
 
 JSON lines, in canonical JSON (sorted keys, compact):
 
-1. a `glyphwright.session/2` header: `engine`, `rules`, `pack`, `seed`,
+1. a `glyphwright.session` header: `engine`, `rules`, `pack`, `seed`,
    `harness`;
-2. one `glyphwright.recording/1` line per accepted step: `step` (from 1),
+2. one `glyphwright.recording` line per accepted step: `step` (from 1),
    `command` as typed, and `events`, a SHA-256 digest of the step's encoded
    events.
 
@@ -55,15 +55,17 @@ start, as some editors write it, is ignored.
 
 ## Verdicts
 
-Replay never raises on a bad recording; it returns a verdict.
+Replay never raises on a bad recording; it returns a verdict. The CLI prints
+`recording verified: N steps, turn T` and exits 0, or prints
+`recording diverged after N steps: ` followed by one of these problems and
+exits 1:
 
-| Verdict | Meaning |
+| Problem | Meaning |
 |---|---|
-| `recording verified: N steps, turn T` | every step produced the recorded events |
-| `recorded under rules A, replaying under rules B` | the engine's behaviour changed since it was recorded |
-| `recorded against pack …` | the content is not the content it was recorded against |
+| `recorded under rules A, replaying under rules B: …` | the engine's behaviour changed since it was recorded |
+| `recorded against pack …, replaying against …` | the pack's id differs: its content changed, or `Entity` gained a component |
 | `step N: '…' produced different events than recorded` | the first step that diverged |
-| `step N: '…' was rejected (…)` | the run took a path this engine refuses |
+| `step N: '…' was rejected (…), but the recorded run accepted it` | the run took a path this engine refuses |
 | a header or line problem | the file is not a recording, or was edited by hand badly |
 
 The release version in `engine` is recorded but not compared: a release need
@@ -81,8 +83,12 @@ world that takes and equips items, wins a battle, crosses a portal, and flees.
 fails the suite. When it fails:
 
 - **Behaviour changed on purpose:** bump `RULES`, run
-  `uv run python tests/regenerate_recordings.py`, and commit both.
-- **The reference pack changed:** only re-record; content is not behaviour.
+  `uv run python tests/regenerate_recordings.py`, and commit both. A new
+  event type or a bumped event tag is a behaviour change.
+- **The pack id changed:** the reference pack's content changed, or `Entity`
+  gained a component. The test then replays the steps against the new id and
+  says whether the events changed too: if not, only re-record; if so, bump
+  `RULES` as well.
 - **Neither was intended:** the failure names the first step that diverged;
   that is where to look.
 

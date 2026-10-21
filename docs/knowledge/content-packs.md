@@ -69,7 +69,7 @@ modules.
 and entity, so any content change changes the id, and the run fingerprint
 records it. Adding a component to `Entity` changes every pack's id; re-pin
 `test_the_pack_identity_derivation_is_pinned` in `tests/test_determinism.py`
-in the same change and say so in the slice plan.
+in the same change and say so in the slice plan's setup log.
 
 ## Adding a key or a component
 

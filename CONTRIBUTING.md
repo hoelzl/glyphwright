@@ -74,7 +74,8 @@ that the course using this repository distributes with its materials.
 - **One canonical home per fact.** Link to it instead of restating it, and
   prune the old wording in the same change. [D1]
 - **No volatile facts in prose.** Versions, counts, and status live behind a
-  command or a file that tools read. [A7]
+  command or a file that tools read. [A7] Versioned schema tags are refused
+  (*gate*) outside decision records and plans.
 - **When code and prose disagree, the code wins**; fix the prose in the same
   change. [D3]
 - **Decisions get a short record** in `docs/decisions/`. [E2]
