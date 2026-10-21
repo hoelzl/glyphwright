@@ -23,6 +23,7 @@ from typing import Any
 from glyphwright.content.pack import ContentError, ContentPack
 from glyphwright.world.entities import (
     Actor,
+    Ai,
     Blocker,
     Consumable,
     Entity,
@@ -48,7 +49,9 @@ _LATER = "is not supported by this engine version"
 _LATER_FILES = frozenset({"abilities.toml", "presentation.toml", "tileset.toml"})
 _LATER_AREA_SECTIONS = frozenset({"rooms"})
 _LATER_GRID_KEYS = frozenset({"fov"})
-_LATER_COMPONENTS = frozenset({"ai", "openable", "dialogue"})
+_LATER_COMPONENTS = frozenset({"openable", "dialogue"})
+# Every hostile starts a battle on contact, so v0's `engages` has no meaning.
+_LATER_AI_KEYS = frozenset({"engages", "arena"})
 _LATER_ACTOR_KEYS = frozenset({"mp", "max_mp", "abilities", "perks"})
 _LATER_CONSUMABLE_KEYS = frozenset({"mana"})
 
@@ -66,6 +69,7 @@ ENTITY_SPEC: Spec = {
     "item": (False, dict),
     "consumable": (False, dict),
     "equippable": (False, dict),
+    "ai": (False, dict),
 }
 ACTOR_SPEC: Spec = {
     "name": (True, str),
@@ -79,6 +83,7 @@ ITEM_SPEC: Spec = {"name": (True, str)}
 CONSUMABLE_SPEC: Spec = {"heal": (True, int)}
 EQUIPPABLE_SPEC: Spec = {"slot": (True, str), "modifiers": (False, list)}
 MODIFIER_SPEC: Spec = {"stat": (True, str), "op": (True, str), "value": (True, int)}
+AI_SPEC: Spec = {"hostile": (True, bool)}
 
 
 class PackError(ValueError):
@@ -281,7 +286,7 @@ def _entities(text: str) -> tuple[list[Entity], list[int | None]]:
 
 def _entity(located: _Located, table: Mapping[str, Any]) -> Entity:
     fields = located.take(table, ENTITY_SPEC, _LATER_COMPONENTS)
-    actor = renderable = portal = item = consumable = equippable = None
+    actor = renderable = portal = item = consumable = equippable = ai = None
     if "actor" in fields:
         actor_fields = located.take(fields["actor"], ACTOR_SPEC, _LATER_ACTOR_KEYS)
         stats = _stats(located, actor_fields.pop("stats", {}))
@@ -307,6 +312,8 @@ def _entity(located: _Located, table: Mapping[str, Any]) -> Entity:
         renderable = Renderable(
             **located.take(fields["renderable"], RENDERABLE_SPEC, frozenset())
         )
+    if "ai" in fields:
+        ai = Ai(**located.take(fields["ai"], AI_SPEC, _LATER_AI_KEYS))
     if "portal" in fields:
         portal_fields = located.take(fields["portal"], PORTAL_SPEC, frozenset())
         portal = Portal(
@@ -324,6 +331,7 @@ def _entity(located: _Located, table: Mapping[str, Any]) -> Entity:
         item=item,
         consumable=consumable,
         equippable=equippable,
+        ai=ai,
     )
 
 

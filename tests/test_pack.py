@@ -8,7 +8,8 @@ import pytest
 
 from glyphwright.api import reference_pack
 from glyphwright.content.pack import ContentPack
-from glyphwright.world.entities import Actor, Entity, Position
+from glyphwright.world.entities import Actor, Ai, Entity, Position
+from glyphwright.world.space import PosId
 
 
 def _with_entities(*entities: Entity) -> ContentPack:
@@ -71,5 +72,30 @@ def test_the_pack_id_is_stable_and_order_independent() -> None:
 
 
 def test_any_content_change_changes_the_pack_id() -> None:
-    changed = _with_entities(_goblin(id="goblin-2", position=None))
+    changed = _with_entities(_goblin(id="goblin-2", position=None, ai=None))
     assert changed.pack_id != reference_pack().pack_id
+
+
+FREE_TILE = Position(at=PosId.parse("village:5,1"))
+
+
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"ai": Ai(hostile=False)}, "only hostile ai is supported by this engine"),
+        ({"actor": None}, "an ai must be a placed actor"),
+    ],
+)
+def test_ai_rules(changes: dict[str, object], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        _with_entities(_goblin(id="goblin-2", position=FREE_TILE, **changes))
+
+
+def test_the_player_cannot_have_an_ai() -> None:
+    pack = reference_pack()
+    entities = tuple(
+        dataclasses.replace(e, ai=Ai()) if e.id == "player" else e
+        for e in pack.entities
+    )
+    with pytest.raises(ValueError, match="the player cannot have an ai"):
+        ContentPack(name=pack.name, areas=pack.areas, entities=entities)

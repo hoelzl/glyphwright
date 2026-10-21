@@ -105,7 +105,7 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     assert (
         pack.pack_id
-        == "pin@sha256:eeb1f246a300c2697769dc5ffb19be1b3073551257d59bf484f7a3dcdc1b0e97"
+        == "pin@sha256:20f297d0fa15bf42737edce13a3416217b151b85e425477105a2cda1a4d72752"
     )
 
 

@@ -97,6 +97,14 @@ Each entry of `modifiers` is a table:
 All `add` modifiers apply before any `mul` one, and a stat never drops below
 zero.
 
+**`ai`** (`[entity.ai]`): a computer-controlled actor. Only hostiles exist so
+far: a hostile wakes when the player comes within one step, chases the player
+from then on, and starts a battle when it reaches the player.
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `hostile` | boolean | yes | must be `true` |
+
 ## Rules across the pack
 
 - There is exactly one entity with id `player`, and it has an actor and a
@@ -109,6 +117,7 @@ zero.
   floor tile, and its token is not already an exit of its tile.
 - A `consumable` or `equippable` entity is also an `item`. An item has a
   position and is not an actor, a blocker, or a portal.
+- An entity with an `ai` is a placed actor, and is not the player.
 
 ## Not supported yet
 
@@ -117,6 +126,7 @@ fails with "is not supported by this engine version":
 
 - the files `abilities.toml`, `presentation.toml`, and `tileset.toml`;
 - `rooms` areas (`[[rooms]]`) and the grid key `fov`;
-- the entity parts `ai`, `openable`, and `dialogue`;
+- the entity parts `openable` and `dialogue`;
+- the ai keys `engages` (every hostile starts a battle) and `arena`;
 - the actor keys `mp`, `max_mp`, `abilities`, and `perks`;
 - the consumable key `mana`.
