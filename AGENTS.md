@@ -56,6 +56,7 @@ in the slice that ports the code it governs.
 | Task | Read first |
 |---|---|
 | Goals, scope, slices, working rules | [`docs/project-brief.md`](docs/project-brief.md) |
+| Play a session, author a pack, add an item, pin behaviour with a replay | the matching skill in `.agents/skills/` |
 | The current slice | the plan in `docs/plans/active/` |
 | Play or drive a session: commands, rejections, `:query` | [`docs/knowledge/commands.md`](docs/knowledge/commands.md) |
 | Change the kernel, a mode, or an event | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |

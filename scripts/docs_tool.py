@@ -63,8 +63,6 @@ CLAUDE_MD_FALLBACK = "@AGENTS.md"
 #: Paths that documents may name before they exist, each with its reason.
 #: Remove an entry in the change that creates the path.
 PLANNED: Mapping[str, str] = {
-    ".agents/skills/": "created with the first skill",
-    ".claude/commands/": "generated once the first skill exists",
     ".claude/settings.json": "created once there are Claude-only settings",
 }
 
