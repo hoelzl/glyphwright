@@ -34,6 +34,10 @@ events before it. Add `--harness` for the meta commands, such as
 `:query player.stats.atk --explain`, which shows a stat and every
 contribution to it. The JSON shapes are in `schemas/`.
 
+To check that a run is reproducible, record it with `--record run.jsonl` and
+verify it later with `--replay run.jsonl`; see
+[replay and determinism](docs/knowledge/replay-and-determinism.md).
+
 ## Working on GlyphWright
 
 ```bash
