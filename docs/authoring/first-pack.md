@@ -36,7 +36,23 @@ back is a second portal. A portal's token is the word the player types after
 `move`, and it may not be `north`, `east`, `south`, or `west` where those are
 already exits.
 
-## 4. Read a load error
+## 4. Add an item
+
+The reference world has two items to copy: `potion-minor`, a `consumable`
+that heals, and `iron-sword`, an `equippable` that adds to `atk` while worn.
+An item needs a `position` and an `[entity.item]` table with its `name`. Play
+your pack with `--harness` and check what an item does:
+
+```text
+> take iron-sword
+> equip iron-sword
+> :query player.stats.atk --explain
+player.stats.atk = 8
+  base 5
+  +3 iron-sword (equipped weapon)
+```
+
+## 5. Read a load error
 
 Break something on purpose, for example set the player's `hp` above its
 `max_hp`, and play again:

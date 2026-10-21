@@ -55,23 +55,31 @@ N7 to N13 were found while planning S3; they are not in v0's register.
 
 ## Progress
 
-- [ ] Plan
-- [ ] Item and equipment components; actor stats
-- [ ] Item events and their fold (K5); `event/2`
-- [ ] Stat pipeline with provenance
-- [ ] Items and stats in packs (N7, N8, N12); pack-format page
-- [ ] Potion and sword in the reference world; goldens
-- [ ] One verb table for the decoder, placeholders, and rejections
-- [ ] `take`, `use`, `equip` in exploration (N10, N11)
-- [ ] `:query --explain` with structured provenance (N9); `query/2`
-- [ ] Inventory in frames and the plain transcript (N13); `frame/2`
-- [ ] Item invariants in the grammar walks
-- [ ] Generated command reference with a staleness test; `AGENTS.md` route
-- [ ] Kernel and content-pack pages, first-pack guide, README
+- [x] Plan
+- [x] Item and equipment components; actor stats
+- [x] Item events and their fold (K5); `event/2`
+- [x] Stat pipeline with provenance
+- [x] Items and stats in packs (N7, N8, N12); pack-format page
+- [x] Potion and sword in the reference world; goldens
+- [x] One verb table for the decoder, placeholders, and rejections
+- [x] `take`, `use`, `equip` in exploration (N10, N11)
+- [x] `:query --explain` with structured provenance (N9); `query/2`
+- [x] Inventory in frames and the plain transcript (N13); `frame/2`
+- [x] Item invariants in the grammar walks
+- [x] Generated command reference with a staleness test; `AGENTS.md` route
+- [x] Kernel and content-pack pages, first-pack guide, README
 
 ## Setup log
 
-Filled in as the slice proceeds.
+- Commits, in order: plan; entities; item events (`event/2`); stat
+  pipeline; content; verb table; `take`/`use`/`equip`; reference-world
+  items and goldens; `:query` (`query/2`); inventory in frames (`frame/2`);
+  property walks; command reference; docs.
+- New derived view: `docs/knowledge/commands.md`, regenerated with
+  `uv run python -m glyphwright.harness.reference` and gated by a staleness
+  test. `AGENTS.md` lists it with the other regenerate commands.
+- The golden diff after adding the items was reviewed by eye: the village
+  shows `!` and `/`, and the player's hp reads 17/20; nothing else changed.
 
 ## Decisions
 
@@ -88,4 +96,15 @@ Filled in as the slice proceeds.
 
 ## Surprises
 
-None yet.
+- **Item domains are not like exit domains.** `move` offers walls because
+  exits are topology; `use` must not offer a potion at full health, because
+  the use would destroy it for nothing. The kernel page now says which kind
+  each verb's domain is.
+- **The reference page caught a vague hint.** The first render described
+  every general rejection's hint as "the valid choices", which is wrong for
+  `harness_disabled` and `unknown_meta`. Each reason now carries its own hint
+  description, and a test checks that every documented reason is emitted.
+- **Random walks rarely reach the sword.** The item invariants needed a walk
+  that starts with both items in hand to cover `use` and `equip`.
+- **The kernel page's rejection table duplicated the generated reference**,
+  so it became a link: one home per fact.

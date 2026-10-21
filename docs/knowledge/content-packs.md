@@ -81,5 +81,5 @@ in the same change and say so in the slice plan.
    entity or area as subject.
 4. Document the key in
    [`docs/authoring/pack-format.md`](../authoring/pack-format.md); a test fails
-   until every accepted key appears there.
+   until every accepted key appears there, above "Not supported yet".
 5. Re-pin the pack-id test if `Entity` gained a component.
