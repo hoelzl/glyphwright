@@ -129,6 +129,8 @@ def test_a_recorded_session_replays_from_the_command_line(tmp_path: Path) -> Non
     recording = tmp_path / "run.jsonl"
     played = _run(["--record", str(recording)], b"move east\nmove south\nquit\n")
     assert played.returncode == 0
+    # Rejected commands are not recorded, so the count says what was.
+    assert played.stderr.startswith(b"recorded 2 steps to ")
     verified = _run(["--replay", str(recording)], b"")
     assert verified.returncode == 0
     assert verified.stdout == b"recording verified: 2 steps, turn 2\n"

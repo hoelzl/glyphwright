@@ -284,5 +284,7 @@ def write(directory: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    for name in write(Path(sys.argv[1] if len(sys.argv) > 1 else "schemas")):
-        print(f"wrote schemas/{name}")
+    directory = Path(sys.argv[1] if len(sys.argv) > 1 else "schemas")
+    for name in write(directory):
+        done = "wrote" if (directory / name).is_file() else "removed"
+        print(f"{done} schemas/{name}")

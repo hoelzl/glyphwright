@@ -75,6 +75,11 @@ class RecordingEngine(Engine):
         engine._write(engine.fingerprint().header(harness=harness))
         return engine
 
+    @property
+    def steps(self) -> int:
+        """How many accepted steps have been recorded."""
+        return self._steps
+
     def step(self, command: Command) -> StepResult:
         result = super().step(command)
         if result.accepted:

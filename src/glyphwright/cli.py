@@ -99,10 +99,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         if outcome.ok:
             assert outcome.engine is not None
             turn = outcome.engine.fingerprint().turn
-            stdout.write(f"recording verified: {outcome.steps} steps, turn {turn}\n")
+            stdout.write(f"recording verified: {_steps(outcome.steps)}, turn {turn}\n")
             return 0
         stdout.write(
-            f"recording diverged after {outcome.steps} steps: {outcome.problem}\n"
+            f"recording diverged after {_steps(outcome.steps)}: {outcome.problem}\n"
         )
         return 1
 
@@ -120,7 +120,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         engine = RecordingEngine.recording(
             pack, seed=seed, sink=sink, harness=args.harness
         )
-        return _play(engine, args, stdin, stdout)
+        status = _play(engine, args, stdin, stdout)
+    # On stderr, so a JSONL stream stays clean. Rejected commands are not
+    # recorded, and an agent piping output away would not see them.
+    sys.stderr.write(f"recorded {_steps(engine.steps)} to {args.record}\n")
+    return status
+
+
+def _steps(count: int) -> str:
+    return f"{count} step" if count == 1 else f"{count} steps"
 
 
 def _play(

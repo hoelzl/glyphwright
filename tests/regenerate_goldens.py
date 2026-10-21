@@ -56,5 +56,8 @@ if __name__ == "__main__":
     GOLDEN_DIR.mkdir(exist_ok=True)
     for name in GOLDENS:
         path = GOLDEN_DIR / f"{name}.txt"
-        path.write_text(render_golden(name), encoding="utf-8", newline="\n")
+        text = render_golden(name)
+        if path.is_file() and path.read_text(encoding="utf-8") == text:
+            continue
+        path.write_text(text, encoding="utf-8", newline="\n")
         print(f"wrote {path.relative_to(GOLDEN_DIR.parent.parent).as_posix()}")
