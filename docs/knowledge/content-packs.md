@@ -37,7 +37,7 @@ through the same path, so the whole test suite exercises the loader.
 | Shape | the loader's specs | an unknown key, a missing key, `hp = "20"` |
 | Content | `ContentPack` | a duplicate id, a wall under an entity, a portal shadowing an exit |
 
-Keys and files of later slices (`item`, `ai`, `abilities.toml`, …) live in
+Keys and files of later slices (`openable`, `abilities.toml`, …) live in
 the loader's `_LATER_*` sets and fail with "is not supported by this engine
 version", so a typo and a missing feature read differently. Every content
 rule raises `ContentError`, whose `subject` names the area or entity it is

@@ -1,8 +1,8 @@
 # The kernel
 
 How a turn is computed: the world state, commands and events, the step
-function, modes, items, and stats, plus the checklist for adding a command or
-an event. Read it before you change anything under `src/glyphwright/kernel/` or
+function, the scheduler, modes and battle, items, and stats, plus the
+checklist for adding a command or an event. Read it before you change anything under `src/glyphwright/kernel/` or
 `src/glyphwright/modes/`.
 
 ## Contents
@@ -12,6 +12,7 @@ an event. Read it before you change anything under `src/glyphwright/kernel/` or
 - [Space and entities](#space-and-entities)
 - [The step contract](#the-step-contract)
 - [Modes and the grammar](#modes-and-the-grammar)
+- [The scheduler and battle](#the-scheduler-and-battle)
 - [Items and stats](#items-and-stats)
 - [Rejections](#rejections)
 - [Adding a command or an event](#adding-a-command-or-an-event)
@@ -27,9 +28,10 @@ step's events; frontends are views of frames.
 
 ## World state
 
-`WorldState` holds five fields: `entities` (id to `Entity`), `areas` (name to
-`Space`), `mode_stack` (never empty; the top is the active mode), `turn`, and
-`rng`, the PCG64 cursor. The mappings are frozen at construction. Later slices
+`WorldState` holds six fields: `entities` (id to `Entity`), `areas` (name to
+`Space`), `mode_stack` (never empty; the top is the active mode), `turn`,
+`rng`, the PCG64 cursor, and `initiative`, the current battle's order (empty
+outside a battle). `defeated` is derived: the player is at 0 hp. The mappings are frozen at construction. Later slices
 add fields with defaults, so existing constructions keep working.
 
 ## Space and entities
@@ -41,8 +43,8 @@ add fields with defaults, so existing constructions keep working.
   neighbours, walls included: exits are topology, and `blocked_reason` says
   `wall`, `occupied`, or `edge` when a move fails.
 - **`Entity`** is an id plus optional components: `position`, `actor`,
-  `blocker`, `renderable`, `portal`, and the item parts `item`, `consumable`,
-  `equippable`, `inventory`, `equipment`.
+  `blocker`, `renderable`, `portal`, `ai`, and the item parts `item`,
+  `consumable`, `equippable`, `inventory`, `equipment`.
 - **Movement reads exits through `WorldState.exits_from`**: the space's exits
   plus the token of any portal standing on the tile, so a portal works for
   every mover. A portal may lead into another area; `move_player` then checks
@@ -52,9 +54,10 @@ add fields with defaults, so existing constructions keep working.
 
 - The active mode's `handle` turns the command into events and returns the
   successor RNG cursor.
-- A command that spends the turn ends its events with `TurnAdvanced`. `step`
-  stamps that event with the final RNG cursor, so the fold restores the cursor
-  too.
+- A command that spends the turn ends its events with `TurnAdvanced`. Before
+  that closing event, the scheduler gives every due foe its turn, so the
+  returned events are the whole round. `step` stamps the closing event with
+  the round's final RNG cursor, so the fold restores the cursor too.
 - A handler that draws from the RNG without spending the turn is a bug, and
   `step` raises on it.
 - Any cursor may be passed as `rng`, not only the state's own (v0 finding K1).
@@ -64,7 +67,8 @@ add fields with defaults, so existing constructions keep working.
 ## Modes and the grammar
 
 A mode is a module with `NAME`, `VERBS`, `available_commands`, `handle`, and
-`view`; `src/glyphwright/modes/__init__.py` registers them. The grammar a mode
+`view`; `src/glyphwright/modes/__init__.py` registers them. Exploration sits
+at the bottom of the stack, and a battle is pushed on top of it. The grammar a mode
 returns is carried in every frame. It advertises a verb only when a command
 can be formed from it, and each verb has one argument domain per argument, so
 a harness can generate every valid command without knowing the rules.
@@ -73,6 +77,29 @@ Domains come in two kinds. `move` offers every exit, walls included, because
 exits are topology and a failed move says why. Item verbs offer only what the
 command would work on, because a pointless `use` would destroy an item for
 nothing.
+
+## The scheduler and battle
+
+- **Outside a battle** the scheduler's queue is every hostile, in id order,
+  in every area (`src/glyphwright/kernel/scheduler.py`). A hostile next to
+  the player starts a battle; an aggroed one elsewhere takes one step toward
+  the player over the movement graph, portals included.
+- **Starting a battle** draws in the hostile, plus every hostile in the area
+  that is aggroed or next to the player. It rolls initiative (d20 + `spd`),
+  pushes the battle with that order, and lets every foe that outrolled the
+  player strike first.
+- **In a battle** (`src/glyphwright/modes/battle.py`) the player can
+  `attack`, `use`, `flee`, or `look`, and each foe strikes once per round, in
+  initiative order. There is no map: the frame's viewport is a `MenuView`
+  naming the combatants.
+- **A strike** (`src/glyphwright/effects/combat.py`) hits on d20 + `atk` >=
+  10 + `def` and does 1 to `atk` damage, less `def // 2`, at least 1.
+- **Endings:** the battle pops with `victory` when no foe is left, `defeat`
+  when the player reaches 0 hp, and `fled` when a flee's step breaks contact
+  with every foe. A fled foe stays aggroed and chases. A defeated player has
+  only `look`, and every other command is rejected as `defeated`.
+- **The round stops** when the mode changes or the player falls, so a hostile
+  that starts a battle hands the rest of the round to it.
 
 ## Items and stats
 

@@ -54,21 +54,31 @@ resumes dialogue or lockpicking) stays in v0 with those modes.
 ## Progress
 
 - [x] Plan
-- [ ] `ai` component and aggression; hostiles in packs and the reference world
-- [ ] Combat and mode events and their fold; `event/3`
-- [ ] Strike and initiative through the stat pipeline
-- [ ] The scheduler inside `step`: wake, chase, engage, battle turns, outcome
-- [ ] The battle mode; `attack` and `flee` in the verb table; defeat in exploration
-- [ ] Menu viewport in frames and the plain transcript; `frame/3`
-- [ ] `world.initiative` query (a new path is no new shape, so `query/2` stays)
-- [ ] Battle walks and a defeat-seeking walk; battle golden
-- [ ] Kernel, content-pack, and authoring pages; README
+- [x] `ai` component and aggression; hostiles in packs and the reference world
+- [x] Combat and mode events and their fold; `event/3`
+- [x] Strike and initiative through the stat pipeline
+- [x] The scheduler inside `step`: wake, chase, engage, battle turns, outcome
+- [x] The battle mode; `attack` and `flee` in the verb table; defeat in exploration
+- [x] Menu viewport in frames and the plain transcript; `frame/3`
+- [x] `world.initiative` query (a new path is no new shape, so `query/2` stays)
+- [x] Battle walks and a defeat-seeking walk; battle golden
+- [x] Kernel, content-pack, and authoring pages; README
 - [ ] Owner review of the S4 pull request
 - [ ] Tag `s4`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
-Filled in as the slice proceeds.
+- Commits, in order: plan; `ai` component; combat and mode events
+  (`event/3`); strike and initiative; menu viewport (`frame/3`); scheduler
+  and battle mode; initiative query; battle and defeat walks; docs.
+- New modules: `kernel/scheduler.py`, `modes/battle.py`, `effects/combat.py`.
+  No new derived view: the command reference picked up `attack`, `flee`, and
+  the `defeated` reason by regeneration alone.
+- Goldens: `plain_battle` is new and shows a battle starting. `plain_village`
+  now walks east twice, because its old walk ends next to the goblin. Both
+  diffs were reviewed by eye.
+- Not added: a `query/3` tag. A new query path adds no field to the payload,
+  so decision 0002 does not call for a bump.
 
 ## Decisions
 
@@ -86,4 +96,14 @@ Filled in as the slice proceeds.
 
 ## Surprises
 
-None yet.
+- **Battle-only makes waking and engaging one moment.** A hostile wakes when
+  the player comes within reach, which is exactly when it starts a battle, so
+  chasing only happens after a flee. v0's pre-battle chase belonged to the
+  skirmish model the owner cut.
+- **Hostiles that act changed existing evidence.** The village golden and the
+  scripted CLI session walked next to the goblin, which now starts a battle.
+  The golden walks elsewhere, a separate golden covers the battle, and the
+  CLI test asserts the battle.
+- **Two stale texts from S3** turned up while writing these docs: the CLI's
+  `--harness` help listed only `:seed` and `:frame`, and an S3 README edit
+  broke the opening blockquote. Both are fixed here.
