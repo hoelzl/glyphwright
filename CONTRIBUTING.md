@@ -68,7 +68,9 @@ that the course using this repository distributes with its materials.
 - **Skills follow the [Agent Skills specification](https://agentskills.io/specification)**
   (*gate*), and a procedure becomes a skill only after it has been done twice.
   [C1–C3]
-- **Plans live in `active/` or `completed/`** (*gate*). [E1]
+- **Plans live in `active/` or `completed/`** (*gate*). [E1] Default searches
+  skip `completed/` (see `.ignore`), so finished plans do not answer questions
+  about the current code; open them from the plans index. [E3]
 - **One canonical home per fact.** Link to it instead of restating it, and
   prune the old wording in the same change. [D1]
 - **No volatile facts in prose.** Versions, counts, and status live behind a

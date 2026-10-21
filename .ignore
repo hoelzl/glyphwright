@@ -1,0 +1,4 @@
+# Finished plans are history, so default searches skip them: ripgrep, VS Code
+# search, and the coding agents' search tools. Name the folder to search it,
+# or open a plan from docs/plans/README.md.
+docs/plans/completed/
