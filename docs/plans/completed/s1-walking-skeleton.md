@@ -69,8 +69,8 @@ the findings in code that S1 ports:
 - [x] Plain and JSONL frontends, meta channel, CLI (H6, H7), golden transcript
 - [x] Property tests (T1, T4, T8) and the enforcing tests for the invariants
 - [x] Kernel knowledge page, `AGENTS.md` routes, README quickstart
-- [ ] Owner review of the S1 pull request
-- [ ] Tag `s1`; move this plan to `docs/plans/completed/`
+- [x] Owner review of the S1 pull request (merged as #2)
+- [x] Tag `s1`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
