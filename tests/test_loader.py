@@ -219,3 +219,88 @@ def test_load_pack_refuses_a_path_that_is_not_a_directory(tmp_path: Path) -> Non
 def test_the_reference_pack_is_loaded_from_the_package() -> None:
     assert reference_pack() is reference_pack()
     assert reference_pack().name == "reference-vale"
+
+
+POTION = """
+[[entity]]
+id = "potion"
+position = "village:3,1"
+
+[entity.item]
+name = "Potion"
+
+[entity.consumable]
+heal = 6
+"""
+
+SWORD = """
+[[entity]]
+id = "sword"
+position = "village:6,3"
+
+[entity.item]
+name = "Sword"
+
+[entity.equippable]
+slot = "weapon"
+modifiers = [{ stat = "atk", op = "add", value = 3 }]
+"""
+
+
+def test_items_equipment_and_stats_load() -> None:
+    entities = ENTITIES.replace(
+        "max_hp = 20", "max_hp = 20\nstats = { def = 3, atk = 5 }"
+    )
+    pack = parse_pack(_sources(entities_toml=entities + POTION + SWORD))
+    by_id = {entity.id: entity for entity in pack.entities}
+    assert by_id["player"].actor is not None
+    assert by_id["player"].actor.base_stats == (("atk", 5), ("def", 3))
+    assert by_id["potion"].consumable is not None
+    assert by_id["potion"].consumable.heal == 6
+    sword = by_id["sword"].equippable
+    assert sword is not None
+    assert (sword.slot, sword.modifiers[0].value) == ("weapon", 3)
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (('op = "add"', 'op = "sub"'), "unknown modifier op 'sub'"),
+        (('op = "add", value = 3', 'op = "mul", value = -10'), "value >= 0"),
+        (('stat = "atk"', 'stat = "a.tk"'), "may not contain '.'"),
+        (('slot = "weapon"', 'slot = "two hands"'), "whitespace-free"),
+    ],
+)
+def test_bad_equipment_is_refused_at_its_header(
+    change: tuple[str, str], message: str
+) -> None:
+    error = _error(entities_toml=ENTITIES + SWORD.replace(*change))
+    assert error.line is not None
+    assert message in error.message
+
+
+def test_a_stat_must_be_an_integer() -> None:
+    entities = ENTITIES.replace("max_hp = 20", 'max_hp = 20\nstats = { atk = "5" }')
+    assert "stat 'atk' must be an integer" in _error(entities_toml=entities).message
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        (("heal = 6", "heal = 0"), "heal at least 1 hp"),
+        (("heal = 6", "heal = 6\nmana = 2"), "'mana' is not supported"),
+        (('[entity.item]\nname = "Potion"\n', ""), "must be an item"),
+        (('position = "village:3,1"\n', ""), "must have a position"),
+        (("[entity.item]", "blocker = true\n\n[entity.item]"), "cannot be an actor"),
+    ],
+)
+def test_bad_items_are_refused(change: tuple[str, str], message: str) -> None:
+    error = _error(entities_toml=ENTITIES + POTION.replace(*change))
+    assert message in error.message
+
+
+@pytest.mark.parametrize("entity_id", ["world", "a.b"])
+def test_ids_that_queries_could_not_reach_are_refused(entity_id: str) -> None:
+    # v2 finding N8.
+    error = _error(entities_toml=ENTITIES.replace('"goblin-1"', f'"{entity_id}"'))
+    assert "may not contain '.' or be 'world'" in error.message
