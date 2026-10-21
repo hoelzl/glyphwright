@@ -7,7 +7,14 @@ one implementation keeps the modes from drifting apart.
 from __future__ import annotations
 
 from glyphwright.frames.frame import Cell, GridView
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 from glyphwright.kernel.state import PLAYER, WorldState
 from glyphwright.world.grid import GridSpace, coords
 
@@ -85,3 +92,40 @@ def move_player(state: WorldState, token: str) -> tuple[Event, ...]:
         Moved(actor=PLAYER, origin=origin, destination=destination, exit=token),
         turn,
     )
+
+
+def usable_items(state: WorldState) -> tuple[str, ...]:
+    """Carried consumables that would do something now.
+
+    Unlike the map's exits, which are topology and are offered even when
+    blocked, item domains are validity filters: a use that could have no
+    effect is not offered, because accepting it would destroy the item for
+    nothing.
+    """
+    player = state.entity(PLAYER)
+    actor = player.actor
+    if actor is None or actor.hp >= actor.max_hp:
+        return ()
+    return tuple(
+        item_id
+        for item_id in sorted(player.carries())
+        if (consumable := state.entity(item_id).consumable) is not None
+        and consumable.heal > 0
+    )
+
+
+def use_item(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    """Use a carried consumable on yourself.
+
+    The heal amount is what lands after clamping: events record what
+    happened, not what was attempted, so a use never reports 0 hp.
+    """
+    consumable = state.entity(item_id).consumable
+    actor = state.entity(PLAYER).actor
+    assert consumable is not None and actor is not None
+    healed = min(consumable.heal, actor.max_hp - actor.hp)
+    events: list[Event] = [ItemUsed(actor=PLAYER, item=item_id, target=PLAYER)]
+    if healed > 0:
+        events.append(Healed(target=PLAYER, amount=healed, source=item_id))
+    events.append(TurnAdvanced(turn=state.turn + 1))
+    return tuple(events)

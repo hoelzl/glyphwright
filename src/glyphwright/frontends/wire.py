@@ -16,9 +16,12 @@ from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
+    Equip,
     Look,
     Move,
     Rejected,
+    Take,
+    Use,
     Wait,
 )
 from glyphwright.kernel.events import (
@@ -215,6 +218,41 @@ VERBS: tuple[VerbSpec, ...] = (
         "Let one turn pass.",
         spends_turn=True,
         events=("TurnAdvanced",),
+    ),
+    VerbSpec(
+        "take",
+        Take,
+        ("item",),
+        "Pick up an item lying where you stand.",
+        spends_turn=True,
+        events=("ItemAcquired", "TurnAdvanced"),
+        reason="not_here",
+        options_hint="you can take",
+        empty_hint="there is nothing here to take",
+    ),
+    VerbSpec(
+        "use",
+        Use,
+        ("item",),
+        "Use a carried consumable on yourself; offered only when it would help.",
+        spends_turn=True,
+        events=("ItemUsed", "Healed", "TurnAdvanced"),
+        reason="not_usable",
+        options_hint="you can use",
+        # v2 finding N11: v0 said "you are carrying nothing usable" even when
+        # the player carried a potion at full hp.
+        empty_hint="nothing you carry would have an effect now",
+    ),
+    VerbSpec(
+        "equip",
+        Equip,
+        ("item",),
+        "Wear a carried item in its slot, replacing what was there.",
+        spends_turn=True,
+        events=("ItemEquipped", "TurnAdvanced"),
+        reason="not_equippable",
+        options_hint="you can equip",
+        empty_hint="you are carrying nothing to equip",
     ),
 )
 VERB_SPECS: dict[str, VerbSpec] = {spec.verb: spec for spec in VERBS}

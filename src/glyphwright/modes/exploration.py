@@ -13,8 +13,17 @@ from glyphwright.frames.frame import (
     SemanticFrame,
     Viewport,
 )
-from glyphwright.kernel.commands import Command, CommandGrammar, Look, Move, Wait
-from glyphwright.kernel.events import Event, TurnAdvanced
+from glyphwright.kernel.commands import (
+    Command,
+    CommandGrammar,
+    Equip,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
+from glyphwright.kernel.events import Event, ItemAcquired, ItemEquipped, TurnAdvanced
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState
 from glyphwright.modes import common, messages
@@ -22,7 +31,7 @@ from glyphwright.world.grid import GridSpace
 
 NAME = MODE_EXPLORATION
 
-VERBS = frozenset({"move", "look", "wait"})
+VERBS = frozenset({"move", "look", "wait", "take", "use", "equip"})
 
 
 def available_commands(state: WorldState) -> CommandGrammar:
@@ -40,7 +49,31 @@ def available_commands(state: WorldState) -> CommandGrammar:
     if exits:
         verbs.append(("move", (exits,)))
     verbs.extend((("look", ()), ("wait", ())))
+    for verb, domain in (
+        ("take", _takeable(state)),
+        ("use", common.usable_items(state)),
+        ("equip", _equippable(state)),
+    ):
+        if domain:
+            verbs.append((verb, (domain,)))
     return CommandGrammar(verbs=tuple(verbs))
+
+
+def _takeable(state: WorldState) -> tuple[str, ...]:
+    at = state.entity(PLAYER).at()
+    if at is None:
+        return ()
+    return tuple(e.id for e in state.entities_at(at) if e.item is not None)
+
+
+def _equippable(state: WorldState) -> tuple[str, ...]:
+    player = state.entity(PLAYER)
+    worn = player.equipment.equipped_items() if player.equipment else ()
+    return tuple(
+        item_id
+        for item_id in sorted(player.carries())
+        if state.entity(item_id).equippable is not None and item_id not in worn
+    )
 
 
 def handle(
@@ -59,8 +92,36 @@ def handle(
             return (TurnAdvanced(turn=state.turn + 1),), rng
         case Move(exit=token):
             return common.move_player(state, token), rng
+        case Take(item=item_id):
+            return _take(state, item_id), rng
+        case Use(item=item_id):
+            return common.use_item(state, item_id), rng
+        case Equip(item=item_id):
+            return _equip(state, item_id), rng
         case _:
             raise ValueError(f"exploration cannot handle {command.verb!r}")
+
+
+def _take(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    origin = state.entity(item_id).at()
+    assert origin is not None, "the grammar only offers items lying here"
+    return (
+        ItemAcquired(actor=PLAYER, item=item_id, origin=origin),
+        TurnAdvanced(turn=state.turn + 1),
+    )
+
+
+def _equip(state: WorldState, item_id: str) -> tuple[Event, ...]:
+    equippable = state.entity(item_id).equippable
+    assert equippable is not None, "the grammar only offers carried equippables"
+    worn = state.entity(PLAYER).equipment
+    replaced = worn.in_slot(equippable.slot) if worn is not None else None
+    return (
+        ItemEquipped(
+            actor=PLAYER, item=item_id, slot=equippable.slot, replaced=replaced
+        ),
+        TurnAdvanced(turn=state.turn + 1),
+    )
 
 
 def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
