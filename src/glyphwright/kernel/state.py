@@ -13,13 +13,21 @@ from types import MappingProxyType
 from typing import assert_never
 
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
+    Defeated,
     Event,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
+    Provoked,
     TurnAdvanced,
 )
 from glyphwright.kernel.rng import Rng
@@ -31,6 +39,8 @@ PLAYER: EntityId = "player"
 # Mode names are kernel vocabulary: the fold branches on them, and the kernel
 # cannot import the modes package (modes import the kernel).
 MODE_EXPLORATION = "exploration"
+MODE_BATTLE = "battle"
+BATTLE_OUTCOMES = ("victory", "defeat", "fled")
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +56,9 @@ class WorldState:
     mode_stack: tuple[str, ...]
     turn: int
     rng: Rng
+    # Who acts after the player in the current battle, in order; empty
+    # outside a battle.
+    initiative: tuple[EntityId, ...] = ()
 
     def __post_init__(self) -> None:
         # Freeze the mappings so "immutable" is enforced rather than promised.
@@ -57,6 +70,12 @@ class WorldState:
     @property
     def mode(self) -> str:
         return self.mode_stack[-1]
+
+    @property
+    def defeated(self) -> bool:
+        """Whether the player is at 0 hp: then only ``look`` is left."""
+        actor = self.entity(PLAYER).actor
+        return actor is not None and actor.hp <= 0
 
     def entity(self, entity_id: EntityId) -> Entity:
         try:
@@ -151,6 +170,47 @@ def apply(state: WorldState, event: Event) -> WorldState:
             return state.with_entity(
                 replace(target, actor=replace(target.actor, hp=hp))
             )
+        case Provoked():
+            hostile = state.entity(event.actor)
+            if hostile.ai is None:
+                raise ValueError(f"Provoked actor {event.actor} has no ai")
+            return state.with_entity(
+                replace(hostile, ai=replace(hostile.ai, aggroed=True))
+            )
+        case DamageDealt():
+            target = state.entity(event.target)
+            if target.actor is None:
+                raise ValueError(f"DamageDealt target {event.target} is not an actor")
+            hp = max(target.actor.hp - event.amount, 0)
+            return state.with_entity(
+                replace(target, actor=replace(target.actor, hp=hp))
+            )
+        case ActorDied():
+            if event.actor == PLAYER:
+                raise ValueError("the player is defeated, never removed")
+            # The dead leave no initiative slot behind.
+            survivors = state.without_entity(event.actor)
+            return replace(
+                survivors,
+                initiative=tuple(i for i in state.initiative if i != event.actor),
+            )
+        case ModePushed():
+            return replace(
+                state,
+                mode_stack=(*state.mode_stack, event.mode),
+                initiative=event.initiative or state.initiative,
+            )
+        case ModePopped():
+            if state.mode != event.mode:
+                raise ValueError(
+                    f"cannot pop {event.mode!r}: the active mode is {state.mode!r}"
+                )
+            initiative = () if event.mode == MODE_BATTLE else state.initiative
+            return replace(
+                state, mode_stack=state.mode_stack[:-1], initiative=initiative
+            )
+        case AttackMissed() | Defeated() | FleeFailed():
+            return state
         case _:
             assert_never(event)
 

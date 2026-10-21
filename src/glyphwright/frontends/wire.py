@@ -25,18 +25,26 @@ from glyphwright.kernel.commands import (
     Wait,
 )
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
+    Defeated,
     Event,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
+    Provoked,
     TurnAdvanced,
 )
 
 FRAME_SCHEMA = "glyphwright.frame/2"
-EVENT_SCHEMA = "glyphwright.event/2"
+EVENT_SCHEMA = "glyphwright.event/3"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/2"
 
@@ -148,6 +156,20 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
                 "amount": event.amount,
                 "source": event.source,
             }
+        case DamageDealt():
+            payload |= {
+                "source": event.source,
+                "target": event.target,
+                "amount": event.amount,
+            }
+        case AttackMissed():
+            payload |= {"source": event.source, "target": event.target}
+        case Provoked() | ActorDied() | Defeated() | FleeFailed():
+            payload |= {"actor": event.actor}
+        case ModePushed():
+            payload |= {"mode": event.mode, "initiative": list(event.initiative)}
+        case ModePopped():
+            payload |= {"mode": event.mode, "outcome": event.outcome}
         case _:
             assert_never(event)
     return payload

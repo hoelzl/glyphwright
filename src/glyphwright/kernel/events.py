@@ -107,6 +107,103 @@ class Healed:
     type: str = "Healed"
 
 
+@dataclass(frozen=True, slots=True)
+class Provoked:
+    """A hostile woke and turned on the player; it gives chase from now on."""
+
+    actor: EntityId
+
+    type: str = "Provoked"
+
+
+@dataclass(frozen=True, slots=True)
+class DamageDealt:
+    """An attack landed. ``amount`` is the damage before hp clamps at zero."""
+
+    source: EntityId
+    target: EntityId
+    amount: int
+
+    type: str = "DamageDealt"
+
+
+@dataclass(frozen=True, slots=True)
+class AttackMissed:
+    """An attack failed to hit."""
+
+    source: EntityId
+    target: EntityId
+
+    type: str = "AttackMissed"
+
+
+@dataclass(frozen=True, slots=True)
+class ActorDied:
+    """A non-player actor reached 0 hp and left the world."""
+
+    actor: EntityId
+
+    type: str = "ActorDied"
+
+
+@dataclass(frozen=True, slots=True)
+class Defeated:
+    """The player reached 0 hp. The world survives its protagonist, so the
+    player stays in it; only ``look`` is left."""
+
+    actor: EntityId
+
+    type: str = "Defeated"
+
+
+@dataclass(frozen=True, slots=True)
+class ModePushed:
+    """A mode became active above the current one.
+
+    A battle carries its initiative order: who acts after the player, in
+    order.
+    """
+
+    mode: str
+    initiative: tuple[EntityId, ...] = ()
+
+    type: str = "ModePushed"
+
+
+@dataclass(frozen=True, slots=True)
+class ModePopped:
+    """The active mode ended with an outcome: ``victory``, ``defeat``, or
+    ``fled`` for a battle."""
+
+    mode: str
+    outcome: str
+
+    type: str = "ModePopped"
+
+
+@dataclass(frozen=True, slots=True)
+class FleeFailed:
+    """No step away would break contact; the turn is spent anyway."""
+
+    actor: EntityId
+
+    type: str = "FleeFailed"
+
+
 Event = (
-    Moved | MoveBlocked | TurnAdvanced | ItemAcquired | ItemUsed | ItemEquipped | Healed
+    Moved
+    | MoveBlocked
+    | TurnAdvanced
+    | ItemAcquired
+    | ItemUsed
+    | ItemEquipped
+    | Healed
+    | Provoked
+    | DamageDealt
+    | AttackMissed
+    | ActorDied
+    | Defeated
+    | ModePushed
+    | ModePopped
+    | FleeFailed
 )

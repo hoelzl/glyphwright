@@ -9,16 +9,24 @@ from __future__ import annotations
 from typing import assert_never
 
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
+    Defeated,
     Event,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
+    Provoked,
     TurnAdvanced,
 )
-from glyphwright.kernel.state import PLAYER
+from glyphwright.kernel.state import MODE_BATTLE, PLAYER
 
 
 def describe(event: Event) -> str:
@@ -53,7 +61,35 @@ def describe(event: Event) -> str:
         case Healed():
             # v2 finding N10: v0 said "You" whoever was healed.
             return f"{event.target} recovers {event.amount} hp."
-        case TurnAdvanced():
+        case Provoked():
+            return f"{event.actor} snarls and turns on you!"
+        case DamageDealt(source=source) if source == PLAYER:
+            return f"You strike {event.target} for {event.amount} damage."
+        case DamageDealt(target=target) if target == PLAYER:
+            return f"{event.source} hits you for {event.amount} damage."
+        case DamageDealt():
+            return f"{event.source} strikes {event.target} for {event.amount} damage."
+        case AttackMissed(source=source) if source == PLAYER:
+            return f"You miss {event.target}."
+        case AttackMissed():
+            return f"{event.source} lunges and misses."
+        case ActorDied():
+            return f"{event.actor} dies."
+        case Defeated():
+            return "You are defeated."
+        case ModePushed(mode=mode) if mode == MODE_BATTLE:
+            return "Battle is joined!"
+        case ModePopped(outcome="victory"):
+            return "You are victorious!"
+        case ModePopped(outcome="fled"):
+            return "You break away and flee!"
+        case ModePopped(outcome="defeat"):
+            # v2 finding N14: v0 also said "You have fallen." right after
+            # "You are defeated."; Defeated already said it.
+            return ""
+        case FleeFailed():
+            return "There is no way out!"
+        case TurnAdvanced() | ModePushed() | ModePopped():
             return ""
         case _:
             assert_never(event)
