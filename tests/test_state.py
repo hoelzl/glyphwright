@@ -9,7 +9,15 @@ import pytest
 from glyphwright.kernel.events import MoveBlocked, Moved, TurnAdvanced
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
-from glyphwright.world.entities import Actor, Blocker, Entity, Position, Renderable
+from glyphwright.world.entities import (
+    Actor,
+    Blocker,
+    Entity,
+    Equipment,
+    Position,
+    Renderable,
+    StatModifier,
+)
 from glyphwright.world.grid import GridSpace, coords
 from glyphwright.world.space import PosId, Space
 
@@ -134,3 +142,23 @@ def test_folding_does_not_mutate_its_input(state: WorldState) -> None:
     )
     fold(state, (moved,))
     assert state.entity(PLAYER).at() == before
+
+
+def test_equipment_keeps_one_item_per_slot_sorted_by_slot() -> None:
+    worn = Equipment().with_slot("weapon", "sword").with_slot("head", "cap")
+    assert worn.slots == (("head", "cap"), ("weapon", "sword"))
+    assert worn.with_slot("weapon", "axe").in_slot("weapon") == "axe"
+    assert worn.equipped_items() == ("cap", "sword")
+
+
+@pytest.mark.parametrize(("op", "value"), [("sub", 1), ("mul", -50)])
+def test_a_modifier_rejects_unknown_ops_and_negative_percentages(
+    op: str, value: int
+) -> None:
+    with pytest.raises(ValueError):
+        StatModifier(stat="atk", op=op, value=value)
+
+
+def test_an_actor_reads_its_base_stats_with_zero_as_default() -> None:
+    actor = Actor(name="Wren", hp=1, max_hp=1, base_stats=(("atk", 5),))
+    assert (actor.base_stat("atk"), actor.base_stat("def")) == (5, 0)
