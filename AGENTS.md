@@ -62,6 +62,7 @@ in the slice that ports the code it governs.
 |---|---|
 | Dependencies, supported Python versions | `pyproject.toml`, `uv.lock` |
 | Which gates run | `uv run python scripts/check.py --list` |
+| Do the Claude Code stubs still load their skills? | `uv run python scripts/probe_claude_stubs.py` |
 | Current work | the active plan, GitHub issues and PRs |
 
 ## Agent harnesses

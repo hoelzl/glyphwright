@@ -30,6 +30,8 @@ code is ported before it.
 - [x] The project brief, moved here from the course repository
 - [x] Decision 0001: the agent harness layout
 - [x] CI on three operating systems and three Python versions
+- [x] `scripts/probe_claude_stubs.py` and the inline fallback for the stubs
+  (owner request during review)
 - [ ] Owner review of the S0 pull request
 - [ ] Tag `day-0`; move this plan to `docs/plans/completed/`
 
@@ -78,6 +80,9 @@ code is ported before it.
   its version (finding H2); S5 makes the version part of replay checks.
 - **`.gitattributes` forces LF line endings**, so generated files compare
   equal on Windows checkouts with `core.autocrlf`.
+- **The stub probe is a script, not a gate.** It tests Claude Code, not a
+  change here, and costs model calls. The fallback is a generator mode
+  (`STUB_MODE`), so switching is one line plus a rebuild.
 
 ## Surprises
 
@@ -85,7 +90,9 @@ code is ported before it.
   cannot link it. The rules this repository follows are written out in
   `CONTRIBUTING.md`, and the gates enforce them by name.
 - That an `@` import inside a Claude Code command file expands is observed
-  behavior, not documented behavior. Decision 0001 records it as such.
+  behavior, not documented behavior. The review asked for a check, so the
+  probe and the inline fallback were added. Both modes passed on 2026-10-21,
+  and a control stub without a working import failed as expected.
 - Several Copilot chat surfaces still read only
   `.github/copilot-instructions.md`. Decision 0001 records the trade-off of
   not shipping that file.
@@ -109,7 +116,7 @@ code is ported before it.
 | Skills valid to the specification | Checked once the first skill exists | gate |
 | Descriptions say what and when | Applies to the first skill | review |
 | `SKILL.md` under 500 lines | Checked once the first skill exists | gate |
-| Generated stubs only where needed | Claude Code stubs, generated and checked | gate |
+| Generated stubs only where needed | Claude Code stubs, generated and checked; a probe tests them against Claude Code | gate, plus probe |
 | One canonical home per fact | The brief links the invariants, working rules, and harness layout | review |
 | Derived files say so | Index blocks and stubs carry a generated header | gate |
 | Code wins over prose | Stated in `CONTRIBUTING.md` | review |

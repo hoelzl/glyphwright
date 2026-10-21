@@ -41,6 +41,12 @@ What each tool read, checked against its documentation on 2026-10-21:
   `@.agents/skills/<name>/SKILL.md`, and forwards `$ARGUMENTS`.
   `scripts/docs_tool.py build` writes the stubs; `check` fails when one is
   stale.
+- **A probe checks the stubs against the installed Claude Code, and an inline
+  fallback is ready.** `scripts/probe_claude_stubs.py` runs a throwaway probe
+  skill through its generated stub. If the import stops working, setting
+  `STUB_MODE = "inline"` in `scripts/docs_tool.py` makes each stub carry a
+  copy of the skill body instead. That is documented behavior, and the copy is
+  still generated and checked.
 - **Claude-only settings and hooks** go into `.claude/settings.json`, once
   there is something to put there.
 
@@ -49,11 +55,18 @@ What each tool read, checked against its documentation on 2026-10-21:
 - `scripts/docs_tool.py check` rejects a `CLAUDE.md` other than the fallback,
   `CLAUDE.local.md`, `.claude/CLAUDE.md`, `.github/copilot-instructions.md`,
   `.claude/skills/`, and `.github/skills/`.
-- The stub mechanism rests on behavior that was verified, not documented.
+- The import mode rests on behavior that is observed, not documented.
   Claude Code's documentation says command files keep working and accept the
-  skill frontmatter. That an `@` import inside a command file expands, and
-  that Claude invokes such a stub on its own, was observed in another
-  repository on 2026-10-20. Re-test it when Claude Code changes how it loads
-  commands.
+  skill frontmatter, but promises `@` imports only in `CLAUDE.md` and
+  `AGENTS.md`. On 2026-10-21, with Claude Code 2.1.306, the probe passed in
+  both modes: the import expanded, and Claude used the stub on its own. A
+  stub without a working import, run as a control, did not deliver the skill.
+- The probe is not a gate: it tests Claude Code rather than a change to this
+  repository, and it makes model calls. Run it after each Claude Code update.
+  If it fails in import mode and passes with `--mode inline`, switch the mode
+  and record that as a new decision.
+- The inline fallback does not use `.claude/skills/`, which Copilot and
+  OpenCode would also read, listing every skill twice. Neither of them reads
+  `.claude/commands/`.
 - These locations change between tool versions. Re-check the table before a
   change to the layout, and record a change as a new decision.
