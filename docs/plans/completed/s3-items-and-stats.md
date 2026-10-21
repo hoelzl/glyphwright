@@ -68,6 +68,8 @@ N7 to N13 were found while planning S3; they are not in v0's register.
 - [x] Item invariants in the grammar walks
 - [x] Generated command reference with a staleness test; `AGENTS.md` route
 - [x] Kernel and content-pack pages, first-pack guide, README
+- [x] Owner review of the S3 pull request (merged as #4)
+- [x] Tag `s3`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
