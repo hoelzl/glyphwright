@@ -6,8 +6,8 @@ import dataclasses
 
 import pytest
 
+from glyphwright.api import reference_pack
 from glyphwright.content.pack import ContentPack
-from glyphwright.content.reference import reference_pack
 from glyphwright.world.entities import Actor, Entity, Position
 
 

@@ -11,11 +11,16 @@ not an adapter concern.
 
 from __future__ import annotations
 
+import functools
+import os
 from dataclasses import dataclass
+from importlib.resources import files
+from importlib.resources.abc import Traversable
+from pathlib import Path
 
 from glyphwright import modes
+from glyphwright.content.loader import PackError, parse_pack
 from glyphwright.content.pack import ContentPack
-from glyphwright.content.reference import reference_pack
 from glyphwright.frames.frame import SemanticFrame
 from glyphwright.frontends.wire import (
     decode_command,
@@ -47,6 +52,7 @@ __all__ = [
     "Event",
     "Look",
     "Move",
+    "PackError",
     "Rejected",
     "RunFingerprint",
     "SemanticFrame",
@@ -58,8 +64,41 @@ __all__ = [
     "encode_event",
     "encode_frame",
     "encode_rejection",
+    "load_pack",
     "reference_pack",
 ]
+
+
+def load_pack(root: Traversable | str | os.PathLike[str]) -> ContentPack:
+    """Load a content pack from a directory of TOML files.
+
+    The core does no I/O, so reading happens here and the loader parses text.
+    Raises :class:`PackError`, located to file and line, for every problem.
+    """
+    directory: Traversable = (
+        root if isinstance(root, Traversable) else Path(os.fspath(root))
+    )
+    if not directory.is_dir():
+        raise PackError(None, None, None, f"{root} is not a pack directory")
+    sources: dict[str, str] = {}
+    for child in directory.iterdir():
+        if not child.is_file() or not child.name.endswith(".toml"):
+            continue
+        try:
+            sources[child.name] = child.read_text(encoding="utf-8")
+        except UnicodeDecodeError as error:
+            raise PackError(
+                child.name, None, None, f"not valid UTF-8 ({error})"
+            ) from error
+        except OSError as error:
+            raise PackError(child.name, None, None, f"cannot read ({error})") from error
+    return parse_pack(sources)
+
+
+@functools.cache
+def reference_pack() -> ContentPack:
+    """The built-in reference pack, loaded like any external pack."""
+    return load_pack(files("glyphwright.content") / "packs" / "reference-vale")
 
 
 @dataclass(frozen=True, slots=True)

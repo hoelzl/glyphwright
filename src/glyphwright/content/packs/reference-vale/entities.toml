@@ -1,0 +1,27 @@
+[[entity]]
+id = "player"
+position = "village:1,1"
+blocker = true
+
+[entity.actor]
+name = "Wren"
+hp = 20
+max_hp = 20
+
+[entity.renderable]
+glyph = "@"
+label = "player"
+
+[[entity]]
+id = "goblin-1"
+position = "village:2,3"
+blocker = true
+
+[entity.actor]
+name = "Goblin"
+hp = 6
+max_hp = 6
+
+[entity.renderable]
+glyph = "g"
+label = "goblin"

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
+from glyphwright.api import load_pack, reference_pack
 from glyphwright.content.loader import PackError, header_lines, parse_pack
-from glyphwright.content.reference import reference_pack
 
 PACK = 'name = "reference-vale"\n'
 AREAS = '''[[grid]]
@@ -183,3 +185,35 @@ def test_a_missing_player_is_reported_without_a_line() -> None:
     error = _error(entities_toml=ENTITIES.replace('"player"', '"wren"'))
     assert error.line is None
     assert "'player' entity" in error.message
+
+
+def _write(root: Path, sources: dict[str, str]) -> Path:
+    for name, text in sources.items():
+        (root / name).write_text(text, encoding="utf-8", newline="\n")
+    return root
+
+
+def test_load_pack_reads_a_directory(tmp_path: Path) -> None:
+    assert load_pack(_write(tmp_path, _sources())).pack_id == reference_pack().pack_id
+
+
+def test_load_pack_ignores_files_that_are_not_toml(tmp_path: Path) -> None:
+    (_write(tmp_path, _sources()) / "README.md").write_text("notes")
+    assert load_pack(tmp_path).name == "reference-vale"
+
+
+def test_load_pack_refuses_a_file_that_is_not_utf8(tmp_path: Path) -> None:
+    _write(tmp_path, _sources())
+    (tmp_path / "pack.toml").write_bytes(b'name = "caf\xe9"\n')
+    with pytest.raises(PackError, match="pack.toml: not valid UTF-8"):
+        load_pack(tmp_path)
+
+
+def test_load_pack_refuses_a_path_that_is_not_a_directory(tmp_path: Path) -> None:
+    with pytest.raises(PackError, match="is not a pack directory"):
+        load_pack(tmp_path / "missing")
+
+
+def test_the_reference_pack_is_loaded_from_the_package() -> None:
+    assert reference_pack() is reference_pack()
+    assert reference_pack().name == "reference-vale"
