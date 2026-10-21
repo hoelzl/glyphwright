@@ -40,8 +40,11 @@ add fields with defaults, so existing constructions keep working.
   neighbours, walls included: exits are topology, and `blocked_reason` says
   `wall`, `occupied`, or `edge` when a move fails.
 - **`Entity`** is an id plus optional components: `position`, `actor`,
-  `blocker`, `renderable`. Movement reads exits through
-  `WorldState.exits_from`, the single place a later exit source joins.
+  `blocker`, `renderable`, `portal`.
+- **Movement reads exits through `WorldState.exits_from`**: the space's exits
+  plus the token of any portal standing on the tile, so a portal works for
+  every mover. A portal may lead into another area; `move_player` then checks
+  the destination in that area's space.
 
 ## The step contract
 
