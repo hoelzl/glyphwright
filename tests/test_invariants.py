@@ -20,7 +20,7 @@ from glyphwright.frontends import jsonl, plain
 from glyphwright.harness.schema import all_schemas
 
 PACKAGE = Path(__file__).resolve().parents[1] / "src" / "glyphwright"
-CORE = ("kernel", "world", "modes", "frames", "content")
+CORE = ("kernel", "world", "modes", "frames", "content", "effects")
 
 # Modules that reach the terminal, the clock, the filesystem, the network, or
 # ambient entropy. The core imports none of them.
