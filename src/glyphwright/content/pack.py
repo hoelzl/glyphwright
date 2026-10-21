@@ -2,8 +2,8 @@
 
 A pack hashes to a pack id that enters the run fingerprint, so any content
 change invalidates recorded baselines, and a verifier can catch "test passed,
-but against different data". S1 builds packs in code; the TOML loader arrives
-in S2 behind this same type.
+but against different data". The TOML loader builds packs; tests may build
+them in code.
 """
 
 from __future__ import annotations
@@ -14,15 +14,36 @@ from dataclasses import asdict, dataclass
 
 from glyphwright.kernel.state import PLAYER
 from glyphwright.world.entities import Entity
-from glyphwright.world.grid import GridSpace
+from glyphwright.world.grid import FLOOR, WALL, GridSpace
+from glyphwright.world.space import PosId
+
+Subject = tuple[str, str]
 
 
-def _word(owner: str, label: str, value: str) -> None:
+class ContentError(ValueError):
+    """Content that breaks a load-time rule.
+
+    ``subject`` names what the rule is about, such as ``("entity",
+    "goblin-1")`` or ``("area", "village")``, so the TOML loader can point at
+    the table that defines it.
+    """
+
+    def __init__(self, subject: Subject | None, message: str) -> None:
+        super().__init__(message)
+        self.subject = subject
+
+
+def _entity(entity: Entity, message: str) -> ContentError:
+    return ContentError(("entity", entity.id), f"entity {entity.id!r}: {message}")
+
+
+def _word(subject: Subject, label: str, value: str) -> None:
     """Ids travel through the command language, which splits on whitespace."""
     if not value or any(ch.isspace() for ch in value):
-        raise ValueError(
-            f"{owner} {label} {value!r} must be one whitespace-free word: "
-            "it travels through the command language"
+        raise ContentError(
+            subject,
+            f"{label} {value!r} must be one whitespace-free word: it travels "
+            "through the command language",
         )
 
 
@@ -39,39 +60,111 @@ class ContentPack:
     entities: tuple[Entity, ...]
 
     def __post_init__(self) -> None:
-        area_names = [space.area for space in self.areas]
-        if len(area_names) != len(set(area_names)):
-            raise ValueError("area names must be unique")
-        ids = [entity.id for entity in self.entities]
-        duplicates = sorted(
-            {entity_id for entity_id in ids if ids.count(entity_id) > 1}
-        )
-        if duplicates:
-            # v0 finding L1: a duplicate id silently replaced the earlier entity.
-            raise ValueError(f"entity ids must be unique; repeated: {duplicates}")
-        for entity in self.entities:
-            _word("entity", "id", entity.id)
-            if entity.actor is not None and not (
-                0 <= entity.actor.hp <= entity.actor.max_hp
-            ):
-                # v0 finding L2: hp outside its bounds loaded without complaint.
-                raise ValueError(
-                    f"actor {entity.id!r} has hp {entity.actor.hp} outside "
-                    f"0..{entity.actor.max_hp}"
-                )
+        self._check_areas()
+        self._check_entities()
+        self._check_placement()
+        self._check_portals()
 
-        spaces = {space.area: space for space in self.areas}
+    def _check_areas(self) -> None:
+        seen: set[str] = set()
+        for space in self.areas:
+            subject = ("area", space.area)
+            _word(subject, "area name", space.area)
+            if ":" in space.area:
+                # v2 finding N2: a ':' would break every position identifier.
+                raise ContentError(subject, f"area name {space.area!r} contains ':'")
+            if space.area in seen:
+                raise ContentError(subject, f"area {space.area!r} is defined twice")
+            seen.add(space.area)
+
+    def _check_entities(self) -> None:
+        seen: set[str] = set()
+        labels: dict[str, str] = {}
+        for entity in self.entities:
+            _word(("entity", entity.id), "entity id", entity.id)
+            if entity.id in seen:
+                # v0 finding L1: a duplicate id silently replaced the earlier one.
+                raise _entity(entity, "is defined twice; entity ids must be unique")
+            seen.add(entity.id)
+            actor = entity.actor
+            if actor is not None and not 0 <= actor.hp <= actor.max_hp:
+                # v0 finding L2: hp outside its bounds loaded without complaint.
+                raise _entity(entity, f"hp {actor.hp} is outside 0..{actor.max_hp}")
+            renderable = entity.renderable
+            if renderable is not None:
+                glyph = renderable.glyph
+                if len(glyph) != 1 or glyph.isspace() or glyph in (FLOOR, WALL):
+                    raise _entity(
+                        entity,
+                        f"glyph {glyph!r} must be one visible character other "
+                        f"than {FLOOR!r} and {WALL!r}",
+                    )
+                if labels.setdefault(glyph, renderable.label) != renderable.label:
+                    # v2 finding N3: the legend holds one label per glyph.
+                    raise _entity(
+                        entity,
+                        f"glyph {glyph!r} already means {labels[glyph]!r}, "
+                        f"not {renderable.label!r}",
+                    )
         player = next((e for e in self.entities if e.id == PLAYER), None)
         if player is None or player.actor is None or player.at() is None:
-            raise ValueError(
-                f"a pack must define a {PLAYER!r} entity with an actor and a position"
+            raise ContentError(
+                None,
+                f"a pack must define a {PLAYER!r} entity with an actor and a position",
             )
+
+    def _check_placement(self) -> None:
+        spaces = {space.area: space for space in self.areas}
+        blocked: dict[PosId, str] = {}
         for entity in self.entities:
             at = entity.at()
-            if at is not None and (
-                at.area not in spaces or not spaces[at.area].contains(at)
-            ):
-                raise ValueError(f"entity {entity.id!r} stands off the map: {at}")
+            if at is None:
+                continue
+            if at.area not in spaces or not spaces[at.area].contains(at):
+                # v2 finding N1: contains() accepts only the canonical spelling.
+                raise _entity(entity, f"stands off the map: {at}")
+            if spaces[at.area].terrain(at) != FLOOR:
+                # v2 finding N4: nothing may stand inside a wall.
+                raise _entity(entity, f"stands in a wall: {at}")
+            if entity.blocker is not None:
+                if at in blocked:
+                    # v2 finding N5: two blockers on one tile.
+                    raise _entity(
+                        entity, f"blocks {at}, already blocked by {blocked[at]!r}"
+                    )
+                blocked[at] = entity.id
+
+    def _check_portals(self) -> None:
+        spaces = {space.area: space for space in self.areas}
+        claimed: set[tuple[PosId, str]] = set()
+        for entity in self.entities:
+            portal = entity.portal
+            if portal is None:
+                continue
+            _word(("entity", entity.id), "portal token", portal.token)
+            at = entity.at()
+            if at is None:
+                raise _entity(entity, "is a portal that stands nowhere")
+            if entity.actor is not None or entity.blocker is not None:
+                # A portal must stay put and stay enterable: an actor could
+                # carry it onto a geometric exit, and a blocker hides it.
+                raise _entity(entity, "a portal cannot be an actor or a blocker")
+            to = portal.to
+            if to.area not in spaces or not spaces[to.area].contains(to):
+                raise _entity(entity, f"portal leads nowhere: {to}")
+            if spaces[to.area].terrain(to) != FLOOR:
+                raise _entity(entity, f"portal leads into a wall: {to}")
+            if portal.token in spaces[at.area].exits(at):
+                # v0 finding K10: the token would silently shadow that exit.
+                raise _entity(
+                    entity,
+                    f"portal token {portal.token!r} shadows a geometric exit at {at}",
+                )
+            if (at, portal.token) in claimed:
+                raise _entity(
+                    entity, f"another portal at {at} already claims {portal.token!r}"
+                )
+            claimed.add((at, portal.token))
 
     @property
     def pack_id(self) -> str:

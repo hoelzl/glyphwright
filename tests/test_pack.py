@@ -31,7 +31,7 @@ def test_the_reference_pack_loads() -> None:
 
 def test_a_duplicate_entity_id_is_rejected() -> None:
     # v0 finding L1.
-    with pytest.raises(ValueError, match="unique.*goblin-1"):
+    with pytest.raises(ValueError, match="goblin-1.*defined twice"):
         _with_entities(_goblin())
 
 
