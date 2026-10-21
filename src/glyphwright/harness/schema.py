@@ -87,7 +87,7 @@ def frame_schema() -> dict[str, Any]:
         {"ground": _STRING, "fixture": _STRING, "actor": _STRING},
         required=["ground"],
     )
-    viewport = _object(
+    grid = _object(
         {
             "kind": {"const": "grid"},
             "area": _STRING,
@@ -96,6 +96,10 @@ def frame_schema() -> dict[str, Any]:
             "legend": {"type": "object", "additionalProperties": _STRING},
         }
     )
+    menu = _object(
+        {"kind": {"const": "menu"}, "area": _STRING, "combatants": _array(_STRING)}
+    )
+    viewport = {"oneOf": [grid, menu]}
     actor = _object({"id": _STRING, "name": _STRING, "hp": _PAIR, "at": _STRING})
     item = _object(
         {"id": _STRING, "name": _STRING, "slot": _STRING}, required=["id", "name"]

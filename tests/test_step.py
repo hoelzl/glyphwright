@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 
+from glyphwright.frames.frame import GridView
 from glyphwright.kernel.commands import Look, Move, Wait
 from glyphwright.kernel.events import MoveBlocked, Moved, TurnAdvanced
 from glyphwright.kernel.rng import Rng
@@ -134,6 +135,7 @@ def test_move_is_not_advertised_where_there_are_no_exits() -> None:
 
 def test_the_view_tiers_the_actor_over_the_ground(state: WorldState) -> None:
     frame = exploration.view(state, ())
+    assert isinstance(frame.viewport, GridView)
     cell = frame.viewport.cells[1][1]
     assert (cell.ground, cell.actor) == (".", "p")
     assert [actor.id for actor in frame.actors] == [PLAYER, "rock"]

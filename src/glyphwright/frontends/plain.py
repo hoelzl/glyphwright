@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from typing import TextIO
 
 from glyphwright.api import Engine
-from glyphwright.frames.frame import SemanticFrame, flatten
+from glyphwright.frames.frame import GridView, SemanticFrame, flatten
 from glyphwright.frontends.jsonl import safe_echo
 from glyphwright.frontends.wire import VERB_SPECS, decode_command
 from glyphwright.harness import meta
@@ -26,6 +26,7 @@ from glyphwright.kernel.state import PLAYER
 _DELIMITER = "=="
 _SEPARATOR = " | "
 _CARRYING = "[carrying "
+_INITIATIVE = "[initiative "
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,16 +44,23 @@ class PlainProjection:
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
     carrying: tuple[str, ...] = ()
+    # A battle's combatants as "id hp/max", in initiative order.
+    combatants: tuple[str, ...] = ()
 
 
 def project(frame: SemanticFrame) -> PlainProjection:
     """The projection the plain transcript is expected to preserve."""
     player = next((actor for actor in frame.actors if actor.id == PLAYER), None)
+    hp = {actor.id: f"{actor.hp}/{actor.max_hp}" for actor in frame.actors}
+    viewport = frame.viewport
     return PlainProjection(
         turn=frame.turn,
         mode=frame.mode,
-        area=frame.viewport.area,
-        tiles=flatten(frame.viewport),
+        area=viewport.area,
+        tiles=flatten(viewport) if isinstance(viewport, GridView) else (),
+        combatants=()
+        if isinstance(viewport, GridView)
+        else tuple(f"{c} {hp[c]}" for c in viewport.combatants if c in hp),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
         carrying=tuple(
@@ -67,6 +75,8 @@ def render(frame: SemanticFrame) -> str:
     view = project(frame)
     header = _SEPARATOR.join((f"turn {view.turn}", view.mode, view.area))
     lines = [f"{_DELIMITER} {header} {_DELIMITER}"]
+    if view.combatants:
+        lines.append(f"{_INITIATIVE}{', '.join(view.combatants)}]")
     lines.extend(view.tiles)
     lines.extend(view.messages)
     if view.carrying:
@@ -93,6 +103,11 @@ def parse(text: str) -> PlainProjection:
     turn = int(header[0].removeprefix("turn "))
 
     body = lines[1:]
+    combatants: tuple[str, ...] = ()
+    if body and body[0].startswith(_INITIATIVE):
+        listed = body[0].removeprefix(_INITIATIVE).removesuffix("]")
+        combatants = tuple(listed.split(", "))
+        body = body[1:]
     hp: tuple[int, int] | None = None
     if body and body[-1].startswith("[hp "):
         current, _, maximum = (
@@ -120,6 +135,7 @@ def parse(text: str) -> PlainProjection:
         messages=tuple(body[len(tiles) :]),
         hp=hp,
         carrying=carrying,
+        combatants=combatants,
     )
 
 

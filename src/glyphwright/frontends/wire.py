@@ -12,7 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, assert_never
 
-from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
+from glyphwright.frames.frame import GridView, MenuView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
     Command,
     CommandGrammar,
@@ -43,7 +43,7 @@ from glyphwright.kernel.events import (
     TurnAdvanced,
 )
 
-FRAME_SCHEMA = "glyphwright.frame/2"
+FRAME_SCHEMA = "glyphwright.frame/3"
 EVENT_SCHEMA = "glyphwright.event/3"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/2"
@@ -65,6 +65,12 @@ def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
                 for row in viewport.cells
             ],
             "legend": dict(viewport.legend),
+        }
+    if isinstance(viewport, MenuView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "combatants": list(viewport.combatants),
         }
     assert_never(viewport)
 
