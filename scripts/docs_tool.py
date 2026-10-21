@@ -44,6 +44,10 @@ SKILL_FIELDS = frozenset(
 
 SKILLS_DIR = ".agents/skills"
 STUBS_DIR = ".claude/commands"
+#: How a stub reaches its skill: "import" (an `@` import) or "inline" (a
+#: copy of the body). Switch to "inline" when
+#: `scripts/probe_claude_stubs.py` fails; see decision 0001.
+STUB_MODE = "import"
 
 #: Files whose presence would duplicate or shadow `AGENTS.md` or the skills.
 FORBIDDEN = {
@@ -286,31 +290,54 @@ def skill_files(root: Path) -> list[Path]:
     return sorted(skills.glob("*/SKILL.md")) if skills.is_dir() else []
 
 
-def render_stub(name: str, description: str) -> str:
-    """Return the Claude Code command stub that loads skill *name*."""
-    return (
+def _relink(body: str, name: str) -> str:
+    """Rewrite the skill body's relative links to resolve from the stub."""
+    prefix = f"../../{SKILLS_DIR}/{name}/"
+
+    def fix(match: re.Match[str]) -> str:
+        target = match.group(1)
+        if _EXTERNAL.match(target) or target.startswith(("#", "<")):
+            return match.group(0)
+        return match.group(0).replace(f"({target}", f"({prefix}{target}", 1)
+
+    return _LINK.sub(fix, body)
+
+
+def render_stub(name: str, description: str, body: str, mode: str) -> str:
+    """Return the Claude Code command stub for skill *name*.
+
+    ``import`` mode loads the skill with an ``@`` import; ``inline`` mode
+    copies the skill body, with its relative links rewritten.
+    """
+    source = f"{SKILLS_DIR}/{name}/SKILL.md"
+    header = (
         "---\n"
         f"description: {json.dumps(description, ensure_ascii=False)}\n"
         "---\n"
-        f"<!-- GENERATED from `{SKILLS_DIR}/{name}/SKILL.md` by `{BUILD_COMMAND}`;"
+        f"<!-- GENERATED from `{source}` by `{BUILD_COMMAND}`;"
         " edit the skill, not this stub -->\n"
-        f"@{SKILLS_DIR}/{name}/SKILL.md\n"
-        "\n"
-        "$ARGUMENTS\n"
     )
+    if mode == "import":
+        return f"{header}@{source}\n\n$ARGUMENTS\n"
+    if mode == "inline":
+        files = f"This skill's files are in `{SKILLS_DIR}/{name}/`.\n\n"
+        return f"{header}{files}{_relink(body, name).strip()}\n\n$ARGUMENTS\n"
+    raise ValueError(f"unknown stub mode {mode!r}")
 
 
-def expected_stubs(root: Path) -> dict[str, str]:
+def expected_stubs(root: Path, mode: str | None = None) -> dict[str, str]:
     """Return ``{stub path: content}`` for every valid skill."""
     stubs: dict[str, str] = {}
     for skill in skill_files(root):
         try:
-            fields, _, _ = split_frontmatter(read(skill))
+            fields, body, _ = split_frontmatter(read(skill))
         except ValueError:
             continue
         if fields and fields.get("description"):
             name = skill.parent.name
-            stubs[f"{STUBS_DIR}/{name}.md"] = render_stub(name, fields["description"])
+            stubs[f"{STUBS_DIR}/{name}.md"] = render_stub(
+                name, fields["description"], body, mode or STUB_MODE
+            )
     return stubs
 
 

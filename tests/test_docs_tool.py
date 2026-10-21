@@ -181,3 +181,29 @@ def test_main_reports_rule_and_fix(
     assert "docs/README.md: generated index is stale" in out
     assert "  rule: generated views match a fresh generation" in out
     assert f"  fix:  run `{docs_tool.BUILD_COMMAND}`" in out
+
+
+def test_inline_mode_copies_the_body_and_relinks(repo: Path) -> None:
+    body = "# Play\n\nSee [the map](references/map.md) and [docs](https://x.org).\n"
+    stub = docs_tool.render_stub("play", "Plays.", body, "inline")
+    assert "@.agents/skills" not in stub
+    assert "This skill's files are in `.agents/skills/play/`." in stub
+    assert "[the map](../../.agents/skills/play/references/map.md)" in stub
+    assert "[docs](https://x.org)" in stub
+    assert stub.endswith("\n\n$ARGUMENTS\n")
+
+
+def test_inline_stub_links_resolve(repo: Path) -> None:
+    skill = SKILL.replace("Steps.", "Steps in [the guide](guide.md).")
+    write(repo, ".agents/skills/play-a-session/SKILL.md", skill)
+    write(repo, ".agents/skills/play-a-session/guide.md", "# Guide\n\nThe guide.\n")
+    stubs = docs_tool.expected_stubs(repo, "inline")
+    for path, content in stubs.items():
+        write(repo, path, content)
+    stub = repo / ".claude/commands/play-a-session.md"
+    assert docs_tool.check_references(repo, stub) == []
+
+
+def test_unknown_stub_mode_is_rejected() -> None:
+    with pytest.raises(ValueError, match="unknown stub mode"):
+        docs_tool.render_stub("x", "X.", "", "copy")
