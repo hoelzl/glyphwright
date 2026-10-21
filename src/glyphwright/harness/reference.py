@@ -28,6 +28,7 @@ GENERAL_REASONS: tuple[tuple[str, str, str], ...] = (
         "the verbs valid now",
     ),
     ("unknown_verb", "no mode knows the verb", "the verbs valid now"),
+    ("defeated", "the player is defeated", "that only `look` remains"),
     (
         "unparsable",
         "the line is not a command at all (frontends)",

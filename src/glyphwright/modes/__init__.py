@@ -2,8 +2,8 @@
 
 Every mode implements ``available_commands``, ``handle``, and ``view``; the
 active mode is named by the top of the state's mode stack. Modes are modules
-satisfying the :class:`Mode` protocol structurally. S1 registers exploration;
-battle joins in S4.
+satisfying the :class:`Mode` protocol structurally: exploration, and the
+battle a hostile pushes on top of it.
 """
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol, cast
 
-from glyphwright.modes import exploration
+from glyphwright.modes import battle, exploration
 
 if TYPE_CHECKING:
     from glyphwright.frames.frame import SemanticFrame
@@ -41,6 +41,7 @@ class Mode(Protocol):
 # does not narrow ModuleType against Protocols with callable attributes.
 _MODES: dict[str, Mode] = {
     exploration.NAME: cast(Mode, exploration),
+    battle.NAME: cast(Mode, battle),
 }
 
 

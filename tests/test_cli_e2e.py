@@ -38,7 +38,9 @@ def test_the_plain_frontend_plays_a_scripted_session() -> None:
     assert result.returncode == 0
     out = result.stdout.decode("utf-8")
     assert "== turn 1 | exploration | village ==" in out
-    assert "== turn 2 | exploration | village ==" in out
+    # The second step lands next to the goblin, which starts a battle.
+    assert "== turn 2 | battle | village ==" in out
+    assert "Battle is joined!" in out
     assert "session ended" in out
 
 

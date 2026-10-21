@@ -27,6 +27,7 @@ from glyphwright.frontends.wire import (
     REJECTION_SCHEMA,
 )
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
+from glyphwright.kernel.state import BATTLE_OUTCOMES
 
 REGENERATE = "uv run python -m glyphwright.harness.schema"
 _DRAFT = "https://json-schema.org/draft/2020-12/schema"
@@ -86,7 +87,7 @@ def frame_schema() -> dict[str, Any]:
         {"ground": _STRING, "fixture": _STRING, "actor": _STRING},
         required=["ground"],
     )
-    viewport = _object(
+    grid = _object(
         {
             "kind": {"const": "grid"},
             "area": _STRING,
@@ -95,6 +96,10 @@ def frame_schema() -> dict[str, Any]:
             "legend": {"type": "object", "additionalProperties": _STRING},
         }
     )
+    menu = _object(
+        {"kind": {"const": "menu"}, "area": _STRING, "combatants": _array(_STRING)}
+    )
+    viewport = {"oneOf": [grid, menu]}
     actor = _object({"id": _STRING, "name": _STRING, "hp": _PAIR, "at": _STRING})
     item = _object(
         {"id": _STRING, "name": _STRING, "slot": _STRING}, required=["id", "name"]
@@ -145,6 +150,20 @@ _EVENT_FIELDS: dict[str, tuple[dict[str, Any], list[str] | None]] = {
         ["actor", "item", "slot"],
     ),
     "Healed": ({"target": _STRING, "amount": _INTEGER, "source": _STRING}, None),
+    "Provoked": ({"actor": _STRING}, None),
+    "DamageDealt": (
+        {"source": _STRING, "target": _STRING, "amount": _INTEGER},
+        None,
+    ),
+    "AttackMissed": ({"source": _STRING, "target": _STRING}, None),
+    "ActorDied": ({"actor": _STRING}, None),
+    "Defeated": ({"actor": _STRING}, None),
+    "ModePushed": ({"mode": _STRING, "initiative": _array(_STRING)}, None),
+    "ModePopped": (
+        {"mode": _STRING, "outcome": {"enum": list(BATTLE_OUTCOMES)}},
+        None,
+    ),
+    "FleeFailed": ({"actor": _STRING}, None),
 }
 
 

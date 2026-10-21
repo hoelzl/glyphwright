@@ -103,6 +103,19 @@ class Item:
 
 
 @dataclass(frozen=True, slots=True)
+class Ai:
+    """A computer-controlled actor.
+
+    Only hostiles exist so far. A hostile wakes when the player comes within
+    reach, chases the player from then on, and starts a battle on contact.
+    ``aggroed`` is run-time state, set by ``Provoked``; packs cannot set it.
+    """
+
+    hostile: bool = True
+    aggroed: bool = False
+
+
+@dataclass(frozen=True, slots=True)
 class Consumable:
     """An item destroyed by use: it restores hp."""
 
@@ -163,6 +176,7 @@ class Entity:
     equippable: Equippable | None = None
     inventory: Inventory | None = None
     equipment: Equipment | None = None
+    ai: Ai | None = None
 
     def at(self) -> PosId | None:
         return self.position.at if self.position is not None else None

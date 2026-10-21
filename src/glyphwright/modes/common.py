@@ -6,7 +6,7 @@ one implementation keeps the modes from drifting apart.
 
 from __future__ import annotations
 
-from glyphwright.frames.frame import Cell, GridView
+from glyphwright.frames.frame import Cell, GridView, ItemSummary
 from glyphwright.kernel.events import (
     Event,
     Healed,
@@ -129,3 +129,19 @@ def use_item(state: WorldState, item_id: str) -> tuple[Event, ...]:
         events.append(Healed(target=PLAYER, amount=healed, source=item_id))
     events.append(TurnAdvanced(turn=state.turn + 1))
     return tuple(events)
+
+
+def carried(state: WorldState) -> tuple[ItemSummary, ...]:
+    """The player's items in the order taken, each with its slot if worn."""
+    player = state.entity(PLAYER)
+    worn = (
+        {item: slot for slot, item in player.equipment.slots}
+        if player.equipment
+        else {}
+    )
+    summaries = []
+    for item_id in player.carries():
+        item = state.entity(item_id).item
+        name = item.name if item is not None else item_id
+        summaries.append(ItemSummary(id=item_id, name=name, slot=worn.get(item_id)))
+    return tuple(summaries)

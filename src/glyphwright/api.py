@@ -196,6 +196,13 @@ class Engine:
         A rejection means the engine never ran the command: the turn does not
         advance and no events are emitted.
         """
+        if self._state.defeated and not isinstance(command, Look):
+            # The one true reason: anything else would misdescribe the world.
+            return Rejected(
+                command=encode_command(command),
+                reason="defeated",
+                hint="you are defeated; only 'look' remains",
+            )
         mode = modes.active(self._state)
         grammar = mode.available_commands(self._state)
         # The grammar wins first: a verb the frame advertises is valid here

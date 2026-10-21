@@ -8,6 +8,7 @@ import pytest
 
 from glyphwright.api import load_pack, reference_pack
 from glyphwright.content.loader import PackError, header_lines, parse_pack
+from glyphwright.world.entities import Ai
 
 PACK = 'name = "reference-vale"\n'
 AREAS = '''[[grid]]
@@ -84,11 +85,27 @@ def test_an_unknown_key_is_reported_at_its_entity_header() -> None:
 
 
 def test_a_key_from_a_later_slice_says_so() -> None:
-    error = _error(entities_toml=ENTITIES + "\n[entity.ai]\nhostile = true\n")
+    error = _error(entities_toml=ENTITIES + "\n[entity.openable]\nlocked = true\n")
     assert (
         error.message
-        == "entity 'goblin-1': 'ai' is not supported by this engine version"
+        == "entity 'goblin-1': 'openable' is not supported by this engine version"
     )
+
+
+def test_a_hostile_loads_with_its_ai() -> None:
+    pack = parse_pack(
+        _sources(entities_toml=ENTITIES + "\n[entity.ai]\nhostile = true\n")
+    )
+    goblin = next(e for e in pack.entities if e.id == "goblin-1")
+    assert goblin.ai == Ai(hostile=True, aggroed=False)
+
+
+def test_v0s_engages_key_says_it_is_not_supported() -> None:
+    # Every hostile starts a battle on contact, so the key has no meaning.
+    error = _error(
+        entities_toml=ENTITIES + "\n[entity.ai]\nhostile = true\nengages = true\n"
+    )
+    assert "'engages' is not supported" in error.message
 
 
 def test_a_later_actor_key_says_so() -> None:

@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from glyphwright import modes
+from glyphwright.kernel import scheduler
 from glyphwright.kernel.commands import Command
 from glyphwright.kernel.events import Event, TurnAdvanced
 from glyphwright.kernel.rng import Rng
@@ -32,13 +33,16 @@ def step(
     bookkeeping, so it is forbidden and enforced here.
     """
     events, next_rng = modes.active(state).handle(state, command, rng)
-    next_state = fold(state, events)
 
     if events and isinstance(events[-1], TurnAdvanced):
-        # S4 runs the AI's turns here, between the player's events and the
-        # closing TurnAdvanced, so the returned events are the whole round.
+        # The foes act between the player's events and the closing
+        # TurnAdvanced, so the returned events are the whole round.
+        next_state = fold(state, events[:-1])
+        foe_events, next_state, next_rng = scheduler.run(next_state, next_rng)
         closing = replace(events[-1], rng=next_rng.encode())
-        return apply(next_state, closing), (*events[:-1], closing)
+        return apply(next_state, closing), (*events[:-1], *foe_events, closing)
+
+    next_state = fold(state, events)
 
     # v0 compared against state.rng here (finding K1), which made stepping
     # with any other cursor raise even when nothing was drawn.

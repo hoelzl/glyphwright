@@ -22,10 +22,14 @@ blocker = true
 name = "Goblin"
 hp = 6
 max_hp = 6
+stats = { atk = 3, def = 1, spd = 3 }
 
 [entity.renderable]
 glyph = "g"
 label = "goblin"
+
+[entity.ai]
+hostile = true
 
 [[entity]]
 id = "bandit-1"
@@ -36,10 +40,14 @@ blocker = true
 name = "Bandit"
 hp = 8
 max_hp = 8
+stats = { atk = 4, def = 2, spd = 4 }
 
 [entity.renderable]
 glyph = "b"
 label = "bandit"
+
+[entity.ai]
+hostile = true
 
 [[entity]]
 id = "warren-hole"
@@ -74,10 +82,14 @@ blocker = true
 name = "Marauder"
 hp = 9
 max_hp = 9
+stats = { atk = 4, def = 2, spd = 5 }
 
 [entity.renderable]
 glyph = "M"
 label = "marauder"
+
+[entity.ai]
+hostile = true
 
 [[entity]]
 id = "hexer-1"
@@ -88,10 +100,14 @@ blocker = true
 name = "Hexer"
 hp = 7
 max_hp = 7
+stats = { atk = 3, def = 1, spd = 4 }
 
 [entity.renderable]
 glyph = "H"
 label = "hexer"
+
+[entity.ai]
+hostile = true
 
 [[entity]]
 id = "potion-minor"

@@ -127,3 +127,12 @@ def test_the_plain_frontend_renders_the_explanation_as_text() -> None:
         "player.stats.atk = 8\n  base 5\n  +3 iron-sword (equipped weapon)\n"
         in output.getvalue()
     )
+
+
+def test_the_initiative_is_queryable_during_a_battle() -> None:
+    engine = _engine()
+    assert engine.query("world.initiative").value == []
+    engine.step(Move("east"))
+    engine.step(Move("south"))
+    order = engine.query("world.initiative").value
+    assert isinstance(order, list) and set(order) == {"player", "goblin-1"}

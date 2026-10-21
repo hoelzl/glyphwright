@@ -98,8 +98,21 @@ def flatten(viewport: GridView) -> tuple[str, ...]:
     )
 
 
-# Later viewports (a battle menu) join this union.
-Viewport = GridView
+@dataclass(frozen=True, slots=True)
+class MenuView:
+    """A menu battle's viewport: who is in the fight, in initiative order.
+
+    A menu battle abstracts distance away, so there is no map. The
+    combatants' hp is in the frame's ``actors``.
+    """
+
+    area: str
+    combatants: tuple[EntityId, ...]
+
+    kind: str = "menu"
+
+
+Viewport = GridView | MenuView
 
 
 @dataclass(frozen=True, slots=True)

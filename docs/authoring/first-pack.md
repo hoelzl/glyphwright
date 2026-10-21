@@ -52,7 +52,25 @@ player.stats.atk = 8
   +3 iron-sword (equipped weapon)
 ```
 
-## 5. Read a load error
+## 5. Add a hostile
+
+A hostile is an actor with an `[entity.ai]` table saying `hostile = true`.
+Give it `stats` as well: a strike uses `atk` and `def`, and initiative uses
+`spd`. Copy `goblin-1` from the reference world and play your pack: when you
+step next to the hostile, a battle starts. In the reference world (run with
+`--seed 424242`):
+
+```text
+> move east
+> move south
+== turn 2 | battle | village ==
+[initiative player 17/20, goblin-1 6/6]
+You go south.
+goblin-1 snarls and turns on you!
+Battle is joined!
+```
+
+## 6. Read a load error
 
 Break something on purpose, for example set the player's `hp` above its
 `max_hp`, and play again:

@@ -60,7 +60,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument(
         "--harness",
         action="store_true",
-        help="enable the introspection meta channel (:seed, :frame)",
+        help="enable the introspection meta channel (:query, :seed, :frame)",
     )
     args = parser.parse_args(argv)
 

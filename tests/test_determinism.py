@@ -12,7 +12,17 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, StepResult, reference_pack
 from glyphwright.content.pack import ContentPack
 from glyphwright.frontends.wire import encode_frame
-from glyphwright.kernel.commands import Command, Equip, Look, Move, Take, Use, Wait
+from glyphwright.kernel.commands import (
+    Attack,
+    Command,
+    Equip,
+    Flee,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
 from glyphwright.world.entities import Actor, Entity, Position
 from glyphwright.world.grid import GridSpace
 
@@ -25,6 +35,8 @@ commands = st.one_of(
     st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Take),
     st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Use),
     st.sampled_from(("potion-minor", "iron-sword", "no-such-item")).map(Equip),
+    st.sampled_from(("goblin-1", "bandit-1", "no-such-foe")).map(Attack),
+    st.just(Flee()),
 )
 
 
@@ -105,7 +117,7 @@ def test_the_pack_identity_derivation_is_pinned() -> None:
     pack = ContentPack(name="pin", areas=(space,), entities=(entity,))
     assert (
         pack.pack_id
-        == "pin@sha256:eeb1f246a300c2697769dc5ffb19be1b3073551257d59bf484f7a3dcdc1b0e97"
+        == "pin@sha256:20f297d0fa15bf42737edce13a3416217b151b85e425477105a2cda1a4d72752"
     )
 
 

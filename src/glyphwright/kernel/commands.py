@@ -80,7 +80,29 @@ class Equip:
         return (self.item,)
 
 
-Command = Move | Look | Wait | Take | Use | Equip
+@dataclass(frozen=True, slots=True)
+class Attack:
+    """Strike a foe in the battle."""
+
+    target: EntityId
+
+    verb: str = "attack"
+
+    def args(self) -> tuple[str, ...]:
+        return (self.target,)
+
+
+@dataclass(frozen=True, slots=True)
+class Flee:
+    """Break away from the battle."""
+
+    verb: str = "flee"
+
+    def args(self) -> tuple[str, ...]:
+        return ()
+
+
+Command = Move | Look | Wait | Take | Use | Equip | Attack | Flee
 
 
 @dataclass(frozen=True, slots=True)

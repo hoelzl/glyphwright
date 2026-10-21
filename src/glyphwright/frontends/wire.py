@@ -12,11 +12,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, assert_never
 
-from glyphwright.frames.frame import GridView, SemanticFrame, Viewport
+from glyphwright.frames.frame import GridView, MenuView, SemanticFrame, Viewport
 from glyphwright.kernel.commands import (
+    Attack,
     Command,
     CommandGrammar,
     Equip,
+    Flee,
     Look,
     Move,
     Rejected,
@@ -25,18 +27,26 @@ from glyphwright.kernel.commands import (
     Wait,
 )
 from glyphwright.kernel.events import (
+    ActorDied,
+    AttackMissed,
+    DamageDealt,
+    Defeated,
     Event,
+    FleeFailed,
     Healed,
     ItemAcquired,
     ItemEquipped,
     ItemUsed,
+    ModePopped,
+    ModePushed,
     MoveBlocked,
     Moved,
+    Provoked,
     TurnAdvanced,
 )
 
-FRAME_SCHEMA = "glyphwright.frame/2"
-EVENT_SCHEMA = "glyphwright.event/2"
+FRAME_SCHEMA = "glyphwright.frame/3"
+EVENT_SCHEMA = "glyphwright.event/3"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/2"
 
@@ -57,6 +67,12 @@ def _encode_viewport(viewport: Viewport) -> dict[str, Any]:
                 for row in viewport.cells
             ],
             "legend": dict(viewport.legend),
+        }
+    if isinstance(viewport, MenuView):
+        return {
+            "kind": viewport.kind,
+            "area": viewport.area,
+            "combatants": list(viewport.combatants),
         }
     assert_never(viewport)
 
@@ -148,6 +164,20 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
                 "amount": event.amount,
                 "source": event.source,
             }
+        case DamageDealt():
+            payload |= {
+                "source": event.source,
+                "target": event.target,
+                "amount": event.amount,
+            }
+        case AttackMissed():
+            payload |= {"source": event.source, "target": event.target}
+        case Provoked() | ActorDied() | Defeated() | FleeFailed():
+            payload |= {"actor": event.actor}
+        case ModePushed():
+            payload |= {"mode": event.mode, "initiative": list(event.initiative)}
+        case ModePopped():
+            payload |= {"mode": event.mode, "outcome": event.outcome}
         case _:
             assert_never(event)
     return payload
@@ -258,6 +288,25 @@ VERBS: tuple[VerbSpec, ...] = (
         reason="not_equippable",
         options_hint="you can equip",
         empty_hint="you are carrying nothing to equip",
+    ),
+    VerbSpec(
+        "attack",
+        Attack,
+        ("target",),
+        "Strike a foe in the battle.",
+        spends_turn=True,
+        events=("DamageDealt", "AttackMissed", "ActorDied", "TurnAdvanced"),
+        reason="no_such_target",
+        options_hint="you can attack",
+        empty_hint="there is no one to attack",
+    ),
+    VerbSpec(
+        "flee",
+        Flee,
+        (),
+        "Break away with one step; it fails when no step breaks contact.",
+        spends_turn=True,
+        events=("ModePopped", "Moved", "FleeFailed", "TurnAdvanced"),
     ),
 )
 VERB_SPECS: dict[str, VerbSpec] = {spec.verb: spec for spec in VERBS}

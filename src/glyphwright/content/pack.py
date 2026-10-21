@@ -76,6 +76,7 @@ class ContentPack:
         self._check_placement()
         self._check_portals()
         self._check_items()
+        self._check_ai()
 
     def _check_areas(self) -> None:
         seen: set[str] = set()
@@ -206,6 +207,18 @@ class ContentPack:
                 _name(subject, "slot", entity.equippable.slot)
                 for modifier in entity.equippable.modifiers:
                     _name(subject, "stat name", modifier.stat)
+
+    def _check_ai(self) -> None:
+        for entity in self.entities:
+            if entity.ai is None:
+                continue
+            if entity.id == PLAYER:
+                raise _entity(entity, "the player cannot have an ai")
+            if entity.actor is None or entity.at() is None:
+                raise _entity(entity, "an ai must be a placed actor")
+            if not entity.ai.hostile:
+                # A friendly ai would load and then do nothing at all.
+                raise _entity(entity, "only hostile ai is supported by this engine")
 
     @property
     def pack_id(self) -> str:
