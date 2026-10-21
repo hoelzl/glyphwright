@@ -45,32 +45,34 @@ These are the lessons of GlyphWright v0 and termverify.
 ## Documentation rules
 
 `scripts/docs_tool.py check` enforces the rules marked *gate*; reviews check
-the others.
+the others. The IDs in brackets refer to the information-architecture rules
+that the course using this repository distributes with its materials.
 
 - **`AGENTS.md` is a map**: routes, invariants, the check command. It stays
   within its line budget (*gate*), and every line passes the pruning test:
-  would removing it make an agent go wrong?
+  would removing it make an agent go wrong? [A2–A4]
 - **One instruction file and one skills folder** (*gate*); see
-  [decision 0001](docs/decisions/0001-agent-harness-layout.md).
+  [decision 0001](docs/decisions/0001-agent-harness-layout.md). [A1, C1, C4]
 - **Every doc opens with its purpose**: a `# Title`, then one plain paragraph
   that says what the page covers and when to read it (*gate*). Indexes show
-  that paragraph.
+  that paragraph. [B6]
 - **Every docs folder has an index**: each page under `docs/` is listed in the
-  nearest `README.md` above it, in a generated block (*gate*).
+  nearest `README.md` above it, in a generated block (*gate*). [B1]
 - **Long files start with a table of contents**: over 100 lines, the first
-  `##` heading is `## Contents` (*gate*).
+  `##` heading is `## Contents` (*gate*). [B4]
 - **Every link and backticked repository path resolves** (*gate*). A path that
   is named before it exists goes into `PLANNED` in `scripts/docs_tool.py`,
-  with its reason.
+  with its reason. [B3]
 - **Derived views are never edited by hand** (*gate*): rerun
-  `uv run python scripts/docs_tool.py build`.
+  `uv run python scripts/docs_tool.py build`. [D2]
 - **Skills follow the [Agent Skills specification](https://agentskills.io/specification)**
   (*gate*), and a procedure becomes a skill only after it has been done twice.
-- **Plans live in `active/` or `completed/`** (*gate*).
+  [C1–C3]
+- **Plans live in `active/` or `completed/`** (*gate*). [E1]
 - **One canonical home per fact.** Link to it instead of restating it, and
-  prune the old wording in the same change.
+  prune the old wording in the same change. [D1]
 - **No volatile facts in prose.** Versions, counts, and status live behind a
-  command or a file that tools read.
+  command or a file that tools read. [A7]
 - **When code and prose disagree, the code wins**; fix the prose in the same
-  change.
-- **Decisions get a short record** in `docs/decisions/`.
+  change. [D3]
+- **Decisions get a short record** in `docs/decisions/`. [E2]
