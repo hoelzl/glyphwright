@@ -62,8 +62,8 @@ N1 to N6 were found while planning S2; they are not in v0's register.
 - [x] CLI `--pack`
 - [x] Content-pack knowledge page; kernel page on portals
 - [x] Authoring docs (first pack, pack format); docs map; README; `AGENTS.md`
-- [ ] Owner review of the S2 pull request
-- [ ] Tag `s2`; move this plan to `docs/plans/completed/`
+- [x] Owner review of the S2 pull request (merged as #3)
+- [x] Tag `s2`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
