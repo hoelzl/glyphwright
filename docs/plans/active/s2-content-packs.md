@@ -54,20 +54,38 @@ N1 to N6 were found while planning S2; they are not in v0's register.
 
 ## Progress
 
-- [ ] Plan; brief updated for portals
-- [ ] `Portal`, the `exits_from` merge, portal checks (K10)
-- [ ] Load-time checks N1 to N5
-- [ ] Pure loader with located `PackError` and the header index
-- [ ] `api.load_pack` and `api.reference_pack` (N6); the I/O boundary
-- [ ] Two-area reference world; goldens
-- [ ] CLI `--pack`
-- [ ] Content-pack knowledge page; kernel page line on portals
-- [ ] Authoring docs: first pack, pack format; docs map; README
-- [ ] `AGENTS.md` routes
+- [x] Plan; brief updated for portals
+- [x] `Portal`, the `exits_from` merge, portal checks (K10), and N1 to N5
+- [x] Pure loader with located `PackError` and the header index (N6)
+- [x] `api.load_pack` and `api.reference_pack`; the I/O boundary
+- [x] Two-area reference world; goldens
+- [x] CLI `--pack`
+- [x] Content-pack knowledge page; kernel page on portals
+- [x] Authoring docs (first pack, pack format); docs map; README; `AGENTS.md`
+- [ ] Owner review of the S2 pull request
+- [ ] Tag `s2`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
-Filled in as the slice proceeds.
+**Added, because S2's content needs it:**
+
+- `docs/authoring/`, the content authors' entry point: the brief names three
+  audiences, and this is the second one's path. It holds a walkthrough and
+  the format reference.
+- `docs/knowledge/content-packs.md`, for engine developers who change the
+  loader, ending with the checklist for adding a key.
+- Two `AGENTS.md` routes, one per audience, and a pointer for authors in the
+  docs map and the README.
+- A test that keeps the hand-written format reference complete against the
+  loader's specs.
+
+**Deliberately not added yet:**
+
+- **No `author-a-pack` skill.** Writing a pack has been done once, in this
+  port. The skill comes after the second real run, at the latest before the
+  usability gate in S5.
+- **No generated format reference.** The hand-written page plus its test is
+  enough for six small tables.
 
 ## Decisions
 
@@ -87,4 +105,17 @@ Filled in as the slice proceeds.
 
 ## Surprises
 
-None yet.
+- **`tomllib` has no positions** except for syntax errors, and v0's design
+  promised `file:line:col` diagnostics its code never produced. The header
+  index gives every shape and content error a line.
+- **A frozen dataclass cannot be an exception:** raising sets
+  `__traceback__`, which a frozen dataclass refuses. `PackError` became a
+  plain exception class before any test ran into it.
+- **A commit went in with a lint failure.** The check's output was piped
+  through `tail`, which hid its exit status from the `&&` that guarded the
+  commit. It was amended before the push, and commits are now gated on the
+  check's own exit status. One occurrence, so not yet a rule.
+- **The format-reference test caught a gap on its first run:** the page named
+  the `actor`, `renderable`, and `portal` tables only by their TOML headers.
+- **The wheel ships the pack files** with no build configuration.
+
