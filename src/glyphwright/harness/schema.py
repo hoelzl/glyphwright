@@ -134,6 +134,13 @@ _EVENT_FIELDS: dict[str, tuple[dict[str, Any], list[str] | None]] = {
         None,
     ),
     "TurnAdvanced": ({"turn_now": _INTEGER, "rng": _STRING}, ["turn_now"]),
+    "ItemAcquired": ({"actor": _STRING, "item": _STRING, "origin": _STRING}, None),
+    "ItemUsed": ({"actor": _STRING, "item": _STRING, "target": _STRING}, None),
+    "ItemEquipped": (
+        {"actor": _STRING, "item": _STRING, "slot": _STRING, "replaced": _STRING},
+        ["actor", "item", "slot"],
+    ),
+    "Healed": ({"target": _STRING, "amount": _INTEGER, "source": _STRING}, None),
 }
 
 

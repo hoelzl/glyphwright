@@ -19,10 +19,19 @@ from glyphwright.kernel.commands import (
     Rejected,
     Wait,
 )
-from glyphwright.kernel.events import Event, MoveBlocked, Moved, TurnAdvanced
+from glyphwright.kernel.events import (
+    Event,
+    Healed,
+    ItemAcquired,
+    ItemEquipped,
+    ItemUsed,
+    MoveBlocked,
+    Moved,
+    TurnAdvanced,
+)
 
 FRAME_SCHEMA = "glyphwright.frame/1"
-EVENT_SCHEMA = "glyphwright.event/1"
+EVENT_SCHEMA = "glyphwright.event/2"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/1"
 
@@ -107,6 +116,28 @@ def encode_event(event: Event, *, turn: int) -> dict[str, Any]:
             payload |= {"turn_now": event.turn}
             if event.rng is not None:
                 payload |= {"rng": event.rng}
+        case ItemAcquired():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "origin": str(event.origin),
+            }
+        case ItemUsed():
+            payload |= {
+                "actor": event.actor,
+                "item": event.item,
+                "target": event.target,
+            }
+        case ItemEquipped():
+            payload |= {"actor": event.actor, "item": event.item, "slot": event.slot}
+            if event.replaced is not None:
+                payload |= {"replaced": event.replaced}
+        case Healed():
+            payload |= {
+                "target": event.target,
+                "amount": event.amount,
+                "source": event.source,
+            }
         case _:
             assert_never(event)
     return payload

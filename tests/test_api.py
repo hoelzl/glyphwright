@@ -6,6 +6,7 @@ import pytest
 
 from glyphwright import api
 from glyphwright.api import Engine, reference_pack
+from glyphwright.frontends.wire import FRAME_SCHEMA
 from glyphwright.kernel.commands import Look, Move
 
 
@@ -28,7 +29,7 @@ def test_the_api_exports_the_wire_codec() -> None:
     assert command == Move("east")
     assert api.encode_command(command) == "move east"
     engine = Engine.new(reference_pack(), seed=1)
-    assert api.encode_frame(engine.frame())["schema"] == "glyphwright.frame/1"
+    assert api.encode_frame(engine.frame())["schema"] == FRAME_SCHEMA
 
 
 def test_every_exported_name_exists() -> None:

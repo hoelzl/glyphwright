@@ -11,6 +11,8 @@ from hypothesis import strategies as st
 
 from glyphwright.api import Engine, reference_pack
 from glyphwright.frontends import jsonl, plain
+from glyphwright.frontends.wire import EVENT_SCHEMA, FRAME_SCHEMA, QUERY_SCHEMA
+from glyphwright.harness.fingerprint import SESSION_SCHEMA
 from glyphwright.kernel.commands import Command, Look, Move, Wait
 
 commands = st.one_of(
@@ -80,17 +82,17 @@ def test_the_plain_session_reports_a_rejection_without_advancing() -> None:
 def test_jsonl_opens_with_a_header_and_a_frame() -> None:
     lines = _jsonl("quit\n")
     assert [line["schema"] for line in lines] == [
-        "glyphwright.session/1",
-        "glyphwright.frame/1",
+        SESSION_SCHEMA,
+        FRAME_SCHEMA,
     ]
 
 
 def test_jsonl_emits_events_then_a_frame() -> None:
     schemas = [line["schema"] for line in _jsonl("move east\nquit\n")]
     assert schemas[2:] == [
-        "glyphwright.event/1",
-        "glyphwright.event/1",
-        "glyphwright.frame/1",
+        EVENT_SCHEMA,
+        EVENT_SCHEMA,
+        FRAME_SCHEMA,
     ]
 
 
@@ -118,12 +120,12 @@ def test_jsonl_meta_commands_need_the_harness_flag() -> None:
 
 def test_jsonl_meta_seed_answers_with_the_run_seed() -> None:
     answer = _jsonl(":seed\nquit\n", harness=True)[-1]
-    assert answer == {"schema": "glyphwright.query/1", "path": "seed", "value": 1}
+    assert answer == {"schema": QUERY_SCHEMA, "path": "seed", "value": 1}
 
 
 def test_jsonl_meta_frame_does_not_advance_the_turn() -> None:
     lines = _jsonl("move east\n:frame\nquit\n", harness=True)
-    assert lines[-1]["schema"] == "glyphwright.frame/1"
+    assert lines[-1]["schema"] == FRAME_SCHEMA
     assert lines[-1]["turn"] == 1
 
 
