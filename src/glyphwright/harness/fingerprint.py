@@ -14,9 +14,9 @@ from glyphwright import __version__
 SESSION_SCHEMA = "glyphwright.session/2"
 
 #: Which behaviour produced a run. Bump it in any change that makes the same
-#: commands produce different events, frames, or state; the pinned recording
-#: under ``tests/recordings/`` fails until you do (decision 0003). It is not
-#: the release version: releases and behaviour change at different times.
+#: commands produce different events; the pinned recording under
+#: ``tests/recordings/`` fails until you do (decision 0003). It is not the
+#: release version: releases and behaviour change at different times.
 RULES = 1
 
 # The header's keys and their types, checked exactly (v0 finding H4).

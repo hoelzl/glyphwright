@@ -24,11 +24,14 @@ publish; behaviour changes whenever a rule, a message, or a wire shape does.
 - **An integer rules revision**, `RULES` in
   `src/glyphwright/harness/fingerprint.py`, names the behaviour. Every
   session header carries it, and replay refuses a recording made under
-  another revision, naming both.
+  another revision, naming both. It does not compare the release version:
+  a release need not change behaviour, and a recording should survive one
+  that does not.
 - **A committed recording pins it.** A recording of the reference world under
   `tests/recordings/` must replay in the test suite. A change that alters
-  events, frames, or state makes it diverge, and the failure says to bump
-  `RULES` and re-record the pin.
+  the events of any recorded step makes it diverge, and the failure says to
+  bump `RULES` and re-record the pin. State is the fold of the events, so a
+  state change is an event change.
 - **A wire-schema bump is a behaviour change.** The event digests include the
   schema tag, so the pin catches it like any other change.
 
@@ -38,6 +41,6 @@ publish; behaviour changes whenever a rule, a message, or a wire shape does.
   revision bump and the re-recorded pin.
 - Every recording made before a bump stops replaying, with a message that
   says why. Until an outside consumer keeps recordings, that costs nothing.
-- The pin only covers what its script exercises. It is a tripwire for
-  accidental change, not proof that nothing changed; the property walks and
-  goldens cover the rest.
+- The pin only covers what its script exercises, and only events. A change
+  to frames alone, such as a message's wording, does not alter replay and
+  needs no bump; the goldens catch it instead.

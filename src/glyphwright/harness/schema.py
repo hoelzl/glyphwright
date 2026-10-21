@@ -27,6 +27,7 @@ from glyphwright.frontends.wire import (
     REJECTION_SCHEMA,
 )
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
+from glyphwright.harness.recording import RECORDING_SCHEMA
 from glyphwright.kernel.state import BATTLE_OUTCOMES
 
 REGENERATE = "uv run python -m glyphwright.harness.schema"
@@ -78,6 +79,22 @@ def session_schema() -> dict[str, Any]:
                 "pack": _STRING,
                 "seed": _INTEGER,
                 "harness": {"type": "boolean"},
+            }
+        ),
+    )
+
+
+def recording_schema() -> dict[str, Any]:
+    """One step of a recording; the first line is a session header."""
+    return _document(
+        RECORDING_SCHEMA,
+        "GlyphWright recorded step",
+        _object(
+            {
+                "schema": {"const": RECORDING_SCHEMA},
+                "step": {"type": "integer", "minimum": 1},
+                "command": _STRING,
+                "events": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
             }
         ),
     )
@@ -234,6 +251,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     schemas = (
         session_schema(),
+        recording_schema(),
         frame_schema(),
         event_schema(),
         rejection_schema(),
