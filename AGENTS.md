@@ -13,7 +13,8 @@ documentation failure names the rule and the fix.
 
 Derived views are never edited by hand; regenerate them instead:
 `uv run python scripts/docs_tool.py build` (docs indexes, Claude Code stubs),
-`uv run python -m glyphwright.harness.schema` (wire schemas), and
+`uv run python -m glyphwright.harness.schema` (wire schemas),
+`uv run python -m glyphwright.harness.reference` (command reference), and
 `uv run python tests/regenerate_goldens.py` (golden transcripts, reviewed by
 eye).
 
@@ -55,6 +56,7 @@ in the slice that ports the code it governs.
 |---|---|
 | Goals, scope, slices, working rules | [`docs/project-brief.md`](docs/project-brief.md) |
 | The current slice | the plan in `docs/plans/active/` |
+| Play or drive a session: commands, rejections, `:query` | [`docs/knowledge/commands.md`](docs/knowledge/commands.md) |
 | Change the kernel, a mode, or an event | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |
 | Change the loader or add a component | [`docs/knowledge/content-packs.md`](docs/knowledge/content-packs.md) |
 | Write or debug a content pack | [`docs/authoring/`](docs/authoring/README.md) |
