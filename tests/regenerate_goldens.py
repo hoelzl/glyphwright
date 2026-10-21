@@ -21,6 +21,14 @@ GOLDEN_DIR = Path(__file__).resolve().parent / "goldens"
 def _plain_village() -> str:
     engine = Engine.new(reference_pack(), seed=424242)
     engine.step(Move("east"))
+    frame = engine.step(Move("east")).frame
+    return plain.render(frame) + "\n"
+
+
+def _plain_battle() -> str:
+    """Stepping next to the goblin starts a battle."""
+    engine = Engine.new(reference_pack(), seed=424242)
+    engine.step(Move("east"))
     frame = engine.step(Move("south")).frame
     return plain.render(frame) + "\n"
 
@@ -35,6 +43,7 @@ def _plain_warren() -> str:
 
 GOLDENS: dict[str, Callable[[], str]] = {
     "plain_village": _plain_village,
+    "plain_battle": _plain_battle,
     "plain_warren": _plain_warren,
 }
 

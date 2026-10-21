@@ -29,6 +29,8 @@ only items the command would work on.
 | `take <item>` | Pick up an item lying where you stand. | yes | `ItemAcquired`, `TurnAdvanced` |
 | `use <item>` | Use a carried consumable on yourself; offered only when it would help. | yes | `ItemUsed`, `Healed`, `TurnAdvanced` |
 | `equip <item>` | Wear a carried item in its slot, replacing what was there. | yes | `ItemEquipped`, `TurnAdvanced` |
+| `attack <target>` | Strike a foe in the battle. | yes | `DamageDealt`, `AttackMissed`, `ActorDied`, `TurnAdvanced` |
+| `flee` | Break away with one step; it fails when no step breaks contact. | yes | `ModePopped`, `Moved`, `FleeFailed`, `TurnAdvanced` |
 
 ## Rejections
 
@@ -41,8 +43,10 @@ nothing changes and no turn passes.
 | `not_here` | `take` names something not on offer | "you can take: …", or "there is nothing here to take" |
 | `not_usable` | `use` names something not on offer | "you can use: …", or "nothing you carry would have an effect now" |
 | `not_equippable` | `equip` names something not on offer | "you can equip: …", or "you are carrying nothing to equip" |
+| `no_such_target` | `attack` names something not on offer | "you can attack: …", or "there is no one to attack" |
 | `wrong_mode` | the verb exists, but not in the active mode | the verbs valid now |
 | `unknown_verb` | no mode knows the verb | the verbs valid now |
+| `defeated` | the player is defeated | that only `look` remains |
 | `unparsable` | the line is not a command at all (frontends) | the verbs valid now |
 | `harness_disabled` | a meta command without `--harness` (frontends) | how to enable meta commands |
 | `unknown_meta` | a `:` line that is not a meta command (frontends) | the meta commands' usage |

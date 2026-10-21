@@ -1,0 +1,6 @@
+== turn 2 | battle | village ==
+[initiative player 17/20, goblin-1 6/6]
+You go south.
+goblin-1 snarls and turns on you!
+Battle is joined!
+[hp 17/20]

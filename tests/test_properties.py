@@ -13,7 +13,13 @@ from hypothesis import strategies as st
 from glyphwright.api import Engine, decode_command, reference_pack
 from glyphwright.kernel.commands import Command, CommandGrammar, Move, Take
 from glyphwright.kernel.events import Event, Moved
-from glyphwright.kernel.state import MODE_EXPLORATION, PLAYER, WorldState, fold
+from glyphwright.kernel.state import (
+    MODE_BATTLE,
+    MODE_EXPLORATION,
+    PLAYER,
+    WorldState,
+    fold,
+)
 from glyphwright.world.grid import WALL, GridSpace
 
 
@@ -41,7 +47,10 @@ def _check_step(
     # v0 finding T1: compare whole states, not a few fields.
     assert fold(before, events) == after
     assert after.turn in (before.turn, before.turn + 1)
-    assert after.mode_stack == (MODE_EXPLORATION,)
+    # v0 finding T4: check the stack's shape, not a fixed list of stacks.
+    assert after.mode_stack[0] == MODE_EXPLORATION
+    assert after.mode_stack[1:] in ((), (MODE_BATTLE,))
+    assert bool(after.initiative) == (after.mode == MODE_BATTLE)
     at = after.entity(PLAYER).at()
     assert at is not None
     space = after.areas[at.area]
