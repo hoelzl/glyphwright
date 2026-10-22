@@ -19,12 +19,18 @@ from typing import TextIO
 from glyphwright.api import Engine
 from glyphwright.frames.frame import GridView, SemanticFrame, flatten
 from glyphwright.frontends.jsonl import safe_echo
-from glyphwright.frontends.wire import VERB_SPECS, decode_command
+from glyphwright.frontends.wire import (
+    VERB_SPECS,
+    decode_command,
+    missing_argument_hint,
+)
 from glyphwright.harness import meta
 from glyphwright.kernel.state import PLAYER
 
 _DELIMITER = "=="
 _SEPARATOR = " | "
+_HERE = "[here "
+_EXITS = "[exits "
 _CARRYING = "[carrying "
 _INITIATIVE = "[initiative "
 
@@ -43,6 +49,8 @@ class PlainProjection:
     tiles: tuple[str, ...]
     messages: tuple[str, ...]
     hp: tuple[int, int] | None
+    here: tuple[str, ...] = ()
+    exits: tuple[str, ...] = ()
     carrying: tuple[str, ...] = ()
     # A battle's combatants as "id hp/max", in initiative order.
     combatants: tuple[str, ...] = ()
@@ -63,8 +71,10 @@ def project(frame: SemanticFrame) -> PlainProjection:
         else tuple(f"{c} {hp[c]}" for c in viewport.combatants if c in hp),
         messages=frame.messages,
         hp=None if player is None else (player.hp, player.max_hp),
+        here=tuple(item.id for item in frame.here),
+        exits=frame.exits,
         carrying=tuple(
-            item.id if item.slot is None else f"{item.id} ({item.slot})"
+            item.id if item.slot is None else f"{item.id} (equipped: {item.slot})"
             for item in frame.inventory
         ),
     )
@@ -79,6 +89,10 @@ def render(frame: SemanticFrame) -> str:
         lines.append(f"{_INITIATIVE}{', '.join(view.combatants)}]")
     lines.extend(view.tiles)
     lines.extend(view.messages)
+    if view.here:
+        lines.append(f"{_HERE}{', '.join(view.here)}]")
+    if view.exits:
+        lines.append(f"{_EXITS}{', '.join(view.exits)}]")
     if view.carrying:
         # Ids hold no whitespace, so ", " and " (" cannot occur inside one.
         lines.append(f"{_CARRYING}{', '.join(view.carrying)}]")
@@ -117,7 +131,15 @@ def parse(text: str) -> PlainProjection:
         body = body[:-1]
     carrying: tuple[str, ...] = ()
     if body and body[-1].startswith(_CARRYING):
-        carrying = tuple(body[-1].removeprefix(_CARRYING).removesuffix("]").split(", "))
+        carrying = _listed(body[-1], _CARRYING)
+        body = body[:-1]
+    exits: tuple[str, ...] = ()
+    if body and body[-1].startswith(_EXITS):
+        exits = _listed(body[-1], _EXITS)
+        body = body[:-1]
+    here: tuple[str, ...] = ()
+    if body and body[-1].startswith(_HERE):
+        here = _listed(body[-1], _HERE)
         body = body[:-1]
 
     # Tiles are the leading run of space-free lines: content-independent, so
@@ -134,9 +156,15 @@ def parse(text: str) -> PlainProjection:
         tiles=tiles,
         messages=tuple(body[len(tiles) :]),
         hp=hp,
+        here=here,
+        exits=exits,
         carrying=carrying,
         combatants=combatants,
     )
+
+
+def _listed(line: str, prefix: str) -> tuple[str, ...]:
+    return tuple(line.removeprefix(prefix).removesuffix("]").split(", "))
 
 
 _PROMPT = "> "
@@ -155,7 +183,13 @@ def help_line(frame: SemanticFrame) -> str:
 def run_session(
     engine: Engine, input_stream: TextIO, output: TextIO, *, harness: bool = False
 ) -> int:
-    """Drive a run as a human-readable transcript."""
+    """Drive a run as a human-readable transcript.
+
+    The command list is printed again whenever the verbs on offer change, so
+    a new possibility, such as ``equip`` after taking a sword, is announced
+    rather than left for ``help`` to reveal.
+    """
+    offered = engine.frame().commands.verb_names()
     output.write(help_line(engine.frame()))
     output.write(render(engine.frame()) + "\n")
 
@@ -183,7 +217,11 @@ def run_session(
 
         command = decode_command(line)
         if command is None:
-            output.write(f"? {line!r}: {help_line(engine.frame())}")
+            asked = missing_argument_hint(engine.frame(), line)
+            if asked is not None:
+                output.write(f"? {asked}\n")
+            else:
+                output.write(f"? {line!r}: {help_line(engine.frame())}")
             continue
 
         result = engine.step(command)
@@ -191,3 +229,6 @@ def run_session(
             output.write(f"? {result.rejection.reason}: {result.rejection.hint}\n")
             continue
         output.write(render(result.frame) + "\n")
+        if result.frame.commands.verb_names() != offered:
+            offered = result.frame.commands.verb_names()
+            output.write(help_line(result.frame))

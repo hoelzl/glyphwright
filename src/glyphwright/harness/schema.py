@@ -137,6 +137,8 @@ def frame_schema() -> dict[str, Any]:
                 "actors": _array(actor),
                 "messages": _array(_STRING),
                 "inventory": _array(item),
+                "here": _array(_object({"id": _STRING, "name": _STRING})),
+                "exits": _array(_STRING),
                 "prompt": _object({"kind": _STRING}),
                 "commands": commands,
             }

@@ -5,4 +5,6 @@
 #bg.../O#
 #########
 You go east.
+[here potion-minor]
+[exits east, west]
 [hp 17/20]

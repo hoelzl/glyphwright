@@ -76,5 +76,7 @@ def render() -> str:
 
 if __name__ == "__main__":
     PIN.parent.mkdir(exist_ok=True)
-    PIN.write_text(render(), encoding="utf-8", newline="\n")
-    print(f"wrote {PIN.relative_to(PIN.parent.parent.parent).as_posix()}")
+    text = render()
+    if not PIN.is_file() or PIN.read_text(encoding="utf-8") != text:
+        PIN.write_text(text, encoding="utf-8", newline="\n")
+        print(f"wrote {PIN.relative_to(PIN.parent.parent.parent).as_posix()}")

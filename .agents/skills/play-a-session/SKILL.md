@@ -22,7 +22,10 @@ is the same every time.
 
 Never guess a command. Every frame lists what is valid right now:
 
-- **plain:** type `help` for a list such as `move <exit> | look | wait`;
+- **plain:** the command list, such as `move <exit> | look | wait`, prints
+  at the start and again whenever it changes, and `help` repeats it. Each
+  block's `[here ...]` and `[exits ...]` lines give the items to take and the
+  open exits; a verb typed alone, such as `take`, lists its choices;
 - **JSONL:** the frame's `commands.verbs` maps each verb to its argument
   domains, for example `{"move": [["east", "south"]], "look": []}`. Build
   `verb argument` from one entry of each domain.

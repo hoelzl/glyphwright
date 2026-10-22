@@ -74,8 +74,9 @@ can be formed from it, and each verb has one argument domain per argument, so
 a harness can generate every valid command without knowing the rules.
 
 Domains come in two kinds. `move` offers every exit, walls included, because
-exits are topology and a failed move says why. Item verbs offer only what the
-command would work on, because a pointless `use` would destroy an item for
+exits are topology and a failed move says why; the frame's `exits` lists only
+the open ones, for a reader who wants the ways out. Item verbs offer only what
+the command would work on, because a pointless `use` would destroy an item for
 nothing.
 
 ## The scheduler and battle
@@ -110,8 +111,10 @@ nothing.
   the actor's base value, then every additive modifier, then every
   multiplicative one, then a clamp at zero. Each step records its source and
   the running value, which `:query <id>.stats.<stat> --explain` returns.
-- **Frames** carry the player's inventory, so the evidence says what is
-  carried without a query.
+- **Frames** carry the player's inventory and the items lying where the
+  player stands (`here`), so the evidence says what is carried and what is
+  underfoot without a query. The player's glyph covers its tile, so the map
+  alone cannot.
 
 ## Rejections
 

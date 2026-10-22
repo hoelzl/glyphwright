@@ -16,6 +16,7 @@ from glyphwright.frontends.wire import (
     encode_event,
     encode_frame,
     encode_rejection,
+    missing_argument_hint,
 )
 from glyphwright.harness import meta
 
@@ -83,10 +84,10 @@ def run_session(
 
         command = decode_command(line)
         if command is None:
-            _emit(
-                output,
-                _rejection(engine, line, "unparsable", unparsable_hint(engine)),
+            hint = missing_argument_hint(engine.frame(), line) or unparsable_hint(
+                engine
             )
+            _emit(output, _rejection(engine, line, "unparsable", hint))
             continue
 
         result = engine.step(command)

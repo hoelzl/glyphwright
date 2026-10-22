@@ -131,6 +131,61 @@ def use_item(state: WorldState, item_id: str) -> tuple[Event, ...]:
     return tuple(events)
 
 
+def items_here(state: WorldState) -> tuple[ItemSummary, ...]:
+    """The items lying where the player stands.
+
+    The player's glyph covers the tile, so the frame has to say what is
+    under it.
+    """
+    at = state.entity(PLAYER).at()
+    if at is None:
+        return ()
+    return tuple(
+        ItemSummary(id=entity.id, name=entity.item.name)
+        for entity in state.entities_at(at)
+        if entity.item is not None
+    )
+
+
+def open_exits(state: WorldState) -> tuple[str, ...]:
+    """The exits a player could walk through, portals included.
+
+    The grammar offers walled exits too, so an agent can learn why a move
+    fails; a reader of the frame wants the ways out. An exit someone stands
+    in is still a way out, so only walls and edges are left out.
+    """
+    at = state.entity(PLAYER).at()
+    if at is None:
+        return ()
+    return tuple(
+        token
+        for token, destination in sorted(state.exits_from(at).items())
+        if destination.area in state.areas
+        and state.areas[destination.area].blocked_reason(state, destination, PLAYER)
+        in (None, "occupied")
+    )
+
+
+def why_not_usable(state: WorldState, item_id: str) -> str | None:
+    """A better hint when ``use`` names a carried item that is worn instead.
+
+    Equipment works by being equipped, which ``use`` cannot tell a player.
+    """
+    player = state.entity(PLAYER)
+    if item_id not in player.carries():
+        return None
+    equippable = state.entity(item_id).equippable
+    if equippable is None:
+        return None
+    worn = player.equipment.equipped_items() if player.equipment else ()
+    if item_id in worn:
+        return (
+            f"{item_id} is already equipped as your {equippable.slot}; "
+            "equipment works while it is worn"
+        )
+    return f"{item_id} is not used but equipped: equip {item_id}"
+
+
 def carried(state: WorldState) -> tuple[ItemSummary, ...]:
     """The player's items in the order taken, each with its slot if worn."""
     player = state.entity(PLAYER)
