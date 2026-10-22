@@ -12,7 +12,9 @@ import dataclasses
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+from glyphwright import modes
 from glyphwright.api import Engine, decode_command, reference_pack
+from glyphwright.frontends.wire import VERB_SPECS
 from glyphwright.kernel.commands import Command, CommandGrammar, Move, Take
 from glyphwright.kernel.events import Defeated, Event, ModePopped, Moved, TurnAdvanced
 from glyphwright.kernel.state import (
@@ -105,12 +107,31 @@ def _check_items(state: WorldState) -> None:
             assert len(holders.get(entity.id, [])) <= 1, entity.id
 
 
+def _check_listed_events(state: WorldState, command: Command) -> None:
+    """The command's own events are the ones the verb table lists.
+
+    The table feeds the command reference, so an event a handler starts to
+    emit must be listed there too. Only the mode's handler is checked: the
+    scheduler's events in the same step belong to the hostiles, not to the
+    verb. The workshop dry run found nothing checked this.
+    """
+    events, _ = modes.active(state).handle(state, command, state.rng)
+    listed = set(VERB_SPECS[command.verb].events)
+    emitted = {type(event).__name__ for event in events}
+    assert emitted <= listed, (
+        f"{command.verb!r} emitted {sorted(emitted - listed)}, which its entry "
+        "in VERBS in src/glyphwright/frontends/wire.py does not list; add them "
+        "and run `uv run python -m glyphwright.harness.reference`"
+    )
+
+
 def _walk(engine: Engine, choices: list[int]) -> None:
     """Drive the engine using only commands its own grammar advertises."""
     for choice in choices:
         options = _options(engine.frame().commands)
         command = options[choice % len(options)]
         before = engine._state
+        _check_listed_events(before, command)
         result = engine.step(command)
         assert result.rejection is None, (
             f"a command the grammar advertised was rejected: {result.rejection}"
