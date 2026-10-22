@@ -63,7 +63,8 @@ exits 1:
 | Problem | Meaning |
 |---|---|
 | `recorded under rules A, replaying under rules B: …` | the engine's behaviour changed since it was recorded |
-| `recorded against pack …, replaying against …` | the pack's id differs: its content changed, or `Entity` gained a component |
+| `recorded against pack …, replaying against …; every step's events still match, so only the pack changed: re-record` | the pack's id differs, its content or `Entity`'s shape changed, but the run plays the same |
+| `recorded against pack …, replaying against …, and step N: …: the behaviour changed as well` | the pack's id differs and the run plays differently from that step on |
 | `step N: '…' produced different events than recorded` | the first step that diverged |
 | `step N: '…' was rejected (…), but the recorded run accepted it` | the run took a path this engine refuses |
 | a header or line problem | the file is not a recording, or was edited by hand badly |
@@ -78,17 +79,23 @@ behaviour ([decision 0003](../decisions/0003-rules-revision.md)). Bump it in
 any change that makes the same commands produce different events.
 
 `tests/recordings/reference-tour.jsonl` is the pin: a tour of the reference
-world that takes and equips items, wins a battle, crosses a portal, and flees.
-`tests/test_pinned_recording.py` replays it, so an accidental behaviour change
-fails the suite. When it fails:
+world that uses every verb at least once. It looks, bumps into a wall, waits,
+takes, uses, and equips items, wins a battle, crosses a portal, and flees.
+`tests/test_pinned_recording.py` replays it, so a change to what any step of
+the tour produces fails the suite. The pin only sees what the tour does: a
+test keeps the tour using every verb, but a rule that only fires in a
+situation the tour never reaches can still change unnoticed, so bump `RULES`
+whenever the same commands would produce different events, whether or not
+the pin fails. If two branches each bump `RULES`, the second to merge
+conflicts in `RULES` or the pin: take the merged base's `RULES` plus one and
+re-record, so that no revision names two behaviours. When it fails:
 
 - **Behaviour changed on purpose:** bump `RULES`, run
   `uv run python tests/regenerate_recordings.py`, and commit both. A new
   event type or a bumped event tag is a behaviour change.
 - **The pack id changed:** the reference pack's content changed, or `Entity`
-  gained a component. The test then replays the steps against the new id and
-  says whether the events changed too: if not, only re-record; if so, bump
-  `RULES` as well.
+  gained a component. Replay then plays the steps anyway and says whether the
+  events changed too: if not, only re-record; if so, bump `RULES` as well.
 - **Neither was intended:** the failure names the first step that diverged;
   that is where to look.
 

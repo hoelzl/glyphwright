@@ -25,7 +25,8 @@ Never guess a command. Every frame lists what is valid right now:
 - **plain:** the command list, such as `move <exit> | look | wait`, prints
   at the start and again whenever it changes, and `help` repeats it. Each
   block's `[here ...]` and `[exits ...]` lines give the items to take and the
-  open exits; a verb typed alone, such as `take`, lists its choices;
+  open exits, and a `map:` line says what each glyph stands for; a verb typed
+  alone, such as `take`, lists its choices;
 - **JSONL:** the frame's `commands.verbs` maps each verb to its argument
   domains, for example `{"move": [["east", "south"]], "look": []}`. Build
   `verb argument` from one entry of each domain.
@@ -40,7 +41,8 @@ for each line you send:
 
 - an accepted command: its events, then one frame;
 - a refused command: one rejection line with `reason` and `hint`; nothing
-  changed and no turn passed;
+  changed and no turn passed. A move into a wall is not refused: it is
+  accepted, emits `MoveBlocked`, and the turn passes;
 - a meta command: one line, a query result or a frame.
 
 Every line names its shape and version in `schema`, such as

@@ -33,7 +33,9 @@ or another rules revision. Every verdict is listed in
 - **Proving a fix:** record the run that showed the bug, fix it, and record
   again; the new recording replays, and the step that changed is the fix.
 - **Pinning a pack:** commit the recording next to the pack and replay it in
-  CI; a change to the pack fails the replay with "recorded against pack".
+  CI. A change to the pack fails the replay with "recorded against pack",
+  and the verdict says whether the run still plays the same, in which case
+  re-recording is the whole fix.
 - **A different machine:** replay there. A verified replay is the evidence
   that the run is the same everywhere.
 

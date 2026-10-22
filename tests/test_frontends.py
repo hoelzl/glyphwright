@@ -193,3 +193,15 @@ def test_jsonl_frames_carry_what_lies_here_and_the_open_exits() -> None:
     frame = _jsonl("move east\nmove east\nquit\n")[-1]
     assert frame["here"] == [{"id": "potion-minor", "name": "Minor Potion"}]
     assert frame["exits"] == ["east", "west"]
+
+
+def test_the_map_legend_is_printed_at_the_start_and_in_each_new_area() -> None:
+    # The workshop dry run had to guess what `/` stands for.
+    walk = "".join(
+        f"move {token}\n" for token in ("east",) * 5 + ("south",) * 2 + ("east",)
+    )
+    out = _plain(walk + "move down\nquit\n")
+    legends = [line for line in out.splitlines() if line.startswith("map: ")]
+    assert len(legends) == 2
+    assert "/ weapon" in legends[0]
+    assert "^ ladder" in legends[1]

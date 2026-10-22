@@ -1,24 +1,28 @@
 {"engine":"glyphwright 0.1.0.dev0","harness":false,"pack":"reference-vale@sha256:3216d0f3d9dbc160b9d888a2ef4b0a0b7945f53a30fbbe3353d699d047e30253","rules":1,"schema":"glyphwright.session/2","seed":2026}
-{"command":"move east","events":"sha256:278d2dc01561407f04182475f358bf1c1acdc99a1ac6dba8a814cbe014360b99","schema":"glyphwright.recording/1","step":1}
-{"command":"move east","events":"sha256:0a752c7a2be7da7033f96be5a4981982df44fc89be8766e53b4fa71868ec8306","schema":"glyphwright.recording/1","step":2}
-{"command":"take potion-minor","events":"sha256:a619abc1697af38fcbec0bd3b8ba91453c7911a4f2e7b2964501493c7764e823","schema":"glyphwright.recording/1","step":3}
-{"command":"move east","events":"sha256:084106dcb539b0d743d51af3c24c443c337fd3995b108e1ee44b0dbf5e9b1722","schema":"glyphwright.recording/1","step":4}
-{"command":"move east","events":"sha256:f6f59d0dbd91d9688a8c5be596365afe4702af110dbaa9aa06219fdfcbeb1628","schema":"glyphwright.recording/1","step":5}
-{"command":"move east","events":"sha256:3f416337180f14910b2e5ffa79e877505fb61c88634447a44793d366eea53494","schema":"glyphwright.recording/1","step":6}
-{"command":"move south","events":"sha256:bacbd1f3c20dd134b964bb1f748ee4d92865205a1dfc57404c5d1b79d561b6e3","schema":"glyphwright.recording/1","step":7}
-{"command":"move south","events":"sha256:f378d6a46082595ada7350145864ce746ebc8e8373f5b1c445ff26df0fddadf0","schema":"glyphwright.recording/1","step":8}
-{"command":"take iron-sword","events":"sha256:ce8e2b75a64786d407d5fbcfe86ff7ada67fb4e80e031e4af5d91c6424a8c7ae","schema":"glyphwright.recording/1","step":9}
-{"command":"equip iron-sword","events":"sha256:97fa3c23e55a37d34b330f9660bb7f7d53fc7afc636861723784091e6b4fba81","schema":"glyphwright.recording/1","step":10}
-{"command":"move west","events":"sha256:29f66488670776d54b2b9badc245f628550afd9afccb25e0277a851aede05297","schema":"glyphwright.recording/1","step":11}
-{"command":"move west","events":"sha256:e0a19755bdd10d687b5f4b74f9af2fc3c13fd142547114e583af6587ba1f1169","schema":"glyphwright.recording/1","step":12}
-{"command":"move west","events":"sha256:e35a477e525343dd98ec8f4c00030fbdd6daf2946242cd18f6e9b4fea1a01680","schema":"glyphwright.recording/1","step":13}
-{"command":"attack goblin-1","events":"sha256:5b4c3a17e24d4a9dadd4e23eed23dd9e15e1de67f18aa24d38832ae959075c48","schema":"glyphwright.recording/1","step":14}
-{"command":"attack goblin-1","events":"sha256:c489203ce7d74949dd58a6babee69b9bcbfd81a92646a6d25f860d0499522bff","schema":"glyphwright.recording/1","step":15}
-{"command":"attack goblin-1","events":"sha256:2806fc644f3feb4a48f033439a594c6e6f49733555452c6c7f30ebc8f206830b","schema":"glyphwright.recording/1","step":16}
-{"command":"move east","events":"sha256:ea17a89359986fa455703ece446dcddf1757ea29a50e8480ffe2db702ce4df69","schema":"glyphwright.recording/1","step":17}
-{"command":"move east","events":"sha256:ee55bb233154345047ce8ed4ad3db81722d0cd03cd8bf3efaa350fc64f6879c1","schema":"glyphwright.recording/1","step":18}
-{"command":"move east","events":"sha256:165394a13265acb31bf9db787fca18dc8caae084ad0c64cc7a7a30b1dd979034","schema":"glyphwright.recording/1","step":19}
-{"command":"move east","events":"sha256:5c188f15f0734ba8a28902ccd44254387713af4e4cd71f5609c9963e01d74d60","schema":"glyphwright.recording/1","step":20}
-{"command":"move down","events":"sha256:edb90258028025ae14eee443564730381c9c9ce85a47f0ca2c783c70af66efbe","schema":"glyphwright.recording/1","step":21}
-{"command":"move east","events":"sha256:1e5b5fcb08e1401e816fd99139a99ce390c9725a9c230b0a3974c122133eb059","schema":"glyphwright.recording/1","step":22}
-{"command":"flee","events":"sha256:35c54ecaf4465483fb0f38e6c815d220e9e4749383b45fd6090ab232a82bdff1","schema":"glyphwright.recording/1","step":23}
+{"command":"look","events":"sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945","schema":"glyphwright.recording/1","step":1}
+{"command":"move north","events":"sha256:2dff52d7e3d206d7eb3fb453ce84e9885706531e9e7a734123bb0707828fc4f4","schema":"glyphwright.recording/1","step":2}
+{"command":"wait","events":"sha256:98e193fa39bc49f48a1b674d80eed0f1972aac9ad9661eb465e8bbcc4f4d4ea2","schema":"glyphwright.recording/1","step":3}
+{"command":"move east","events":"sha256:dcc0994d9cfe0e718eb73540dc741c88fc9c2c7865d88ee70ec4c33ec594e0ba","schema":"glyphwright.recording/1","step":4}
+{"command":"move east","events":"sha256:bb47f344092bf7f801bb325208b2b0db3b35dd3cb50c8615b9263b2007cbf71c","schema":"glyphwright.recording/1","step":5}
+{"command":"take potion-minor","events":"sha256:8e371095fe0486c1b02fecd2af53006c45a27772b3c144089b265a3ad71f3823","schema":"glyphwright.recording/1","step":6}
+{"command":"use potion-minor","events":"sha256:18e8eaddb9e3107cebcbb9314acd32d39926e640df4cd5aefd85bc9e67c65dff","schema":"glyphwright.recording/1","step":7}
+{"command":"move east","events":"sha256:9c1eaf8f0eabc775e9932f350506848154a7d20c8a2172d6d7a75473d1ee0208","schema":"glyphwright.recording/1","step":8}
+{"command":"move east","events":"sha256:4f2c2339a10a79577ce85aa217226363d54d370ad7c606ad9acdcde7cd369481","schema":"glyphwright.recording/1","step":9}
+{"command":"move east","events":"sha256:ec0e449bb31bbd6ab949e061b5b37f817b52f0b5b229f2a082c5bd5e15fdd1a2","schema":"glyphwright.recording/1","step":10}
+{"command":"move south","events":"sha256:a3930c69e8db13f98de87d74ee4da4da8f1ecbbb50ecb9add6f73e7866069f11","schema":"glyphwright.recording/1","step":11}
+{"command":"move south","events":"sha256:365233f7b655e931b5eac641de18c767604a5b994bc510cc44d72cb5ab154e69","schema":"glyphwright.recording/1","step":12}
+{"command":"take iron-sword","events":"sha256:02abc37278754fcd46468b630e04a1111f3e13cea217b327618bd7710210ab1b","schema":"glyphwright.recording/1","step":13}
+{"command":"equip iron-sword","events":"sha256:3d3128c77af78f1236f1fede175cf70b07ac2ac97a995a2f4c04d99043872f79","schema":"glyphwright.recording/1","step":14}
+{"command":"move west","events":"sha256:983277a3d58ad9d56e8e433745618a274ecea7361f546871dcba2551c1fd1225","schema":"glyphwright.recording/1","step":15}
+{"command":"move west","events":"sha256:be2f01698947335e67cd0fe4bd899ac5792c7dbcfb88536ec8bf2ee8eb6b0dba","schema":"glyphwright.recording/1","step":16}
+{"command":"move west","events":"sha256:b262969a41755e6f438b99376212fc84cd7bf2d9146d419f906cdf25a37af518","schema":"glyphwright.recording/1","step":17}
+{"command":"attack goblin-1","events":"sha256:b66df742f60c93b223354eade2a6fe8fa17eb5571a89bc78e19b563901fe1e63","schema":"glyphwright.recording/1","step":18}
+{"command":"attack goblin-1","events":"sha256:c30ee03f4475146fb2dcd9b71aaafd0f3474d5ae89b5a619a303c9ba7843fb3a","schema":"glyphwright.recording/1","step":19}
+{"command":"attack goblin-1","events":"sha256:db6dcfec91ee30f14a21da7726d7c25fcd1fa772edb9e38127b503339bf4f9e4","schema":"glyphwright.recording/1","step":20}
+{"command":"move east","events":"sha256:166198ceb82c0f85398747588a04aefc02614d096a0e7ea6a4d56f7a56c315bb","schema":"glyphwright.recording/1","step":21}
+{"command":"move east","events":"sha256:7c876eaa328eb2af4705a53e9650edf42550420d09657c80bdce7bb59c6382e9","schema":"glyphwright.recording/1","step":22}
+{"command":"move east","events":"sha256:3862bff119b9c860b077db1ce5bb1da0e6c71f45657997f46fa176b850c2d504","schema":"glyphwright.recording/1","step":23}
+{"command":"move east","events":"sha256:68ebec85a2d10210fc90396c611894bef0c7c35bb00ec904a17cf9a814887d06","schema":"glyphwright.recording/1","step":24}
+{"command":"move down","events":"sha256:236317c46ab74e3d5a20a841944cf24f1e5e047ec17786786e4509faec56f1cf","schema":"glyphwright.recording/1","step":25}
+{"command":"move east","events":"sha256:5bca975bed349b4a756f1b1c45e7951696e8a2d3af4e80c6f684de3a0db017fd","schema":"glyphwright.recording/1","step":26}
+{"command":"flee","events":"sha256:2346acf5714c2a2f6f7353fadc819ca1b2010789ea06f5775d6081f9ca81dd4c","schema":"glyphwright.recording/1","step":27}

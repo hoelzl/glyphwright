@@ -14,17 +14,24 @@ uv run python scripts/check.py
 `scripts/check.py` is the only list of gates; `--list` prints it. CI runs the
 same script on Linux, macOS, and Windows for every supported Python version.
 
+The repository stores every text file with LF line endings
+(`.gitattributes`). On Windows, git may warn that "CRLF will be replaced by
+LF" when a tool wrote CRLF; the warning is harmless, and the commit gets LF.
+
 ## Slices, commits, and tags
 
 - Work proceeds in the slices of the [project brief](docs/project-brief.md).
   Each slice gets a plan in `docs/plans/active/` when it starts and moves to
-  `docs/plans/completed/` when it is done.
+  `docs/plans/completed/` when it is done. A change outside a slice needs no
+  plan; its PR description records it.
 - A plan is self-contained: a new session can continue from it alone. It keeps
   progress, surprises, and decisions current, plus a short setup log: what
   structure the slice added, what it deliberately did not add, and why.
 - One concern per commit, with a message that says why. The history of
   `AGENTS.md` and of the documentation map should read as a story.
-- Each finished slice gets a tag: `day-0`, then `s1` to `s5`.
+- Each finished slice gets a tag: `day-0`, then `s1` to `s5`. A snapshot the
+  course teaches from gets a course tag, `course-1` and onward. Tags are
+  never moved: a fix after a tag gets the next one.
 
 ## Working rules
 
