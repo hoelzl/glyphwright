@@ -147,14 +147,32 @@ def replay(pack: ContentPack, source: Iterable[str]) -> Replay:
             f"recorded under rules {header['rules']}, replaying under rules "
             f"{RULES}: the engine's behaviour changed since; re-record",
         )
+    other_pack: str | None = None
     if header["pack"] != pack.pack_id:
+        # A pack id changes with the content, and with ``Entity``'s shape;
+        # neither is behaviour. Replaying the steps anyway says whether the
+        # events changed as well, which decides between re-recording and a
+        # rules bump.
+        other_pack = (
+            f"recorded against pack {header['pack']!r}, "
+            f"replaying against {pack.pack_id!r}"
+        )
+    outcome = _replay_steps(pack, header["seed"], lines)
+    if other_pack is None:
+        return outcome
+    if outcome.ok:
         return _fail(
             0,
-            f"recorded against pack {header['pack']!r}, "
-            f"replaying against {pack.pack_id!r}",
+            f"{other_pack}; every step's events still match, so only the "
+            "pack changed: re-record",
         )
+    return _fail(
+        0, f"{other_pack}, and {outcome.problem}: the behaviour changed as well"
+    )
 
-    engine = Engine.new(pack, seed=header["seed"])
+
+def _replay_steps(pack: ContentPack, seed: int, lines: Iterator[str]) -> Replay:
+    engine = Engine.new(pack, seed=seed)
     steps = 0
     for raw in lines:
         expected = steps + 1

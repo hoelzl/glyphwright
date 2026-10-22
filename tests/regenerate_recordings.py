@@ -1,10 +1,14 @@
 """The pinned recording: a tour of the reference world that must replay.
 
-The tour takes and equips items, fights a battle to its end, flees another,
-and crosses the portal down to the warren. Replaying it is the tripwire of
-decision 0003: when a change alters what these commands produce, the pin
-test fails. If the change is deliberate, bump ``RULES`` in
-``src/glyphwright/harness/fingerprint.py``, then re-record and commit::
+The tour uses every verb: it looks, bumps into a wall, waits while hurt,
+takes, uses, and equips items, fights a battle to its end, crosses the portal
+down to the warren, and flees another battle there. A test keeps it using
+every verb, because the pin cannot notice a change to a verb it never uses.
+
+Replaying it is the tripwire of decision 0003: when a change alters what
+these commands produce, the pin test fails. If the change is deliberate,
+bump ``RULES`` in ``src/glyphwright/harness/fingerprint.py``, then re-record
+and commit::
 
     uv run python tests/regenerate_recordings.py
 """
@@ -16,17 +20,32 @@ from pathlib import Path
 
 from glyphwright.api import Engine, reference_pack
 from glyphwright.harness.recording import RecordingEngine
-from glyphwright.kernel.commands import Attack, Command, Equip, Flee, Move, Take, Use
+from glyphwright.kernel.commands import (
+    Attack,
+    Command,
+    Equip,
+    Flee,
+    Look,
+    Move,
+    Take,
+    Use,
+    Wait,
+)
 from glyphwright.kernel.state import MODE_BATTLE
 
 PIN = Path(__file__).resolve().parent / "recordings" / "reference-tour.jsonl"
 REGENERATE = "uv run python tests/regenerate_recordings.py"
 SEED = 2026
 
+# The player starts hurt, so `wait` and `use` both have something to do.
 _TO_THE_ITEMS: tuple[Command, ...] = (
+    Look(),
+    Move("north"),  # into the wall: accepted, and the turn passes
+    Wait(),
     Move("east"),
     Move("east"),
     Take("potion-minor"),
+    Use("potion-minor"),
     *(Move("east"),) * 3,
     *(Move("south"),) * 2,
     Take("iron-sword"),
