@@ -85,5 +85,5 @@ Available with `--harness`; they never pass a turn.
 | Error | When |
 |---|---|
 | `no_such_entity` | no entity has that id |
-| `no_such_path` | the path is not one of the paths above |
+| `no_such_path` | the path is not one of the paths above, or asks an actor's `hp` or `stats` of an entity that is not an actor, such as an item |
 | `no_such_stat` | the entity neither has nor is modified in that stat |

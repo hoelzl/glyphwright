@@ -180,6 +180,19 @@ def help_line(frame: SemanticFrame) -> str:
     return "commands: " + " | ".join((*verbs, "quit")) + "\n"
 
 
+def legend_line(frame: SemanticFrame) -> str:
+    """What each glyph on the map stands for; empty when there is no map.
+
+    The workshop dry run had to guess that ``/`` is the sword: the legend was
+    in every JSONL frame and nowhere in the transcript.
+    """
+    viewport = frame.viewport
+    if not isinstance(viewport, GridView):
+        return ""
+    entries = ", ".join(f"{glyph} {label}" for glyph, label in viewport.legend)
+    return f"map: {entries}\n"
+
+
 def run_session(
     engine: Engine, input_stream: TextIO, output: TextIO, *, harness: bool = False
 ) -> int:
@@ -187,10 +200,13 @@ def run_session(
 
     The command list is printed again whenever the verbs on offer change, so
     a new possibility, such as ``equip`` after taking a sword, is announced
-    rather than left for ``help`` to reveal.
+    rather than left for ``help`` to reveal. The map legend is printed at the
+    start, with ``help``, and whenever the player enters another area.
     """
     offered = engine.frame().commands.verb_names()
+    area = engine.frame().viewport.area
     output.write(help_line(engine.frame()))
+    output.write(legend_line(engine.frame()))
     output.write(render(engine.frame()) + "\n")
 
     while True:
@@ -203,6 +219,7 @@ def run_session(
             return 0
         if line == "help":
             output.write(help_line(engine.frame()))
+            output.write(legend_line(engine.frame()))
             continue
         if line.startswith(":"):
             if not harness:
@@ -232,3 +249,6 @@ def run_session(
         if result.frame.commands.verb_names() != offered:
             offered = result.frame.commands.verb_names()
             output.write(help_line(result.frame))
+        if result.frame.viewport.area != area:
+            area = result.frame.viewport.area
+            output.write(legend_line(result.frame))

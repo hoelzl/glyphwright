@@ -14,6 +14,10 @@ uv run python scripts/check.py
 `scripts/check.py` is the only list of gates; `--list` prints it. CI runs the
 same script on Linux, macOS, and Windows for every supported Python version.
 
+The repository stores every text file with LF line endings
+(`.gitattributes`). On Windows, git may warn that "CRLF will be replaced by
+LF" when a tool wrote CRLF; the warning is harmless, and the commit gets LF.
+
 ## Slices, commits, and tags
 
 - Work proceeds in the slices of the [project brief](docs/project-brief.md).
