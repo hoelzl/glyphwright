@@ -29,7 +29,9 @@ LF" when a tool wrote CRLF; the warning is harmless, and the commit gets LF.
   structure the slice added, what it deliberately did not add, and why.
 - One concern per commit, with a message that says why. The history of
   `AGENTS.md` and of the documentation map should read as a story.
-- Each finished slice gets a tag: `day-0`, then `s1` to `s5`.
+- Each finished slice gets a tag: `day-0`, then `s1` to `s5`. A snapshot the
+  course teaches from gets a course tag, `course-1` and onward. Tags are
+  never moved: a fix after a tag gets the next one.
 
 ## Working rules
 
