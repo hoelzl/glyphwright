@@ -18,7 +18,8 @@ same script on Linux, macOS, and Windows for every supported Python version.
 
 - Work proceeds in the slices of the [project brief](docs/project-brief.md).
   Each slice gets a plan in `docs/plans/active/` when it starts and moves to
-  `docs/plans/completed/` when it is done.
+  `docs/plans/completed/` when it is done. A change outside a slice needs no
+  plan; its PR description records it.
 - A plan is self-contained: a new session can continue from it alone. It keeps
   progress, surprises, and decisions current, plus a short setup log: what
   structure the slice added, what it deliberately did not add, and why.

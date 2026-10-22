@@ -2,8 +2,9 @@
 
 How a turn is computed: the world state, commands and events, the step
 function, the scheduler, modes and battle, items, and stats, plus the
-checklist for adding a command or an event. Read it before you change anything under `src/glyphwright/kernel/` or
-`src/glyphwright/modes/`.
+checklists for adding a command or an event, changing what a command does,
+and changing what the game says. Read it before you change anything under
+`src/glyphwright/kernel/` or `src/glyphwright/modes/`.
 
 ## Contents
 
@@ -16,6 +17,8 @@ checklist for adding a command or an event. Read it before you change anything u
 - [Items and stats](#items-and-stats)
 - [Rejections](#rejections)
 - [Adding a command or an event](#adding-a-command-or-an-event)
+- [Changing what a command does](#changing-what-a-command-does)
+- [Changing what the game says](#changing-what-the-game-says)
 
 ## The model
 
@@ -93,8 +96,10 @@ nothing.
   `attack`, `use`, `flee`, or `look`, and each foe strikes once per round, in
   initiative order. There is no map: the frame's viewport is a `MenuView`
   naming the combatants.
-- **A strike** (`src/glyphwright/effects/combat.py`) hits on d20 + `atk` >=
-  10 + `def` and does 1 to `atk` damage, less `def // 2`, at least 1.
+- **A strike** rolls to hit against the defender's `def`, then rolls damage
+  from the attacker's `atk`. The exact rules are in the docstring of `strike`
+  in `src/glyphwright/effects/combat.py`, next to the code, so a change to
+  them updates one place.
 - **Endings:** the battle pops with `victory` when no foe is left, `defeat`
   when the player reaches 0 hp, and `fled` when a flee's step breaks contact
   with every foe. A fled foe stays aggroed and chases. A defeated player has
@@ -147,3 +152,28 @@ in `VERBS` in `src/glyphwright/frontends/wire.py` (the decoder, the help
 line, the rejections, and the command reference all read it), and a handler
 arm and grammar entry in its mode. Then regenerate the command reference with
 `uv run python -m glyphwright.harness.reference`; a test fails until you do.
+
+## Changing what a command does
+
+A change to an existing rule, such as `wait` healing or a different damage
+roll, touches fewer files but needs more judgement, because no step may fail:
+
+1. write a test of the new behaviour first and watch it fail;
+2. change the handler in the mode, or the effect it calls;
+3. if the command now emits another event type, add it to the verb's
+   `events` in `VERBS` in `src/glyphwright/frontends/wire.py` and regenerate
+   the command reference; the grammar walks in `tests/test_properties.py`
+   fail until the list matches;
+4. update the docstring or page that states the rule;
+5. bump `RULES` in `src/glyphwright/harness/fingerprint.py` and re-record the
+   pin with `uv run python tests/regenerate_recordings.py`. Do this whenever
+   the same commands would produce different events, even if the pin still
+   replays: it only sees what its tour does.
+
+## Changing what the game says
+
+Every message is a template in `src/glyphwright/modes/messages.py`, one arm
+per event. A wording change alters frames, not events, so it needs no `RULES`
+bump and the pin still replays. The golden transcripts catch it instead:
+run `uv run python tests/regenerate_goldens.py`, review the diff, and search
+the tests and `docs/` for the old wording, such as example transcripts.

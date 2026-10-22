@@ -39,7 +39,8 @@ in the slice that ports the code it governs.
 
 - **Slices.** Work proceeds in the slices of the project brief. Each slice has
   a plan in `docs/plans/active/`; keep its progress, surprises, and decisions
-  current as you work.
+  current as you work. Between slices the folder is empty, and a change
+  outside a slice needs no plan: its PR description is the record.
 - **Port, don't rewrite.** Engine code comes from
   [v0 at commit `3ecc396`](https://github.com/hoelzl/glyphwright-v0/tree/3ecc396).
   Fix the v0 defects the brief lists inside the slice that ports the affected
@@ -59,7 +60,7 @@ in the slice that ports the code it governs.
 | Play a session, author a pack, add an item, pin behaviour with a replay | the matching skill in `.agents/skills/` |
 | The current slice | the plan in `docs/plans/active/` |
 | Play or drive a session: commands, rejections, `:query` | [`docs/knowledge/commands.md`](docs/knowledge/commands.md) |
-| Change the kernel, a mode, or an event | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |
+| Change the kernel, a mode, a rule, an event, or a message | [`docs/knowledge/kernel.md`](docs/knowledge/kernel.md) |
 | Record or replay a session; the pinned recording fails | [`docs/knowledge/replay-and-determinism.md`](docs/knowledge/replay-and-determinism.md) |
 | Change the loader or add a component | [`docs/knowledge/content-packs.md`](docs/knowledge/content-packs.md) |
 | Write or debug a content pack | [`docs/authoring/`](docs/authoring/README.md) |
@@ -74,7 +75,8 @@ in the slice that ports the code it governs.
 | Dependencies, supported Python versions | `pyproject.toml`, `uv.lock` |
 | Which gates run | `uv run python scripts/check.py --list` |
 | Do the Claude Code stubs still load their skills? | `uv run python scripts/probe_claude_stubs.py` |
-| Current work | the active plan, GitHub issues and PRs |
+| Wire shapes and their versions | `schemas/` (one file per shape), or the `schema` field of any JSONL line |
+| Current work | the active plan, if any; GitHub issues and PRs |
 
 ## Agent harnesses
 
