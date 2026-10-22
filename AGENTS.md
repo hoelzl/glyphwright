@@ -39,8 +39,9 @@ in the slice that ports the code it governs.
 
 - **Slices.** Work proceeds in the slices of the project brief. Each slice has
   a plan in `docs/plans/active/`; keep its progress, surprises, and decisions
-  current as you work. Between slices the folder is empty, and a change
-  outside a slice needs no plan: its PR description is the record.
+  current as you work. Between slices the folder does not exist (git keeps
+  no empty folder), and a change outside a slice needs no plan: its PR
+  description is the record.
 - **Port, don't rewrite.** Engine code comes from
   [v0 at commit `3ecc396`](https://github.com/hoelzl/glyphwright-v0/tree/3ecc396).
   Fix the v0 defects the brief lists inside the slice that ports the affected

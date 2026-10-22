@@ -98,6 +98,8 @@ class Healed:
 
     ``amount`` is what actually landed after clamping to ``max_hp``, because
     events are evidence of what happened, not of what was attempted.
+    ``source`` is the item that healed, or the target itself when nothing
+    else did, such as natural recovery.
     """
 
     target: EntityId

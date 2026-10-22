@@ -64,7 +64,7 @@ CLAUDE_MD_FALLBACK = "@AGENTS.md"
 #: Remove an entry in the change that creates the path.
 PLANNED: Mapping[str, str] = {
     ".claude/settings.json": "created once there are Claude-only settings",
-    "docs/plans/active/": "empty between slices; the next slice adds its plan",
+    "docs/plans/active/": "absent between slices; the next slice adds its plan",
 }
 
 #: Top-level directories a backticked repository path may start with.

@@ -86,7 +86,9 @@ the tour produces fails the suite. The pin only sees what the tour does: a
 test keeps the tour using every verb, but a rule that only fires in a
 situation the tour never reaches can still change unnoticed, so bump `RULES`
 whenever the same commands would produce different events, whether or not
-the pin fails. When it fails:
+the pin fails. If two branches each bump `RULES`, the second to merge
+conflicts in `RULES` or the pin: take the merged base's `RULES` plus one and
+re-record, so that no revision names two behaviours. When it fails:
 
 - **Behaviour changed on purpose:** bump `RULES`, run
   `uv run python tests/regenerate_recordings.py`, and commit both. A new

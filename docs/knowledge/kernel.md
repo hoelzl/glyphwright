@@ -164,7 +164,9 @@ roll, touches fewer files but needs more judgement, because no step may fail:
    `events` in `VERBS` in `src/glyphwright/frontends/wire.py` and regenerate
    the command reference; the grammar walks in `tests/test_properties.py`
    fail until the list matches;
-4. update the docstring or page that states the rule;
+4. update the docstring or page that states the rule; if the verb's
+   one-line summary in `VERBS` states it, change it there, since the command
+   reference is generated from it;
 5. bump `RULES` in `src/glyphwright/harness/fingerprint.py` and re-record the
    pin with `uv run python tests/regenerate_recordings.py`. Do this whenever
    the same commands would produce different events, even if the pin still

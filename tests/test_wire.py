@@ -68,7 +68,9 @@ def test_real_events_validate() -> None:
         for event in result.events:
             _validate(encode_event(event, turn=result.frame.turn))
             seen.add(event.type)
-    assert seen == {"Moved", "MoveBlocked", "TurnAdvanced"}
+    # A subset: the walk must reach these types, and a rule change that adds
+    # another event to these commands is no reason for this test to fail.
+    assert {"Moved", "MoveBlocked", "TurnAdvanced"} <= seen
 
 
 def test_an_event_with_another_types_field_is_invalid() -> None:

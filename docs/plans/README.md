@@ -4,7 +4,8 @@ One plan per slice of work. A plan lives in `active/` while its work runs and
 moves to `completed/` when the work is done, so the folder says whether a plan
 is current. Read the active plan before you continue its work.
 
-Between slices `active/` is empty. A change outside a slice, such as a fix
+Between slices there is no active plan, and git keeps no empty folder, so
+`active/` is absent. A change outside a slice, such as a fix
 found by using the engine, needs no plan; its PR description records what
 changed and why.
 
