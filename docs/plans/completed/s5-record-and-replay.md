@@ -74,8 +74,8 @@ The verdicts go in the setup log below.
 - [x] Skills: play-a-session, author-a-pack, add-an-item, pin-behavior-with-a-replay
 - [x] CI quickstart job
 - [x] Usability gate: agent run, owner run, CI
-- [ ] Owner review of the S5 pull request
-- [ ] Tag `s5` and the course tag; move this plan to `docs/plans/completed/`
+- [x] Owner review of the S5 pull request (merged as #6)
+- [x] Tag `s5` and the course tag `course-1`; move this plan to `docs/plans/completed/`
 
 ## Setup log
 
