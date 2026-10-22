@@ -73,7 +73,7 @@ The verdicts go in the setup log below.
 - [x] Replay-and-determinism page; `AGENTS.md` route
 - [x] Skills: play-a-session, author-a-pack, add-an-item, pin-behavior-with-a-replay
 - [x] CI quickstart job
-- [ ] Usability gate: agent run, owner run, CI
+- [x] Usability gate: agent run, owner run, CI
 - [ ] Owner review of the S5 pull request
 - [ ] Tag `s5` and the course tag; move this plan to `docs/plans/completed/`
 
@@ -104,7 +104,15 @@ The verdicts go in the setup log below.
   passed. It needed source code only for the engine task, as expected. It
   reported nine shortfalls in the guidance; all are fixed in the two commits
   after the CI job.
-- **Owner, item 1:** pending.
+- **Owner, item 1:** passed on 2026-10-22. Setup took about two minutes;
+  two games took a little over ten. Four findings, all fixed in one commit
+  after the gate: an item under the player was hidden by the player's glyph
+  and named nowhere; only a failed `take` said what could be taken; nothing
+  said a sword is equipped rather than used; and portal exits such as
+  `down` showed only after a move failed. Frames now carry `here` and the
+  open `exits`, a bare verb lists its choices, `use` on equipment points to
+  `equip`, and the plain frontend reprints the command list when it
+  changes.
 
 ## Decisions
 
@@ -130,5 +138,10 @@ The verdicts go in the setup log below.
 - **The skills held a volatile fact.** The play-a-session skill named
   versioned schema tags; the agent's change made them stale at once. That is
   rule A7, now a gate.
+- **The agent passed where the person stumbled.** The agent read the
+  grammar in every JSONL frame and never missed an item or an exit; the
+  plain transcript left the same grammar out as machine detail, and a
+  person playing by eye had nothing to read it from. The frame now says
+  what is here and where you can go, for both.
 - **The digests do not cover frames.** The first draft of decision 0003 said
   the pin caught frame changes; it does not, and the goldens do instead.
