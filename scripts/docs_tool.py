@@ -63,10 +63,7 @@ CLAUDE_MD_FALLBACK = "@AGENTS.md"
 #: Paths that documents may name before they exist, each with its reason.
 #: Remove an entry in the change that creates the path.
 PLANNED: Mapping[str, str] = {
-    ".agents/skills/": "created with the first skill",
-    ".claude/commands/": "generated once the first skill exists",
     ".claude/settings.json": "created once there are Claude-only settings",
-    "docs/plans/active/": "empty between slices; the next slice adds its plan",
 }
 
 #: Top-level directories a backticked repository path may start with.
@@ -509,6 +506,30 @@ def check_planned(root: Path) -> list[Problem]:
     ]
 
 
+#: A wire-schema tag with its version, such as `glyphwright.frame/3`.
+VERSIONED_TAG = re.compile(r"glyphwright\.[a-z]+/\d+")
+#: Dated records may name the versions of their day.
+DATED_RECORDS = ("docs/decisions/", "docs/plans/")
+
+
+def check_volatile_tags(root: Path, path: Path) -> list[Problem]:
+    """Versioned schema tags go stale in prose, so current pages omit them."""
+    where = rel(root, path)
+    if where.startswith(DATED_RECORDS):
+        return []
+    return [
+        Problem(
+            f"{where}:{number}",
+            f"versioned schema tag `{match.group()}`",
+            "no volatile facts in prose",
+            "name the shape without its version, such as `glyphwright.frame`; "
+            "the version lives in `schemas/` and in each line's `schema` field",
+        )
+        for number, line in enumerate(read(path).splitlines(), start=1)
+        for match in VERSIONED_TAG.finditer(line)
+    ]
+
+
 def check_page_shape(root: Path, path: Path) -> list[Problem]:
     """Return purpose-line and table-of-contents problems for one page."""
     where = rel(root, path)
@@ -717,6 +738,7 @@ def check(root: Path) -> list[Problem]:
     for path in markdown_files(root):
         problems += check_references(root, path)
         problems += check_page_shape(root, path)
+        problems += check_volatile_tags(root, path)
     problems += check_indexes(root)
     problems += check_skills(root)
     problems += check_stubs(root)

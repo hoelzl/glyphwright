@@ -23,7 +23,8 @@ from glyphwright.frontends.wire import (
     encode_frame,
     encode_rejection,
 )
-from glyphwright.harness.schema import REGENERATE, all_schemas, render
+from glyphwright.harness.fingerprint import header_problem
+from glyphwright.harness.schema import REGENERATE, all_schemas, render, session_schema
 from glyphwright.kernel.commands import Look, Move, Wait
 
 SCHEMA_DIR = Path(__file__).resolve().parents[1] / "schemas"
@@ -167,3 +168,36 @@ def test_verbs_with_arguments_have_a_rejection_vocabulary() -> None:
     for spec in VERBS:
         if spec.arguments:
             assert spec.reason and spec.options_hint and spec.empty_hint, spec.verb
+
+
+def _header() -> dict[str, Any]:
+    return dict(
+        Engine.new(reference_pack(), seed=1).fingerprint().header(harness=False)
+    )
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {},
+        {"rules": True},
+        {"rules": "1"},
+        {"seed": 1.5},
+        {"harness": 1},
+        {"schema": "glyphwright.session/1"},
+        {"extra": 1},
+    ],
+)
+def test_the_header_check_agrees_with_the_committed_schema(
+    change: dict[str, Any],
+) -> None:
+    # v0 finding H4: v0 never validated a recording's header.
+    header = _header() | change
+    valid = Draft202012Validator(session_schema()).is_valid(header)
+    assert (header_problem(header) is None) == valid
+
+
+def test_a_header_missing_a_key_is_refused_by_name() -> None:
+    header = _header()
+    del header["rules"]
+    assert header_problem(header) == "the session header lacks rules"

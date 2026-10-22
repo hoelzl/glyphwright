@@ -45,7 +45,7 @@ from glyphwright.kernel.events import (
     TurnAdvanced,
 )
 
-FRAME_SCHEMA = "glyphwright.frame/3"
+FRAME_SCHEMA = "glyphwright.frame/4"
 EVENT_SCHEMA = "glyphwright.event/3"
 REJECTION_SCHEMA = "glyphwright.rejection/1"
 QUERY_SCHEMA = "glyphwright.query/2"
@@ -98,6 +98,8 @@ def encode_frame(frame: SemanticFrame) -> dict[str, Any]:
             | ({"slot": item.slot} if item.slot is not None else {})
             for item in frame.inventory
         ],
+        "here": [{"id": item.id, "name": item.name} for item in frame.here],
+        "exits": list(frame.exits),
         "prompt": {"kind": frame.prompt.kind},
         "commands": encode_grammar(frame.commands),
     }
@@ -319,6 +321,33 @@ def encode_command(command: Command) -> str:
     rejection echo depends on it, and so will recordings.
     """
     return " ".join((command.verb, *command.args()))
+
+
+# What a bare verb asks for, by the name of its missing argument.
+_QUESTIONS = {"exit": "where", "item": "what", "target": "whom"}
+
+
+def missing_argument_hint(frame: SemanticFrame, text: str) -> str | None:
+    """The answer to a verb typed without its argument, such as ``take``.
+
+    It names the choices on offer now, so a player never has to guess an id.
+    For ``move`` that is the frame's open exits, not the grammar's, which
+    include walls. ``None`` if the line is not a bare verb that needs one.
+    """
+    match text.strip().split():
+        case [verb] if verb in VERB_SPECS and VERB_SPECS[verb].arguments:
+            spec = VERB_SPECS[verb]
+            argument = spec.arguments[0]
+            question = f"{verb} {_QUESTIONS.get(argument, 'what')}?"
+            domains = frame.commands.domains(verb)
+            choices = (
+                frame.exits if argument == "exit" else domains[0] if domains else ()
+            )
+            if choices:
+                return f"{question} {spec.options_hint}: {', '.join(choices)}"
+            return f"{question} {spec.empty_hint}"
+        case _:
+            return None
 
 
 def decode_command(text: str) -> Command | None:

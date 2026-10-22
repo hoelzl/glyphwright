@@ -21,9 +21,11 @@ uv run glyphwright
 
 Type `move east`, `take potion-minor`, `use potion-minor`, `look`, or `wait`;
 step next to a hostile and a battle starts, where you `attack`, `use`, or
-`flee`. `help` lists what is valid right now, and `quit` ends the session.
+`flee`. `help` lists what is valid right now, a verb alone, such as `take`,
+lists its choices, and `quit` ends the session.
 Every command is in the [command reference](docs/knowledge/commands.md).
-Every turn prints a block that opens with `== turn N | mode | area ==`.
+Every turn prints a block that opens with `== turn N | mode | area ==` and
+lists what lies `[here ...]` and the open `[exits ...]`.
 
 To play your own world, write a content pack and pass its directory with
 `--pack`; [`docs/authoring/`](docs/authoring/README.md) shows how.
@@ -33,6 +35,10 @@ object per line: a session header, then a frame after every command, with the
 events before it. Add `--harness` for the meta commands, such as
 `:query player.stats.atk --explain`, which shows a stat and every
 contribution to it. The JSON shapes are in `schemas/`.
+
+To check that a run is reproducible, record it with `--record run.jsonl` and
+verify it later with `--replay run.jsonl`; see
+[replay and determinism](docs/knowledge/replay-and-determinism.md).
 
 ## Working on GlyphWright
 

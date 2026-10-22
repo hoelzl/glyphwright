@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import functools
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
@@ -39,13 +39,14 @@ from glyphwright.kernel.commands import (
     Look,
     Move,
     Rejected,
+    Use,
     Wait,
 )
 from glyphwright.kernel.events import Event
 from glyphwright.kernel.rng import Rng
 from glyphwright.kernel.state import WorldState
 from glyphwright.kernel.step import step as _step
-from glyphwright.modes import exploration
+from glyphwright.modes import common, exploration
 
 __all__ = [
     "Command",
@@ -177,7 +178,7 @@ class Engine:
         return _query(self._state, path)
 
     def fingerprint(self) -> RunFingerprint:
-        """Engine version, pack id, seed, and turn."""
+        """Engine version, rules revision, pack id, seed, and turn."""
         return RunFingerprint.create(
             pack=self._pack_id, seed=self._seed, turn=self._state.turn
         )
@@ -196,6 +197,19 @@ class Engine:
         A rejection means the engine never ran the command: the turn does not
         advance and no events are emitted.
         """
+        rejection = self._check(command)
+        if (
+            isinstance(command, Use)
+            and rejection is not None
+            and rejection.reason == "not_usable"
+        ):
+            # Owner's gate run: "use sword" never said to equip it.
+            hint = common.why_not_usable(self._state, command.item)
+            if hint is not None:
+                return replace(rejection, hint=hint)
+        return rejection
+
+    def _check(self, command: Command) -> Rejected | None:
         if self._state.defeated and not isinstance(command, Look):
             # The one true reason: anything else would misdescribe the world.
             return Rejected(

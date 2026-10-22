@@ -4,4 +4,5 @@
 #....H#
 #######
 You go down.
+[exits east, south, up]
 [hp 17/20]

@@ -182,5 +182,39 @@ def test_the_inventory_is_on_the_wire_and_in_the_transcript() -> None:
         {"id": "sword", "name": "Sword", "slot": "weapon"},
     ]
     text = plain.render(frame)
-    assert text.splitlines()[-2] == "[carrying potion, sword (weapon)]"
+    assert text.splitlines()[-2] == "[carrying potion, sword (equipped: weapon)]"
     assert plain.parse(text) == plain.project(frame)
+
+
+def test_the_frame_says_what_lies_underfoot() -> None:
+    # Owner's gate run: the player's glyph hid the potion, and nothing said
+    # it was there.
+    from glyphwright.frames.frame import ItemSummary
+
+    engine = _engine()
+    assert engine.frame().here == (ItemSummary(id="potion", name="Potion"),)
+    assert engine.step(Take("potion")).frame.here == ()
+
+
+@pytest.mark.parametrize(
+    ("equip_first", "hint"),
+    [
+        (False, "sword is not used but equipped: equip sword"),
+        (
+            True,
+            "sword is already equipped as your weapon; "
+            "equipment works while it is worn",
+        ),
+    ],
+)
+def test_using_equipment_points_to_equip(equip_first: bool, hint: str) -> None:
+    # Owner's gate run: "use iron-sword" never said that equipping is how a
+    # sword is used.
+    engine = _engine()
+    engine.step(Move("east"))
+    engine.step(Take("sword"))
+    if equip_first:
+        engine.step(Equip("sword"))
+    rejection = engine.step(Use("sword")).rejection
+    assert rejection is not None
+    assert (rejection.reason, rejection.hint) == ("not_usable", hint)

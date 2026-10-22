@@ -123,3 +123,44 @@ def test_a_broken_pack_fails_with_a_located_diagnostic(tmp_path: Path) -> None:
     assert message == (
         "glyphwright: entities.toml:1: entity 'player': hp 9 is outside 0..5"
     )
+
+
+def test_a_recorded_session_replays_from_the_command_line(tmp_path: Path) -> None:
+    recording = tmp_path / "run.jsonl"
+    played = _run(["--record", str(recording)], b"move east\nmove south\nquit\n")
+    assert played.returncode == 0
+    # Rejected commands are not recorded, so the count says what was.
+    assert played.stderr.startswith(b"recorded 2 steps to ")
+    verified = _run(["--replay", str(recording)], b"")
+    assert verified.returncode == 0
+    assert verified.stdout == b"recording verified: 2 steps, turn 2\n"
+
+
+def test_a_recording_is_never_overwritten(tmp_path: Path) -> None:
+    recording = tmp_path / "run.jsonl"
+    recording.write_text("keep me", encoding="utf-8")
+    result = _run(["--record", str(recording)], b"quit\n")
+    assert result.returncode == 2
+    assert recording.read_text(encoding="utf-8") == "keep me"
+
+
+def test_a_diverging_replay_exits_1_with_the_reason(tmp_path: Path) -> None:
+    recording = tmp_path / "run.jsonl"
+    _run(["--record", str(recording)], b"move east\nquit\n")
+    lines = recording.read_text(encoding="utf-8").splitlines()
+    lines[1] = lines[1].replace("move east", "move north")
+    recording.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    result = _run(["--replay", str(recording)], b"")
+    assert result.returncode == 1
+    assert result.stdout.decode("utf-8") == (
+        "recording diverged after 0 steps: "
+        "step 1: 'move north' produced different events than recorded\n"
+    )
+
+
+@pytest.mark.parametrize("extra", [["--seed", "3"], ["--record", "other.jsonl"]])
+def test_replay_refuses_options_it_cannot_honour(
+    tmp_path: Path, extra: list[str]
+) -> None:
+    result = _run(["--replay", str(tmp_path / "run.jsonl"), *extra], b"")
+    assert result.returncode == 2

@@ -45,7 +45,8 @@ class ActorSummary:
 
 @dataclass(frozen=True, slots=True)
 class ItemSummary:
-    """An item the player carries; ``slot`` is set while it is worn."""
+    """An item in a frame, carried or lying here; ``slot`` is set while it is
+    worn."""
 
     id: EntityId
     name: str
@@ -135,3 +136,7 @@ class SemanticFrame:
     commands: CommandGrammar
     # v2 finding N13: v0's frames never said what the player carries.
     inventory: tuple[ItemSummary, ...] = ()
+    # Owner's gate run: an item under the player is hidden by the player's
+    # glyph, and a portal's exit showed nowhere until a move failed.
+    here: tuple[ItemSummary, ...] = ()
+    exits: tuple[str, ...] = ()

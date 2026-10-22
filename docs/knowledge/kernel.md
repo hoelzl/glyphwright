@@ -74,8 +74,9 @@ can be formed from it, and each verb has one argument domain per argument, so
 a harness can generate every valid command without knowing the rules.
 
 Domains come in two kinds. `move` offers every exit, walls included, because
-exits are topology and a failed move says why. Item verbs offer only what the
-command would work on, because a pointless `use` would destroy an item for
+exits are topology and a failed move says why; the frame's `exits` lists only
+the open ones, for a reader who wants the ways out. Item verbs offer only what
+the command would work on, because a pointless `use` would destroy an item for
 nothing.
 
 ## The scheduler and battle
@@ -110,8 +111,10 @@ nothing.
   the actor's base value, then every additive modifier, then every
   multiplicative one, then a clamp at zero. Each step records its source and
   the running value, which `:query <id>.stats.<stat> --explain` returns.
-- **Frames** carry the player's inventory, so the evidence says what is
-  carried without a query.
+- **Frames** carry the player's inventory and the items lying where the
+  player stands (`here`), so the evidence says what is carried and what is
+  underfoot without a query. The player's glyph covers its tile, so the map
+  alone cannot.
 
 ## Rejections
 
@@ -121,7 +124,7 @@ generated [command reference](commands.md#rejections).
 
 ## Adding a command or an event
 
-A new event type touches six places, and the type checker catches a missed
+A new event type touches seven places, and the type checker catches a missed
 `match` arm:
 
 1. the dataclass and the `Event` union in `src/glyphwright/kernel/events.py`;
@@ -130,7 +133,14 @@ A new event type touches six places, and the type checker catches a missed
 4. its encoding in `encode_event` in `src/glyphwright/frontends/wire.py`;
 5. its fields in `_EVENT_FIELDS` in `src/glyphwright/harness/schema.py`;
 6. a bumped `EVENT_SCHEMA` tag, then regenerate the schemas
-   (`uv run python -m glyphwright.harness.schema`), per decision 0002.
+   (`uv run python -m glyphwright.harness.schema`), per decision 0002;
+7. a sample of it in `SAMPLES` in `tests/test_combat_events.py`, which
+   checks that every event type validates on the wire.
+
+A bumped event tag changes every recorded digest, so it is a behaviour change:
+bump `RULES` and re-record the pin, as
+[replay and determinism](replay-and-determinism.md#the-rules-revision-and-the-pin)
+describes.
 
 A new command needs its dataclass in the `Command` union, one `VerbSpec` row
 in `VERBS` in `src/glyphwright/frontends/wire.py` (the decoder, the help

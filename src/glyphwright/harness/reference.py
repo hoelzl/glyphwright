@@ -32,7 +32,8 @@ GENERAL_REASONS: tuple[tuple[str, str, str], ...] = (
     (
         "unparsable",
         "the line is not a command at all (frontends)",
-        "the verbs valid now",
+        "the verbs valid now; for a verb without its argument, such as "
+        "`take`, its choices",
     ),
     (
         "harness_disabled",
@@ -74,8 +75,10 @@ def render() -> str:
         "",
         "The grammar in every frame lists which of these are valid right now,",
         "with one domain per argument. `move` offers every exit, walls included:",
-        "a blocked move still spends the turn and says why. Item commands offer",
-        "only items the command would work on.",
+        "a blocked move still spends the turn and says why. The frame's `exits`",
+        "lists only the open ones, portals included. Item commands offer only",
+        "items the command would work on, and the frame's `here` lists the items",
+        "lying where the player stands.",
         "",
         "| Command | What it does | Spends a turn | Events |",
         "|---|---|---|---|",

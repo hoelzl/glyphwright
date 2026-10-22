@@ -29,3 +29,29 @@ jobs:
           enable-cache: true
       - run: uv sync --locked
       - run: uv run python scripts/check.py
+
+  # The usability gate's human check, done mechanically: a new user's README
+  # quick start, with only uv installed, on every system.
+  quickstart:
+    name: quickstart / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Play the README quick start
+        shell: bash
+        run: |
+          uv sync
+          printf 'move east\nmove east\ntake potion-minor\nuse potion-minor\nlook\nwait\nhelp\nquit\n' \
+            | uv run glyphwright | tee session.txt
+          grep -qx 'You take potion-minor.' session.txt
+          grep -qx 'You recover 3 hp.' session.txt
+          grep -q '== turn 5 | exploration | village ==' session.txt
+          grep -q 'session ended' session.txt

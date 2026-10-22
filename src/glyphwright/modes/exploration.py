@@ -63,10 +63,7 @@ def available_commands(state: WorldState) -> CommandGrammar:
 
 
 def _takeable(state: WorldState) -> tuple[str, ...]:
-    at = state.entity(PLAYER).at()
-    if at is None:
-        return ()
-    return tuple(e.id for e in state.entities_at(at) if e.item is not None)
+    return tuple(item.id for item in common.items_here(state))
 
 
 def _equippable(state: WorldState) -> tuple[str, ...]:
@@ -146,6 +143,8 @@ def view(state: WorldState, events: tuple[Event, ...]) -> SemanticFrame:
         prompt=PromptSpec(kind="command"),
         commands=available_commands(state),
         inventory=common.carried(state),
+        here=common.items_here(state),
+        exits=common.open_exits(state),
     )
 
 

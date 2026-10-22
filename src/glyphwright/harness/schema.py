@@ -27,6 +27,7 @@ from glyphwright.frontends.wire import (
     REJECTION_SCHEMA,
 )
 from glyphwright.harness.fingerprint import SESSION_SCHEMA
+from glyphwright.harness.recording import RECORDING_SCHEMA
 from glyphwright.kernel.state import BATTLE_OUTCOMES
 
 REGENERATE = "uv run python -m glyphwright.harness.schema"
@@ -74,9 +75,26 @@ def session_schema() -> dict[str, Any]:
             {
                 "schema": {"const": SESSION_SCHEMA},
                 "engine": _STRING,
+                "rules": _INTEGER,
                 "pack": _STRING,
                 "seed": _INTEGER,
                 "harness": {"type": "boolean"},
+            }
+        ),
+    )
+
+
+def recording_schema() -> dict[str, Any]:
+    """One step of a recording; the first line is a session header."""
+    return _document(
+        RECORDING_SCHEMA,
+        "GlyphWright recorded step",
+        _object(
+            {
+                "schema": {"const": RECORDING_SCHEMA},
+                "step": {"type": "integer", "minimum": 1},
+                "command": _STRING,
+                "events": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
             }
         ),
     )
@@ -119,6 +137,8 @@ def frame_schema() -> dict[str, Any]:
                 "actors": _array(actor),
                 "messages": _array(_STRING),
                 "inventory": _array(item),
+                "here": _array(_object({"id": _STRING, "name": _STRING})),
+                "exits": _array(_STRING),
                 "prompt": _object({"kind": _STRING}),
                 "commands": commands,
             }
@@ -233,6 +253,7 @@ def all_schemas() -> dict[str, dict[str, Any]]:
     """Every wire schema, keyed by the filename it is committed under."""
     schemas = (
         session_schema(),
+        recording_schema(),
         frame_schema(),
         event_schema(),
         rejection_schema(),
@@ -265,5 +286,7 @@ def write(directory: Path) -> list[str]:
 
 
 if __name__ == "__main__":
-    for name in write(Path(sys.argv[1] if len(sys.argv) > 1 else "schemas")):
-        print(f"wrote schemas/{name}")
+    directory = Path(sys.argv[1] if len(sys.argv) > 1 else "schemas")
+    for name in write(directory):
+        done = "wrote" if (directory / name).is_file() else "removed"
+        print(f"{done} schemas/{name}")

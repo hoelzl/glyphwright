@@ -150,3 +150,46 @@ def test_an_unknown_meta_command_is_rejected_as_data() -> None:
         "unknown_meta",
         ":query <path> [--explain] | :seed | :frame [--json]",
     )
+
+
+def _plain(stdin: str) -> str:
+    output = io.StringIO()
+    plain.run_session(_engine(), io.StringIO(stdin), output)
+    return output.getvalue()
+
+
+def test_the_transcript_names_the_open_exits_and_what_lies_here() -> None:
+    # Owner's gate run: walls are left out, and the portal under the hole
+    # shows up as "down" before anyone tries it.
+    out = _plain("move east\nmove east\nquit\n")
+    assert "[exits east, south]" in out
+    assert "[here potion-minor]\n[exits east, west]" in out
+    walk = "".join(
+        f"move {token}\n" for token in ("east",) * 4 + ("south",) * 2 + ("east",) * 2
+    )
+    assert "[exits down, north, west]" in _plain(walk + "quit\n")
+
+
+def test_a_bare_verb_is_answered_with_its_choices() -> None:
+    out = _plain("take\nmove\nmove east\nmove east\ntake\nquit\n")
+    assert "? take what? there is nothing here to take" in out
+    assert "? move where? exits here: east, south" in out
+    assert "? take what? you can take: potion-minor" in out
+
+
+def test_the_command_list_is_reprinted_when_the_verbs_change() -> None:
+    out = _plain("move east\nmove east\nquit\n")
+    assert out.count("commands: ") == 2
+    assert "commands: move <exit> | look | wait | take <item> | quit" in out
+
+
+def test_jsonl_answers_a_bare_verb_with_its_choices() -> None:
+    rejection = _jsonl("take\nquit\n")[-1]
+    assert rejection["reason"] == "unparsable"
+    assert rejection["hint"] == "take what? there is nothing here to take"
+
+
+def test_jsonl_frames_carry_what_lies_here_and_the_open_exits() -> None:
+    frame = _jsonl("move east\nmove east\nquit\n")[-1]
+    assert frame["here"] == [{"id": "potion-minor", "name": "Minor Potion"}]
+    assert frame["exits"] == ["east", "west"]

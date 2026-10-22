@@ -221,3 +221,23 @@ def test_unknown_stub_mode_is_rejected() -> None:
 def test_an_empty_planned_folder_still_counts_as_planned(repo: Path) -> None:
     (repo / "docs/knowledge").mkdir()
     assert docs_tool.check_planned(repo) == []
+
+
+def test_a_versioned_schema_tag_in_a_current_page_fails(repo: Path) -> None:
+    write(
+        repo,
+        "docs/wire.md",
+        "# Wire\n\nWhat the stream says.\n\nA `glyphwright.frame/3` line.\n",
+    )
+    docs_tool.build(repo)
+    assert rules(docs_tool.check(repo)) == ["no volatile facts in prose"]
+
+
+def test_dated_records_may_name_versions(repo: Path) -> None:
+    write(
+        repo,
+        "docs/decisions/0009-x.md",
+        "# 0009 - X\n\nWhy X. Read it when Y.\n\nWe moved to `glyphwright.frame/3`.\n",
+    )
+    docs_tool.build(repo)
+    assert "no volatile facts in prose" not in rules(docs_tool.check(repo))
