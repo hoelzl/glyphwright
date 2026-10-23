@@ -85,4 +85,6 @@ that the course using this repository distributes with its materials.
   (*gate*) outside decision records and plans.
 - **When code and prose disagree, the code wins**; fix the prose in the same
   change. [D3]
-- **Decisions get a short record** in `docs/decisions/`. [E2]
+- **Decisions get a short record** in `docs/decisions/`. [E2] What a record
+  decided is never rewritten; a slip is fixed in place with a logged
+  revision (*gate*); see [Changing a record](docs/decisions/README.md#changing-a-record).

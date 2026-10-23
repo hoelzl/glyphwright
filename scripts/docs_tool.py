@@ -5,24 +5,27 @@ Usage:
     uv run python scripts/docs_tool.py build   # rewrite the generated views
     uv run python scripts/docs_tool.py check   # fail on any rule violation
 
-``build`` regenerates two kinds of derived view: the index block in every
-``README.md`` under ``docs/``, and one Claude Code command stub per skill in
-``.claude/commands/``. ``check`` writes nothing; it fails when a derived view
-is stale or a documentation rule is broken, and every message names the rule
-and the fix. The rules themselves are explained in ``CONTRIBUTING.md`` under
+``build`` regenerates three kinds of derived view: the index block in every
+``README.md`` under ``docs/``, one Claude Code command stub per skill in
+``.claude/commands/``, and the seals in ``docs/decisions/seals.json``, which
+record what each decision record said at its last logged revision.
+``check`` writes nothing; it fails when a derived view is stale or a
+documentation rule is broken, and every message names the rule and the fix.
+The rules themselves are explained in ``CONTRIBUTING.md`` under
 "Documentation rules"; this script is what enforces them.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
 import sys
 import unicodedata
 from collections.abc import Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
 
 BUILD_COMMAND = "uv run python scripts/docs_tool.py build"
@@ -347,6 +350,115 @@ def expected_stubs(root: Path, mode: str | None = None) -> dict[str, str]:
     return stubs
 
 
+# --- derived view 3: decision seals -----------------------------------------
+
+DECISIONS_DIR = "docs/decisions"
+SEALS = f"{DECISIONS_DIR}/seals.json"
+REVISIONS_HEADING = "## Revisions"
+_RECORD_NAME = re.compile(r"^\d{4}-.+\.md$")
+#: A revision entry opens with its date and the section it changed.
+_REVISION = re.compile(r"^- \*\*\d{4}-\d{2}-\d{2}\*\*, ([A-Z][A-Za-z ]*):")
+
+
+@dataclass(frozen=True)
+class Seal:
+    """What a decision record said when its last revision was accepted."""
+
+    record: str  # digest of everything above the Revisions section
+    decision: str  # digest of the Decision section alone
+    revisions: int  # entries in the Revisions section
+
+
+def record_files(root: Path) -> list[Path]:
+    folder = root / DECISIONS_DIR
+    if not folder.is_dir():
+        return []
+    return sorted(path for path in folder.glob("*.md") if _RECORD_NAME.match(path.name))
+
+
+def split_revisions(text: str) -> tuple[str, list[str]]:
+    """Return the record above its Revisions section, and that section's lines."""
+    body, found, log = text.partition(f"\n{REVISIONS_HEADING}\n")
+    return body, log.splitlines() if found else []
+
+
+def revision_entries(log: list[str]) -> list[str]:
+    return [line for line in log if line.startswith("- ")]
+
+
+def _section(body: str, heading: str) -> str:
+    _, _, rest = body.partition(f"\n## {heading}\n")
+    return rest.split("\n## ", 1)[0]
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.strip().encode("utf-8")).hexdigest()[:16]
+
+
+def seal_of(path: Path) -> Seal:
+    body, log = split_revisions(read(path))
+    return Seal(
+        _digest(body),
+        _digest(_section(body, "Decision")),
+        len(revision_entries(log)),
+    )
+
+
+def read_seals(root: Path) -> dict[str, Seal]:
+    path = root / SEALS
+    if not path.is_file():
+        return {}
+    return {name: Seal(**fields) for name, fields in json.loads(read(path)).items()}
+
+
+def reseal_refusal(old: Seal | None, path: Path) -> tuple[str, str] | None:
+    """Return ``(problem, fix)`` when *path* may not be resealed, else ``None``.
+
+    A record may change only together with a new revision entry, and its
+    Decision section only when that entry names it.
+    """
+    if old is None:
+        return None
+    new = seal_of(path)
+    if new.revisions < old.revisions:
+        return (
+            "a revision entry was removed",
+            "restore it; revision entries are never removed",
+        )
+    if new.record == old.record:
+        return None
+    if new.revisions == old.revisions:
+        return (
+            "the record changed without a revision entry",
+            f"add a dated entry under `{REVISIONS_HEADING}` that quotes the "
+            f"replaced text and says why, then run `{BUILD_COMMAND}`; to change "
+            "what was decided, write a record that supersedes this one instead",
+        )
+    added = revision_entries(split_revisions(read(path))[1])[old.revisions :]
+    named = {match.group(1) for line in added if (match := _REVISION.match(line))}
+    if new.decision != old.decision and "Decision" not in named:
+        return (
+            "the Decision section changed",
+            "write a record that supersedes this one; only if the edit cannot "
+            "change what any reader does, name `Decision` in the revision entry",
+        )
+    return None
+
+
+def expected_seals(root: Path) -> dict[str, Seal]:
+    """Reseal every record whose change is acceptable; keep the others' seals."""
+    seals = read_seals(root)
+    for path in record_files(root):
+        if reseal_refusal(seals.get(path.name), path) is None:
+            seals[path.name] = seal_of(path)
+    return seals
+
+
+def render_seals(seals: Mapping[str, Seal]) -> str:
+    fields = {name: asdict(seal) for name, seal in seals.items()}
+    return json.dumps(fields, indent=2, sort_keys=True) + "\n"
+
+
 # --- build ------------------------------------------------------------------
 
 
@@ -371,6 +483,12 @@ def build(root: Path) -> list[str]:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8", newline="\n")
             changed.append(path)
+    seals = root / SEALS
+    if record_files(root) or seals.is_file():
+        content = render_seals(expected_seals(root))
+        if not seals.is_file() or read(seals) != content:
+            seals.write_text(content, encoding="utf-8", newline="\n")
+            changed.append(SEALS)
     return changed
 
 
@@ -733,6 +851,57 @@ def check_plans(root: Path) -> list[Problem]:
     ]
 
 
+def check_decisions(root: Path) -> list[Problem]:
+    rule = "a decision record changes only with a logged revision"
+    seals = read_seals(root)
+    problems: list[Problem] = []
+    for path in record_files(root):
+        where = rel(root, path)
+        log = split_revisions(read(path))[1]
+        problems += [
+            Problem(
+                where,
+                f"revision entry {line[:40]!r}... does not open with its date "
+                "and section",
+                rule,
+                "start it with `- **YYYY-MM-DD**, Section:`, such as "
+                "`- **2026-10-23**, Context:`",
+            )
+            for line in revision_entries(log)
+            if not _REVISION.match(line)
+        ]
+        if any(line.startswith("## ") for line in log):
+            problems.append(
+                Problem(
+                    where,
+                    f"a section follows `{REVISIONS_HEADING}`",
+                    rule,
+                    f"keep `{REVISIONS_HEADING}` the record's last section",
+                )
+            )
+        refusal = reseal_refusal(seals.get(path.name), path)
+        if refusal is not None:
+            problems.append(Problem(where, refusal[0], rule, refusal[1]))
+    present = {path.name for path in record_files(root)}
+    problems += [
+        Problem(
+            f"{DECISIONS_DIR}/{name}",
+            "a sealed record is missing",
+            "decision records are superseded, not deleted",
+            "restore it; to retire a decision, write a record that supersedes "
+            "it and log the status change in the old one",
+        )
+        for name in seals
+        if name not in present
+    ]
+    seals_path = root / SEALS
+    if not problems and (present or seals_path.is_file()):
+        current = read(seals_path) if seals_path.is_file() else None
+        if current != render_seals(expected_seals(root)):
+            problems.append(Problem(SEALS, "stale decision seals", rule, STALE_FIX))
+    return problems
+
+
 def check(root: Path) -> list[Problem]:
     """Return every documentation rule violation under *root*."""
     problems = check_instruction_files(root) + check_planned(root)
@@ -744,6 +913,7 @@ def check(root: Path) -> list[Problem]:
     problems += check_skills(root)
     problems += check_stubs(root)
     problems += check_plans(root)
+    problems += check_decisions(root)
     return problems
 
 

@@ -241,3 +241,90 @@ def test_dated_records_may_name_versions(repo: Path) -> None:
     )
     docs_tool.build(repo)
     assert "no volatile facts in prose" not in rules(docs_tool.check(repo))
+
+
+RECORD = (
+    "# 0001 - X\n\nWhy X. Read it when Y.\n\n"
+    "## Context\n\nY happened, and Z.\n\n"
+    "## Decision\n\nDo X.\n\n"
+    "## Consequences\n\nX costs W.\n"
+)
+DECISION_RULE = "a decision record changes only with a logged revision"
+
+
+@pytest.fixture
+def sealed(repo: Path) -> Path:
+    write(repo, "docs/decisions/0001-x.md", RECORD)
+    docs_tool.build(repo)
+    assert docs_tool.check(repo) == []
+    return repo
+
+
+def revise(root: Path, old: str, new: str, entry: str | None = None) -> None:
+    path = root / "docs/decisions/0001-x.md"
+    text = docs_tool.read(path).replace(old, new)
+    if entry is not None:
+        text += f"\n## Revisions\n\n{entry}\n"
+    write(root, "docs/decisions/0001-x.md", text)
+    docs_tool.build(root)
+
+
+def test_an_edit_without_a_revision_entry_fails_and_is_not_resealed(
+    sealed: Path,
+) -> None:
+    revise(sealed, "Y happened, and Z.", "Y happened.")
+    problems = docs_tool.check(sealed)
+    assert rules(problems) == [DECISION_RULE]
+    assert "without a revision entry" in problems[0].message
+    assert "supersedes" in problems[0].fix
+
+
+def test_an_erratum_with_a_dated_entry_is_resealed(sealed: Path) -> None:
+    entry = '- **2026-10-23**, Context: was "Y happened, and Z."; Z did not.'
+    revise(sealed, "Y happened, and Z.", "Y happened.", entry)
+    assert docs_tool.check(sealed) == []
+
+
+def test_an_entry_must_open_with_its_date_and_section(sealed: Path) -> None:
+    revise(sealed, "Y happened, and Z.", "Y happened.", "- dropped Z")
+    assert "does not open with its date" in docs_tool.check(sealed)[0].message
+
+
+def test_changing_the_decision_needs_a_superseding_record(sealed: Path) -> None:
+    entry = '- **2026-10-23**, Context: was "Do X."; we do V now.'
+    revise(sealed, "Do X.", "Do V.", entry)
+    problems = docs_tool.check(sealed)
+    assert [problem.message for problem in problems] == ["the Decision section changed"]
+
+
+def test_an_entry_naming_the_decision_lets_a_wording_fix_through(
+    sealed: Path,
+) -> None:
+    entry = '- **2026-10-23**, Decision: was "Do X."; a typo, same meaning.'
+    revise(sealed, "Do X.", "Do X!", entry)
+    assert docs_tool.check(sealed) == []
+
+
+def test_revision_entries_are_never_removed(sealed: Path) -> None:
+    entry = '- **2026-10-23**, Context: was "Y happened, and Z."; Z did not.'
+    revise(sealed, "Y happened, and Z.", "Y happened.", entry)
+    revise(sealed, f"\n## Revisions\n\n{entry}\n", "")
+    assert "revision entry was removed" in docs_tool.check(sealed)[0].message
+
+
+def test_a_sealed_record_cannot_be_deleted(sealed: Path) -> None:
+    (sealed / "docs/decisions/0001-x.md").unlink()
+    docs_tool.build(sealed)
+    assert rules(docs_tool.check(sealed)) == [
+        "decision records are superseded, not deleted"
+    ]
+
+
+def test_a_new_record_without_a_seal_is_stale(sealed: Path) -> None:
+    write(sealed, "docs/decisions/0002-y.md", RECORD.replace("0001", "0002"))
+    seals = docs_tool.read(sealed / docs_tool.SEALS)
+    docs_tool.build(sealed)
+    write(sealed, docs_tool.SEALS, seals)
+    assert [problem.message for problem in docs_tool.check(sealed)] == [
+        "stale decision seals"
+    ]

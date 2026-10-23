@@ -1,0 +1,17 @@
+{
+  "0001-agent-harness-layout.md": {
+    "decision": "08344ce081f45aac",
+    "record": "2c97259fd37897c4",
+    "revisions": 0
+  },
+  "0002-wire-schema-versions.md": {
+    "decision": "25ed00dca353f778",
+    "record": "96cc52d6e98e41b4",
+    "revisions": 0
+  },
+  "0003-rules-revision.md": {
+    "decision": "30598b2fef6f9f59",
+    "record": "b3fc51d8367489ce",
+    "revisions": 0
+  }
+}
