@@ -17,7 +17,7 @@ requests, so replay's version check could never fire, and a behaviour change
 surfaced as a misleading "events diverged" (v0 findings H2 and H11).
 
 The release version cannot carry this. Releases happen when someone decides to
-publish; behaviour changes whenever a rule, a message, or a wire shape does.
+publish; behaviour changes whenever a rule or a wire shape does.
 
 ## Decision
 
@@ -44,3 +44,10 @@ publish; behaviour changes whenever a rule, a message, or a wire shape does.
 - The pin only covers what its script exercises, and only events. A change
   to frames alone, such as a message's wording, does not alter replay and
   needs no bump; the goldens catch it instead.
+
+## Revisions
+
+- **2026-10-23**, Context: was "behaviour changes whenever a rule, a
+  message, or a wire shape does". A message's wording changes frames, not
+  events, so it is not behaviour in this record's sense; the Consequences
+  already said so.
