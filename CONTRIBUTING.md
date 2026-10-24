@@ -30,8 +30,12 @@ LF" when a tool wrote CRLF; the warning is harmless, and the commit gets LF.
 - One concern per commit, with a message that says why. The history of
   `AGENTS.md` and of the documentation map should read as a story.
 - Each finished slice gets a tag: `day-0`, then `s1` to `s5`. A snapshot the
-  course teaches from gets a course tag, `course-1` and onward. Tags are
-  never moved: a fix after a tag gets the next one.
+  course teaches from gets a course tag, `course-1` and onward.
+- A tag is fixed once something depends on it: a recording that shows it,
+  or course material that names it and has reached learners. From then on,
+  a fix gets the next tag. Before that, a course tag may move while the
+  material that uses it is prepared; its message then names the commit it
+  left and why.
 
 ## Working rules
 
